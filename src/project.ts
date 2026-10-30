@@ -7,7 +7,7 @@
  */
 import { replay } from './log.ts';
 import type { Log } from './log.ts';
-import { DEFAULT_SETTINGS } from './model.ts';
+import { DEFAULT_DAY_START, DEFAULT_SETTINGS } from './model.ts';
 import type { Card, EventOf, Goal, Item, Settings } from './model.ts';
 
 export interface Library {
@@ -15,6 +15,8 @@ export interface Library {
   readonly cards: ReadonlyMap<string, Card>;
   readonly goals: ReadonlyMap<string, Goal>;
   readonly settings: Settings;
+  /** When each goal's current version was saved (epoch ms). Check-ins use it. */
+  readonly goalSetAt: ReadonlyMap<string, number>;
   /** Every review per card, oldest first. Includes retired and unknown cards. */
   readonly reviews: ReadonlyMap<string, readonly EventOf<'review'>[]>;
   /** Ungraded practice, oldest first. */
@@ -26,6 +28,7 @@ export function project(log: Log): Library {
   const items = new Map<string, Item>();
   const cards = new Map<string, Card>();
   const goals = new Map<string, Goal>();
+  const goalSetAt = new Map<string, number>();
   const reviews = new Map<string, EventOf<'review'>[]>();
   const activity: Library['activity'][number][] = [];
   let settings: Settings = DEFAULT_SETTINGS;
@@ -42,9 +45,10 @@ export function project(log: Log): Library {
           break;
         case 'goal-set':
           goals.set(e.goal.id, e.goal);
+          goalSetAt.set(e.goal.id, e.at);
           break;
         case 'settings-set':
-          settings = e.settings;
+          settings = { ...e.settings, dayStart: e.settings.dayStart ?? DEFAULT_DAY_START };
           break;
         case 'review': {
           const list = reviews.get(e.cardId);
@@ -63,7 +67,7 @@ export function project(log: Log): Library {
     undefined,
   );
 
-  return { items, cards, goals, settings, reviews, activity };
+  return { items, cards, goals, goalSetAt, settings, reviews, activity };
 }
 
 /** Sibling cards of an item (the item-to-cards link burying will use). */

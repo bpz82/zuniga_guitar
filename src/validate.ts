@@ -170,8 +170,23 @@ function goal(v: unknown, p: string) {
   };
 }
 
+function timeZone(v: unknown, path: string): string {
+  const s = str(v, path, 64, 1);
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: s });
+  } catch {
+    fail(path, 'must be a known IANA time zone, e.g. America/New_York');
+  }
+  return s;
+}
+
+function dayStart(v: unknown, p: string) {
+  const o = obj(v, p, ['timeZone', 'hour']);
+  return { timeZone: timeZone(o.timeZone, `${p}.timeZone`), hour: int(o.hour, `${p}.hour`, 0, 23) };
+}
+
 function settings(v: unknown, p: string) {
-  const o = obj(v, p, ['desiredRetention', 'windows']);
+  const o = obj(v, p, ['desiredRetention', 'windows'], ['dayStart']);
   const windows = list(
     o.windows,
     `${p}.windows`,
@@ -182,7 +197,11 @@ function settings(v: unknown, p: string) {
     WINDOW_IDS.length,
   );
   if (new Set(windows.map((w) => w.id)).size !== windows.length) fail(`${p}.windows`, 'window ids must be unique');
-  return { desiredRetention: retention(o.desiredRetention, `${p}.desiredRetention`), windows };
+  return {
+    desiredRetention: retention(o.desiredRetention, `${p}.desiredRetention`),
+    windows,
+    ...(o.dayStart === undefined ? {} : { dayStart: dayStart(o.dayStart, `${p}.dayStart`) }),
+  };
 }
 
 /** Validates an event body (no metadata). Returns a clean copy. */

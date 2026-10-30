@@ -101,14 +101,36 @@ export interface PracticeWindow {
   readonly start: string;
 }
 
-export interface Settings {
+/**
+ * When a practice day begins. Blake: 3:00am America/New_York (2026-10-30).
+ * Everything day-based uses it: FSRS's day counting, what is due "today",
+ * goal deadlines and expiry. Window times use the same time zone.
+ */
+export interface DayStart {
+  /** IANA time zone, e.g. "America/New_York". */
+  readonly timeZone: string;
+  /** Local hour the day starts, 0 to 23. */
+  readonly hour: number;
+}
+
+export const DEFAULT_DAY_START: DayStart = Object.freeze({ timeZone: 'America/New_York', hour: 3 });
+
+/** Settings as recorded in the log. `dayStart` may be absent in older events. */
+export interface SettingsInput {
   /** Default desired retention, 0.7 to 0.99. */
   readonly desiredRetention: number;
   readonly windows: readonly PracticeWindow[];
+  readonly dayStart?: DayStart;
+}
+
+/** Settings as the engine uses them: every field resolved. */
+export interface Settings extends SettingsInput {
+  readonly dayStart: DayStart;
 }
 
 export const DEFAULT_SETTINGS: Settings = Object.freeze({
   desiredRetention: 0.9,
+  dayStart: DEFAULT_DAY_START,
   windows: Object.freeze([
     Object.freeze({ id: 'morning', start: '07:00' }),
     Object.freeze({ id: 'before-work', start: '08:30' }),
@@ -133,7 +155,7 @@ export interface EventMeta {
 export interface ItemSet { readonly type: 'item-set'; readonly item: Item }
 export interface CardSet { readonly type: 'card-set'; readonly card: Card }
 export interface GoalSet { readonly type: 'goal-set'; readonly goal: Goal }
-export interface SettingsSet { readonly type: 'settings-set'; readonly settings: Settings }
+export interface SettingsSet { readonly type: 'settings-set'; readonly settings: SettingsInput }
 
 /** One graded rep of one card. The only event FSRS reads. */
 export interface Review {

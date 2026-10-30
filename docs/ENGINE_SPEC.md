@@ -64,6 +64,10 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **FSRS (2026-10-30, second round):** FSRS-6, from a pinned vendored copy of ts-fsrs v5.4.2 with its license (`vendor/ts-fsrs/VENDORED.md`).
 - **Runtime:** Node 22.18 or newer. Node 20 is end-of-life and not supported.
 - **Architecture principles** (`docs/IMPORTANT_architecture-principles.md`) are mandatory alongside the design sheet.
+- **Config in the log (2026-10-30, third round):** items, cards, goals and settings stay in the log as versioned events.
+- **Day boundary:** a practice day starts at 3:00am America/New_York (Blake wakes 3:30 to 4am, sleeps by midnight), stored as `settings.dayStart` in the log.
+- **ts-fsrs Date side effect:** left alone unless it causes a real problem.
+- **Goals layer choices awaiting Blake's review (checkpoint 3):** check-ins at 14, 7 and 2 days out; gig default retention 95%; gig final week = last 7 practice days; goal weight leans queue order as risk x (1 + weight).
 
 ## Knowingly NOT doing (v0.1)
 

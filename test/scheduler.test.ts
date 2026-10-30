@@ -234,3 +234,14 @@ test('after a 6-week break the backlog clears riskiest-first and spreads across 
   }
   assert.ok(days >= 3, `spread over ${days} days`);
 });
+
+test('pullForward: a review card can be pulled forward at most once per practice day', () => {
+  const w = writer().add(item('i1'), card('c1', 'i1'), card('c2', 'i1'));
+  w.rate('c1', 'easy', T0).rate('c2', 'easy', T0);
+  const now = T0 + 2 * DAY; // neither is due yet
+  w.rate('c2', 'good', now - 60 * MIN); // c2 already practiced today
+  const always = () => true;
+  const q = buildQueue(project(w.log), { now, pullForward: always });
+  assert.deepEqual(q.due.map((d) => d.memory.cardId), ['c1']);
+  assert.deepEqual(buildQueue(project(w.log), { now }).due, [], 'nothing due without the hook');
+});

@@ -12,7 +12,9 @@
 import { createEmptyCard, forgetting_curve, fsrs, Rating as FsrsRating, State } from '../vendor/ts-fsrs/dist/ts-fsrs.mjs';
 import type { Card as FsrsCard, FSRS, Grade } from '../vendor/ts-fsrs/dist/ts-fsrs.mjs';
 import type { Library } from './project.ts';
-import type { EventOf, Rating } from './model.ts';
+import { DEFAULT_DAY_START } from './model.ts';
+import type { DayStart, EventOf, Rating } from './model.ts';
+import { practiceClock, practiceDay } from './day.ts';
 
 /** Spec: 8 lapses flags a card and suggests a breakdown. Never suspends. */
 export const LEECH_LAPSES = 8;
@@ -64,16 +66,26 @@ function schedulerFor(retention: number): FSRS {
 
 /**
  * Replays one card's reviews (oldest first) into its memory state.
- * `retention` affects only `due`.
+ * `retention` affects only `due`. `dayStart` decides which reviews count as
+ * the same day (FSRS treats same-day repeats differently).
  */
-export function memoryOf(cardId: string, reviews: readonly EventOf<'review'>[], retention: number): Memory {
+export function memoryOf(
+  cardId: string,
+  reviews: readonly EventOf<'review'>[],
+  retention: number,
+  dayStart: DayStart = DEFAULT_DAY_START,
+): Memory {
   const f = schedulerFor(retention);
   const first = reviews[0];
-  if (first === undefined) {
+  const last = reviews.at(-1);
+  if (first === undefined || last === undefined) {
     return { cardId, phase: 'new', stability: 0, difficulty: 0, reps: 0, lapses: 0, lastReview: null, due: null, leech: false };
   }
-  let card: FsrsCard = createEmptyCard(new Date(first.at));
-  for (const r of reviews) card = f.next(card, new Date(r.at), GRADE[r.rating]).card;
+  // FSRS counts days by UTC date, so it is fed "practice clock" times whose
+  // UTC date is the practice day. Durations are unchanged.
+  let card: FsrsCard = createEmptyCard(new Date(practiceClock(first.at, dayStart)));
+  for (const r of reviews) card = f.next(card, new Date(practiceClock(r.at, dayStart)), GRADE[r.rating]).card;
+  const wait = card.due.getTime() - practiceClock(last.at, dayStart);
   return {
     cardId,
     phase: PHASE[card.state],
@@ -81,8 +93,8 @@ export function memoryOf(cardId: string, reviews: readonly EventOf<'review'>[], 
     difficulty: card.difficulty,
     reps: card.reps,
     lapses: card.lapses,
-    lastReview: card.last_review ? card.last_review.getTime() : null,
-    due: card.due.getTime(),
+    lastReview: last.at,
+    due: last.at + wait,
     leech: card.lapses >= LEECH_LAPSES,
   };
 }
@@ -101,6 +113,11 @@ export interface QueueOptions {
   readonly retentionFor?: (cardId: string) => number;
   /** Per-card priority weight, > 0. Default 1. Goals plug in here. */
   readonly weightFor?: (cardId: string) => number;
+  /**
+   * Makes a not-yet-due review card due today, e.g. so a set song is fresh
+   * for a gig. Goals plug in here. Read-only: it cannot change memory.
+   */
+  readonly pullForward?: (memory: Memory) => boolean;
 }
 
 export interface DueCard {
@@ -114,12 +131,14 @@ export interface DueCard {
 export interface Queue {
   /**
    * Due cards in the order to practice them: (re)learning steps first, by due
-   * time; then reviews by priority, riskiest first. A backlog after a break
+   * time; then reviews by priority, riskiest first. Steps are due at their
+   * exact time; reviews are due for the whole practice day they fall on, so
+   * a card due at 7pm is in that morning's session. A backlog after a break
    * is simply a long queue: take what fits today, the rest stays due and is
    * re-ranked tomorrow, so it spreads over the following days by itself.
    */
   readonly due: readonly DueCard[];
-  /** Never-reviewed active cards, in the order they were added. */
+  /** Never-reviewed active cards: higher weight first, then the order they were added. */
   readonly fresh: readonly string[];
   /** Active cards with 8+ lapses. Still scheduled; flagged for a breakdown. */
   readonly leeches: readonly string[];
@@ -131,22 +150,25 @@ export function buildQueue(library: Library, options: QueueOptions): Queue {
   const { now } = options;
   const retentionFor = options.retentionFor ?? (() => library.settings.desiredRetention);
   const weightFor = options.weightFor ?? (() => 1);
+  const pullForward = options.pullForward ?? (() => false);
+  const { dayStart } = library.settings;
+  const today = practiceDay(now, dayStart);
   const due: DueCard[] = [];
-  const fresh: string[] = [];
+  const fresh: { id: string; weight: number }[] = [];
   const leeches: string[] = [];
 
   for (const card of library.cards.values()) {
     if (card.retired) continue;
-    const memory = memoryOf(card.id, library.reviews.get(card.id) ?? [], retentionFor(card.id));
+    const memory = memoryOf(card.id, library.reviews.get(card.id) ?? [], retentionFor(card.id), dayStart);
+    const weight = weightFor(card.id);
+    if (!(weight > 0) || !Number.isFinite(weight)) throw new RangeError(`weight for ${card.id} must be a positive number`);
     if (memory.phase === 'new') {
-      fresh.push(card.id);
+      fresh.push({ id: card.id, weight });
       continue;
     }
     if (memory.leech) leeches.push(card.id);
-    if (memory.due === null || memory.due > now) continue;
+    if (!isDue(memory, now, today, dayStart, pullForward)) continue;
     const r = retrievability(memory, now) ?? 0;
-    const weight = weightFor(card.id);
-    if (!(weight > 0) || !Number.isFinite(weight)) throw new RangeError(`weight for ${card.id} must be a positive number`);
     due.push({ memory, retrievability: r, priority: (1 - r) * weight });
   }
 
@@ -158,7 +180,17 @@ export function buildQueue(library: Library, options: QueueOptions): Queue {
     return b.priority - a.priority || a.memory.due! - b.memory.due! || compareIds(a, b);
   });
 
-  return { due, fresh, leeches };
+  // Stable sort: equal weights keep the order cards were added.
+  fresh.sort((a, b) => b.weight - a.weight);
+  return { due, fresh: fresh.map((f) => f.id), leeches };
+}
+
+function isDue(memory: Memory, now: number, today: string, dayStart: DayStart, pullForward: (m: Memory) => boolean): boolean {
+  if (memory.due === null) return false;
+  if (STEP_PHASES.includes(memory.phase)) return memory.due <= now;
+  if (practiceDay(memory.due, dayStart) <= today) return true;
+  // Pulled forward at most once per practice day.
+  return memory.lastReview !== null && practiceDay(memory.lastReview, dayStart) < today && pullForward(memory);
 }
 
 function compareIds(a: DueCard, b: DueCard): number {
