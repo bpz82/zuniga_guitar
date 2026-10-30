@@ -15,6 +15,6 @@ $RUN "$BIN/initdb" -D "$DIR/data" -U postgres -A trust >/dev/null
 $RUN "$BIN/pg_ctl" -D "$DIR/data" -o "-k $DIR -c listen_addresses=''" -l "$DIR/log" -w start >/dev/null
 PSQL="$RUN $BIN/psql -h $DIR -U postgres -d postgres -v ON_ERROR_STOP=1 -q"
 $PSQL -f "$ROOT/test/sql/supabase-stubs.sql"
-$PSQL -f "$ROOT/supabase/migrations/20261030000000_init.sql"
+for f in "$ROOT"/supabase/migrations/*.sql; do $PSQL -f "$f"; done  # in name order, as Supabase applies them
 $PSQL -o /dev/null -f "$ROOT/test/sql/rls.test.sql"
 echo "SQL tests passed"

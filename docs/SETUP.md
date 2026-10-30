@@ -33,7 +33,8 @@ Dashboards change now and then. If a menu name differs slightly, use the nearest
 1. **SQL Editor**, **New query**.
 2. On GitHub, open `supabase/migrations/20261030000000_init.sql`, click **Raw**, select all, copy, paste into the editor.
 3. **Run**. Expect "Success. No rows returned."
-4. Check: **Table Editor** shows `events`, `nudges`, `push_subscriptions`, each with RLS enabled.
+4. Do the same with every later file in `supabase/migrations/`, in name order. Today that is `20261030232900_service_role_grants.sql`: without it the reminder sender fails with "permission denied for table nudges". (Already applied by hand on the live project on 2026-10-30; running it again is harmless.)
+5. Check: **Table Editor** shows `events`, `nudges`, `push_subscriptions`, each with RLS enabled.
 
 ## 3. Sign-in by email code
 
@@ -42,11 +43,12 @@ On iPhone, a sign-in *link* opens Safari, not the Home Screen app, so the app us
 1. **Authentication**, then **Sign In / Providers** (or **Providers**): make sure **Email** is enabled.
 2. **Authentication**, **Emails** (or **Email Templates**). In both the **Magic Link** and **Confirm signup** templates, add this line near the top and save:
    `Your sign-in code: {{ .Token }}`
-3. Supabase's built-in email sends only a few messages per hour. Fine for tonight; set up your own email sender before customers.
+3. The code length is a project setting. **On the live project it is 8 digits**; the app accepts 6 to 10, so nothing needs changing.
+4. Supabase's built-in email sends only a few messages per hour. The live project sends through Gmail SMTP instead (see Troubleshooting if codes stop arriving). Use a real email service before customers.
 
 ## 4. Put the app on Vercel (first deploy)
 
-1. vercel.com, sign in with GitHub, **Add New**, **Project**, import `bpz82/zuniga_guitar`.
+1. vercel.com, sign in with GitHub, **Add New**, **Project**, import `bpz82/zuniga_guitar`. The live Vercel project is named **`zuniga_guitar`**.
 2. Framework preset **Other**. Leave build settings alone (`vercel.json` sets them). **Deploy**.
 3. Note the address, e.g. `https://zuniga-guitar.vercel.app`. Below, this is **APP**.
 4. Supabase: **Authentication**, **URL Configuration**: **Site URL** = APP; add APP under **Redirect URLs**.
@@ -132,11 +134,20 @@ Laptop: open APP in Chrome, Edge or Safari, sign in with a code, **Allow notific
 
 If nothing arrives: check `push_subscriptions` has a row for the phone, the function's **Logs** for the minute, and that **Settings** shows `"notifications": true`.
 
-## Before real customers
+## Troubleshooting
 
-- Remove `setup-keys.html` from the public site (or keep keys made only once and delete the page).
-- Paid Supabase plan (free projects pause after about a week of low activity) and a real email sender.
-- Self-service account deletion.
+**Sign-in codes stop arriving.** Supabase **Authentication**, **Logs** shows `535 BadCredentials` on `POST /otp`.
+Cause: the project sends email through Gmail SMTP with a Google *app password*, and Google deletes all app passwords when 2-Step Verification is turned off on that Google account.
+Fix: turn 2-Step Verification back on, create a new app password (Google Account, **Security**, **App passwords**), save it in the password manager, and paste it into Supabase **Authentication**, **Emails**, **SMTP Settings**, **Password**. Never into a chat. Then request a new code.
+
+**Reminders fail with "permission denied for table nudges".** The grants migration is missing; run `supabase/migrations/20261030232900_service_role_grants.sql` (step 2).
+
+## Before real customers (checklist)
+
+- [ ] **TODO: remove `setup-keys.html` before shipping to customers.** It is a one-time setup tool and should not be on a customer-facing site. Not deleted yet: it stays until Blake approves its removal. File: `harness/static/setup-keys.html`.
+- [ ] Paid Supabase plan (free projects pause after about a week of low activity).
+- [ ] A real email service instead of Gmail SMTP (sending limits; the app-password failure above).
+- [ ] Self-service account deletion.
 
 ## Appendix: command-line route for step 7
 

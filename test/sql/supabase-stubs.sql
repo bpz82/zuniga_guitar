@@ -10,7 +10,10 @@ create function auth.uid() returns uuid language sql stable as $$
 $$;
 grant usage on schema auth, public to anon, authenticated, service_role;
 grant execute on function auth.uid() to anon, authenticated;
--- Supabase's default privileges: everything granted on new public tables.
-alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+-- Supabase's default privileges for the API roles on new public tables.
+-- service_role gets NO default table rights here: on the live project the
+-- reminder sender failed with "permission denied for table nudges" until it
+-- was granted explicitly (2026-10-30), so tests must not assume them.
+alter default privileges in schema public grant all on tables to anon, authenticated;
+alter default privileges in schema public grant all on sequences to anon, authenticated;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;

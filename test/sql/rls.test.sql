@@ -100,6 +100,22 @@ set role anon;
 select pg_temp.expect_error($$select public.replace_nudges('[]')$$, 'anon cannot plan reminders');
 reset role;
 
+-- ------------------------------------------- reminder sender (service_role)
+-- Exactly what supabase/functions/_shared/rest-db.ts does, and no more.
+select pg_temp.expect(has_table_privilege('service_role', 'public.nudges', 'SELECT'), 'sender can read reminders');
+select pg_temp.expect(has_table_privilege('service_role', 'public.nudges', 'UPDATE'), 'sender can mark reminders sent');
+select pg_temp.expect(has_table_privilege('service_role', 'public.push_subscriptions', 'SELECT'), 'sender can read devices');
+select pg_temp.expect(has_table_privilege('service_role', 'public.push_subscriptions', 'DELETE'), 'sender can drop expired devices');
+select pg_temp.expect(not has_table_privilege('service_role', 'public.events', 'SELECT'), 'sender never reads the practice log');
+select pg_temp.expect(not has_table_privilege('service_role', 'public.nudges', 'DELETE'), 'sender cannot delete reminders');
+select pg_temp.expect(not has_table_privilege('service_role', 'public.push_subscriptions', 'INSERT'), 'sender cannot add devices');
+set role service_role;
+select id from public.nudges where sent_at is null and at <= now() order by at limit 1000;
+update public.nudges set sent_at = now() where id in (select id from public.nudges where sent_at is null);
+select user_id, endpoint, p256dh, auth from public.push_subscriptions;
+delete from public.push_subscriptions where endpoint = 'https://web.push.apple.com/no-such-device';
+reset role;
+
 -- --------------------------------------------------------- account deletion
 delete from auth.users where id = :alice;
 select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 0, 'deleting the account deletes the log');

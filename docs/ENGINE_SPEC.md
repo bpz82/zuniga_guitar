@@ -92,3 +92,4 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Self-service account deletion button | Deleting a user in Supabase Auth already removes all their data (tested). A button needs a server function and a confirm flow; add before public launch. |
 | Moving a signed-out device's practice into a new account | Local-only practice stays in its own local database. Export then Restore moves it. |
 | Product UI | Built separately against `docs/API.md`; the harness is deliberately bare. |
+| Removing `setup-keys.html` | Needed only for setup. On the pre-customer checklist in `docs/SETUP.md`; removal waits for Blake's yes. |
