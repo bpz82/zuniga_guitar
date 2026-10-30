@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Setup keys</title>
+  <style>body{font-family:system-ui,sans-serif;max-width:44rem;margin:0 auto;padding:1rem}textarea{width:100%;font-family:monospace;height:3.2rem}b{color:#b00}</style>
+</head>
+<body>
+  <h1>One-time setup keys</h1>
+  <p>Makes the push keys and cron secret <b>in this browser only</b>. Nothing is sent anywhere or saved. Copy each value straight into your password manager and the Supabase dashboard, then close this tab. <b>Never paste them into a chat.</b> Reloading makes new, different keys.</p>
+  <p><label>VAPID_PUBLIC_KEY (public: Supabase function secret and Vercel variable <code>ZG_VAPID_PUBLIC_KEY</code>)<textarea id="pub" readonly></textarea></label></p>
+  <p><label>VAPID_PRIVATE_KEY (<b>secret</b>: Supabase function secret only)<textarea id="priv" readonly></textarea></label></p>
+  <p><label>CRON_SECRET (<b>secret</b>: Supabase function secret and the schedule SQL only)<textarea id="cron" readonly></textarea></label></p>
+  <script>
+    // Same as scripts/vapid-keys.mjs, using the browser's built-in crypto.
+    const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    (async () => {
+      const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign']);
+      document.getElementById('pub').value = b64url(await crypto.subtle.exportKey('raw', pair.publicKey));
+      document.getElementById('priv').value = (await crypto.subtle.exportKey('jwk', pair.privateKey)).d;
+      document.getElementById('cron').value = b64url(crypto.getRandomValues(new Uint8Array(32)));
+    })();
+  </script>
+</body>
+</html>

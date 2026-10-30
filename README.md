@@ -17,7 +17,8 @@ npm install            # dev tools for the rest
 npm run typecheck
 npm run test:sql       # database security rules on a throwaway Postgres 16 (needs Postgres installed)
 npm run test:browser   # the built harness in headless Chromium (needs Playwright)
-npm run build          # harness into public/ (Vercel runs this)
+npm run build          # app into public/ (Vercel runs this; public connection comes from ZG_* env vars)
+npm run bundle:function  # one-file reminder function for the Supabase dashboard editor
 ```
 
 Setting up Supabase, Vercel and push reminders: [`docs/SETUP.md`](docs/SETUP.md).

@@ -32,6 +32,7 @@ type Client = SupabaseLike & {
   auth: {
     getSession(): Promise<{ data: { session: { user: { id: string; email?: string } } | null } }>;
     signInWithOtp(a: { email: string; options: { emailRedirectTo: string } }): Promise<{ error: { message: string } | null }>;
+    verifyOtp(a: { email: string; token: string; type: 'email' }): Promise<{ error: { message: string } | null }>;
     signOut(): Promise<unknown>;
   };
 };
@@ -45,7 +46,11 @@ const read = <T>(key: string, fallback: T): T => {
   }
 };
 const deviceId = read<string>('zg-device', '') || (localStorage.setItem('zg-device', JSON.stringify(crypto.randomUUID())), read('zg-device', ''));
-let config = read<Config>('zg-config', {});
+/** Public connection settings baked in at build time (Vercel env), if any. */
+declare const __ZG_CONFIG__: Config;
+const BUILT_IN: Config = typeof __ZG_CONFIG__ === 'object' ? __ZG_CONFIG__ : {};
+const builtIn = Boolean(BUILT_IN.supabaseUrl && BUILT_IN.publishableKey);
+let config: Config = builtIn ? BUILT_IN : read<Config>('zg-config', {});
 let client: Client | null = null;
 let userId = 'local';
 let replica!: Replica;
@@ -152,6 +157,7 @@ function render() {
       return label;
     }),
   );
+  $('connection').hidden = builtIn;
   ($('cfg-url') as HTMLInputElement).value = config.supabaseUrl ?? '';
   ($('cfg-key') as HTMLInputElement).value = config.publishableKey ?? '';
   ($('cfg-vapid') as HTMLInputElement).value = config.vapidPublicKey ?? '';
@@ -164,7 +170,8 @@ async function enableNotifications() {
   if (!('PushManager' in window)) return say('This browser cannot receive push here. On iPhone: Share, then Add to Home Screen, and open it from there.');
   if ((await Notification.requestPermission()) !== 'granted') return say('Notifications not allowed.');
   const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: config.vapidPublicKey });
+  const key = Uint8Array.from(atob(config.vapidPublicKey.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
   const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
   const { error } = await client.rpc('save_push_subscription', { p_endpoint: json.endpoint, p_p256dh: json.keys.p256dh, p_auth: json.keys.auth });
   if (error) return say(`Could not register this device: ${error.message}`);
@@ -210,8 +217,18 @@ function wire() {
   $('sign-in').onclick = async () => {
     if (!config.supabaseUrl) return say('Save the Supabase settings first.');
     const c = await supabaseClient();
-    const { error } = await c.auth.signInWithOtp({ email: ($('email') as HTMLInputElement).value, options: { emailRedirectTo: location.origin } });
-    say(error ? error.message : 'Check your email for the sign-in link.');
+    const { error } = await c.auth.signInWithOtp({ email: ($('email') as HTMLInputElement).value.trim(), options: { emailRedirectTo: location.origin } });
+    say(error ? error.message : 'Check your email. Type the code below (on iPhone, use the code, not the link).');
+  };
+  // The code, not the link: on iPhone a link opens Safari, which is separate
+  // from the Home Screen app, so the app itself would never be signed in.
+  $('verify').onclick = async () => {
+    const token = ($('code') as HTMLInputElement).value.replace(/\s/g, '');
+    if (!/^\d{6,10}$/.test(token)) return say('Enter the code from the email.');
+    const c = await supabaseClient();
+    const { error } = await c.auth.verifyOtp({ email: ($('email') as HTMLInputElement).value.trim(), token, type: 'email' });
+    if (error) return say(error.message);
+    location.reload();
   };
   $('sign-out').onclick = async () => {
     await client?.auth.signOut();

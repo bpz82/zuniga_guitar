@@ -208,4 +208,4 @@ A module that touches another module's data, uses an undeclared template, sends 
 
 ## Test harness
 
-`harness/` is a bare page (no design) that exercises everything: sessions, the test deck, "I played", settings, notification toggles, sign-in, sync, backup. `npm run build` writes it to `public/` for Vercel; `npm run test:browser` checks it in headless Chromium.
+`harness/` is a bare page (no design) that exercises everything: sessions, the test deck, "I played", settings, notification toggles, sign-in by emailed code, sync, backup. `npm run build` writes it to `public/` for Vercel, with the public Supabase connection built in from `ZG_SUPABASE_URL`, `ZG_SUPABASE_PUBLISHABLE_KEY` and `ZG_VAPID_PUBLIC_KEY` (secret keys are refused). `npm run test:browser` checks it in headless Chromium.

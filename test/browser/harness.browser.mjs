@@ -87,6 +87,26 @@ try {
   await context.setOffline(false);
   step('works offline after the first visit (service worker shell + local data)');
 
+  await page.fill('#email', 'blake@example.com');
+  await page.fill('#code', 'abc');
+  await page.click('#verify');
+  assert.match(await status(), /Enter the code/);
+  step('sign-in by typed email code checks the code first');
+
+  const keys = await context.newPage();
+  const requests = [];
+  keys.on('request', (r) => requests.push(r.url()));
+  await keys.goto(`${url}setup-keys.html`);
+  await keys.waitForFunction(() => document.getElementById('cron').value.length > 0);
+  const [pub, priv, cron] = await Promise.all(['#pub', '#priv', '#cron'].map((id) => keys.inputValue(id)));
+  assert.equal(Buffer.from(pub, 'base64url').length, 65);
+  assert.equal(Buffer.from(pub, 'base64url')[0], 4, 'uncompressed P-256 point');
+  assert.equal(Buffer.from(priv, 'base64url').length, 32);
+  assert.equal(Buffer.from(cron, 'base64url').length, 32);
+  assert.deepEqual(requests, [`${url}setup-keys.html`], 'keys are made locally; nothing is sent');
+  await keys.close();
+  step('setup-keys page makes valid keys in the browser and sends nothing');
+
   assert.deepEqual(errors, []);
   step('no page errors');
   console.log('browser tests passed');

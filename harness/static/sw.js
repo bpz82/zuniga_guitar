@@ -1,5 +1,5 @@
 // Service worker: offline app shell, and showing reminders.
-const SHELL = 'zg-shell-v1';
+const SHELL = 'zg-shell-v2';
 const FILES = ['./', './index.html', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

@@ -1,94 +1,107 @@
-# Setup: Supabase, Vercel and push reminders
+# Setup: Supabase, Vercel and push reminders (browser only)
 
-For Blake. About 45 minutes, once. Everything here is free-tier.
+Everything below is done in a web browser: no terminal needed. About 45 minutes, once. Free tier.
 
-**The one rule: no key, password or secret ever goes into a chat, an email, a GitHub file or the app.** Secrets go only into the Supabase dashboard and your password manager. Where a step shows a value, it appears on your own screen.
+**The one rule: no key, password or secret ever goes into a chat, an email, a GitHub file or the app.** Secrets go only into the Supabase dashboard and a password manager.
 
-Supabase's dashboard changes now and then. If a menu name below differs slightly, look for the nearest match.
+Dashboards change now and then. If a menu name differs slightly, use the nearest match.
 
-## What you will have at the end
+## What you need before starting
 
-| Thing | Public or secret | Where it lives |
+- A GitHub account with access to `bpz82/zuniga_guitar` (main must be at the commit with this file).
+- An email address to put on push messages as the contact (`VAPID_SUBJECT`), e.g. a support address.
+- Blake's iPhone on **iOS 16.4 or newer** (needed for push to Home Screen apps).
+
+| Value | Public or secret | Where it goes |
 |---|---|---|
-| Supabase project URL | Public | App settings, Vault |
-| Supabase publishable key (older projects: "anon" key) | Public | App settings |
-| Supabase secret / service-role key | **Secret** | Nowhere you type it: Supabase gives it to the function automatically |
-| Database password | **Secret** | Your password manager only |
-| VAPID public key | Public | App settings, function secrets |
-| VAPID private key | **Secret** | Function secrets only |
-| Cron secret | **Secret** | Function secrets and Vault only |
+| Supabase project URL | Public | Vercel variable, schedule SQL |
+| Supabase publishable key (may be labeled "anon public") | Public | Vercel variable |
+| VAPID public key | Public | Vercel variable, Supabase function secret |
+| VAPID private key | **Secret** | Supabase function secret only |
+| Cron secret | **Secret** | Supabase function secret, schedule SQL (in the editor) |
+| Database password | **Secret** | Password manager only |
+| Supabase secret / service-role key | **Secret** | Nowhere: Supabase gives it to the function itself |
 
 ## 1. Create the Supabase project
 
-1. Go to supabase.com and sign in with GitHub.
-2. **New project**. Name: `zuniga-guitar`. Choose the region nearest your users (US East for you).
-3. It asks for a database password: use **Generate a password**, then save it in your password manager. You will not need it for anything below.
-4. Wait for the project to finish setting up.
+1. supabase.com, sign in with GitHub, **New project**. Name `zuniga-guitar`, region **US East**.
+2. Database password: **Generate a password** and save it in the password manager. Nothing below needs it.
+3. Wait until the project is ready.
 
-## 2. Create the database tables
+## 2. Create the tables
 
-1. In the project, open **SQL Editor**, then **New query**.
-2. Open `supabase/migrations/20261030000000_init.sql` from the repo on GitHub, copy all of it, and paste it into the editor.
-3. Click **Run**. It should say "Success. No rows returned."
-4. Check: **Table Editor** now shows `events`, `nudges` and `push_subscriptions`, each marked with RLS enabled.
+1. **SQL Editor**, **New query**.
+2. On GitHub, open `supabase/migrations/20261030000000_init.sql`, click **Raw**, select all, copy, paste into the editor.
+3. **Run**. Expect "Success. No rows returned."
+4. Check: **Table Editor** shows `events`, `nudges`, `push_subscriptions`, each with RLS enabled.
 
-## 3. Make your keys (on your own computer)
+## 3. Sign-in by email code
 
-1. On your computer, in a copy of the repo, run: `node scripts/vapid-keys.mjs` (Node 22 or newer).
-2. It prints three values: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`.
-3. Save all three in your password manager now. Close the terminal afterward.
+On iPhone, a sign-in *link* opens Safari, not the Home Screen app, so the app uses a 6-digit *code* typed into the app.
 
-No Node on your computer? Tell me and I'll give you another way; do not paste the keys anywhere to get help.
+1. **Authentication**, then **Sign In / Providers** (or **Providers**): make sure **Email** is enabled.
+2. **Authentication**, **Emails** (or **Email Templates**). In both the **Magic Link** and **Confirm signup** templates, add this line near the top and save:
+   `Your sign-in code: {{ .Token }}`
+3. Supabase's built-in email sends only a few messages per hour. Fine for tonight; set up your own email sender before customers.
 
-## 4. Store the function secrets
+## 4. Put the app on Vercel (first deploy)
 
-1. In Supabase: **Edge Functions**, then **Secrets** (sometimes under Project Settings).
-2. Add four secrets, copying values from your password manager:
-   - `VAPID_PUBLIC_KEY`
-   - `VAPID_PRIVATE_KEY`
-   - `VAPID_SUBJECT`: `mailto:` plus a support email you read, e.g. `mailto:support@yourdomain.com`
-   - `CRON_SECRET`
-3. Supabase already provides the project URL and its secret key to functions; you do not add those.
+1. vercel.com, sign in with GitHub, **Add New**, **Project**, import `bpz82/zuniga_guitar`.
+2. Framework preset **Other**. Leave build settings alone (`vercel.json` sets them). **Deploy**.
+3. Note the address, e.g. `https://zuniga-guitar.vercel.app`. Below, this is **APP**.
+4. Supabase: **Authentication**, **URL Configuration**: **Site URL** = APP; add APP under **Redirect URLs**.
 
-## 5. Deploy the reminder sender
+## 5. Make the push keys (in the browser)
 
-This uses the Supabase command-line tool through `npx`, so nothing permanent is installed. In the repo folder on your computer:
+1. Open **APP/setup-keys.html**. It makes three values inside the browser and sends nothing anywhere.
+2. Copy each into the password manager: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`.
+3. Close the tab. (Reloading it makes different keys; use only the saved ones from now on.)
 
-1. `npx supabase login`: a browser window opens; approve it there. Nothing to paste.
-2. `npx supabase link --project-ref YOUR-PROJECT-REF`: the ref is the part of your project URL before `.supabase.co`. If it asks for the database password, paste it from your password manager into the terminal (not a chat).
-3. `npx supabase functions deploy send-nudges --no-verify-jwt`
-4. Check: **Edge Functions** in the dashboard lists `send-nudges`.
+## 6. Store the function secrets
 
-`--no-verify-jwt` is correct here: the scheduler, not a user, calls this function, and it refuses any call without the cron secret.
+Supabase: **Edge Functions**, **Secrets** (sometimes under **Project Settings**). Add:
 
-## 6. Put the app on Vercel
+- `VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT`: `mailto:` plus the contact email, e.g. `mailto:support@example.com`
+- `CRON_SECRET`
 
-1. Go to vercel.com, sign in with GitHub, **Add New**, then **Project**, and import `bpz82/zuniga_guitar`.
-2. Framework preset: **Other**. Leave build settings alone; `vercel.json` sets them.
-3. **Deploy**. Note the address it gives you, e.g. `https://zuniga-guitar.vercel.app`.
-4. Back in Supabase: **Authentication**, then **URL Configuration**. Set **Site URL** to that address and add it under **Redirect URLs**. This is what makes the email sign-in link come back to the app.
+## 7. Deploy the reminder sender (dashboard editor)
 
-## 7. Turn on the every-minute schedule
+1. Supabase: **Edge Functions**, **Deploy a new function**, **Via Editor**.
+2. Name it exactly `send-nudges`.
+3. On GitHub, open `supabase/dashboard/send-nudges.ts`, **Raw**, copy everything, and replace all the code in the editor with it.
+4. **Deploy**.
+5. Open the function's **Details** or **Settings** and turn **off** "Verify JWT" / "Enforce JWT verification", then save. (The schedule, not a user, calls it; it refuses any call without the cron secret.)
+6. Check: calling it from **Test** without the `x-cron-secret` header returns **403 forbidden**. That is correct.
 
-1. Supabase: **Database**, then **Extensions**. Enable `pg_cron` and `pg_net`.
-2. **SQL Editor**, **New query**. Paste `supabase/setup/schedule-send-nudges.sql`.
-3. In the editor only, replace `YOUR-PROJECT-REF` with your ref, and `PASTE-CRON_SECRET-HERE` with the cron secret from your password manager.
-4. **Run**. Then close the query tab without saving it.
-5. Check: **Integrations** (or **Database**), then **Cron**, shows `zg-send-nudges` running every minute.
+If the dashboard has no editor option, use the command-line route in the appendix.
 
-## 8. Connect the app
+## 8. Turn on the every-minute schedule
 
-1. Open your Vercel address.
-2. In **Account and sync**, enter:
-   - Supabase project URL (Supabase: **Project Settings**, **API**)
-   - Publishable key (same page; may be labeled "anon public"). The app refuses anything that looks like a secret key.
-   - VAPID public key
-3. **Save connection**, enter your email, **Email me a sign-in link**, and open the link on the same device.
-4. **Sync now**. The status line should say "Synced".
+1. **Database**, **Extensions**: enable `pg_cron` and `pg_net`.
+2. **SQL Editor**, **New query**: paste `supabase/setup/schedule-send-nudges.sql` (from GitHub, **Raw**).
+3. In the editor only: replace `YOUR-PROJECT-REF` with the project ref (the part of the project URL before `.supabase.co`) and `PASTE-CRON_SECRET-HERE` with the cron secret.
+4. **Run**. Close the tab without saving the query.
+5. Check: **Integrations**, **Cron** (or **Database**, **Cron Jobs**) shows `zg-send-nudges`, every minute, succeeding. **Edge Functions**, `send-nudges`, **Logs** shows calls answered 200.
 
-## 9. Your own schedule
+## 9. Build the connection into the app
 
-In **Settings**, press **Use this device's time zone**, then replace the settings box with your schedule and **Save settings**:
+1. Supabase **Project Settings**, **API** (or **API Keys**): copy the **Project URL** and the **publishable** key. Never the secret / service-role key; the build refuses it anyway.
+2. Vercel: the project, **Settings**, **Environment Variables**. Add for Production:
+   - `ZG_SUPABASE_URL` = Project URL
+   - `ZG_SUPABASE_PUBLISHABLE_KEY` = publishable key
+   - `ZG_VAPID_PUBLIC_KEY` = VAPID public key
+3. **Deployments**, latest, **Redeploy**.
+4. Check: the build log ends with `built-in: supabaseUrl, publishableKey, vapidPublicKey`, and APP no longer shows the connection fields.
+
+## 10. Blake's iPhone
+
+1. Open **APP** in **Safari**.
+2. **Share**, **Add to Home Screen**, **Add**.
+3. Open the app **from the new icon** (not Safari) and do everything below there.
+4. **Account and sync**: enter your email, **Email me a sign-in code**, type the code from the email, **Sign in**.
+5. **Settings**: replace the box with your schedule and **Save settings**:
 
 ```json
 {
@@ -106,27 +119,29 @@ In **Settings**, press **Use this device's time zone**, then replace the setting
 }
 ```
 
-## 10. Notifications on your iPhone and laptop
+6. **Notifications**: **Allow notifications on this device**, then **Allow** on the iPhone prompt. The status line says "Notifications on for this device."
 
-**iPhone** (iOS only allows push for apps on the Home Screen):
-1. Open the Vercel address in **Safari**.
-2. **Share**, then **Add to Home Screen**.
-3. Open the app **from the new icon**, sign in again if asked.
-4. Tap **Allow notifications on this device**, then **Allow**.
+Laptop: open APP in Chrome, Edge or Safari, sign in with a code, **Allow notifications on this device**.
 
-**Laptop**: open the address in Chrome, Edge, Firefox or Safari, sign in, tap **Allow notifications on this device**.
+## 11. Test a reminder tonight
 
-Each device must do this once. Turning a window's toggle off, or the master switch, takes effect at the next sync.
-
-## 11. Check it end to end
-
-1. In **Settings**, set one window's start to 3 or 4 minutes from now and save.
+1. In **Settings**, change one window's `start` to about 4 minutes from now (New York time) and save. Saving syncs and plans reminders.
 2. Supabase **Table Editor**, `nudges`: a row for that time appears.
-3. At that minute a notification arrives. Afterward the row has a `sent_at` time.
-4. Put the window back.
+3. Lock the phone. At that minute the notification arrives; afterward the row has a `sent_at` time.
+4. Put the window back and save.
+
+If nothing arrives: check `push_subscriptions` has a row for the phone, the function's **Logs** for the minute, and that **Settings** shows `"notifications": true`.
 
 ## Before real customers
 
-- **Free projects pause** after about a week of low activity, and the free plan has hard limits. Before customers depend on it, move the project to a paid plan. That is a cost decision for you.
-- **Account deletion:** deleting a user in Supabase **Authentication** removes all their data (tested). There is no self-service "delete my account" button yet.
-- **Export:** the harness's **Export my data** downloads the user's whole log; **Restore** brings it back.
+- Remove `setup-keys.html` from the public site (or keep keys made only once and delete the page).
+- Paid Supabase plan (free projects pause after about a week of low activity) and a real email sender.
+- Self-service account deletion.
+
+## Appendix: command-line route for step 7
+
+With Node 22+ on any computer, in a copy of the repo: `npx supabase login` (approve in the browser), `npx supabase link --project-ref YOUR-PROJECT-REF`, then `npx supabase functions deploy send-nudges --no-verify-jwt`. Keys can also be made with `node scripts/vapid-keys.mjs`.
+
+## If `vendor/ts-fsrs` files go missing
+
+`npm test` and `npm run build` check them first and stop with the fix: `git checkout -- vendor/ts-fsrs`.
