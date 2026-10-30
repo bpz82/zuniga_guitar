@@ -104,15 +104,17 @@ test('merge rejects and reports invalid remote events without storing them', () 
   assert.equal(rejected.length, junk.length);
 });
 
-test('two different events with one id resolve the same way on every device', () => {
+test('merge never replaces a stored event, even on an id conflict', () => {
   const at = Date.UTC(2026, 9, 30, 13);
-  const a = { v: 1, id: 'same', at, device: 'phone', type: 'played', minutes: 10 };
-  const b = { v: 1, id: 'same', at, device: 'laptop', type: 'played', minutes: 20 };
-  const one = merge(merge(emptyLog(), [a]).log, [b]);
-  const two = merge(merge(emptyLog(), [b]).log, [a]);
-  assert.equal(canonical(one.log), canonical(two.log));
-  assert.equal(one.log.length, 1);
-  assert.equal(one.rejected.length + two.rejected.length >= 1, true);
+  // b sorts before a canonically, so a "pick the smaller" rule would swap it in.
+  const a = { v: 1, id: 'same', at, device: 'phone', type: 'played', minutes: 20 };
+  const b = { v: 1, id: 'same', at, device: 'laptop', type: 'played', minutes: 10 };
+  const stored = merge(emptyLog(), [a]).log;
+  const { log, rejected } = merge(stored, [b]);
+  assert.equal(log[0], stored[0]);
+  assert.equal(log.length, 1);
+  assert.equal(rejected.length, 1);
+  assert.match(rejected[0]!.reason, /id conflict/);
 });
 
 test('merged events are frozen too', () => {

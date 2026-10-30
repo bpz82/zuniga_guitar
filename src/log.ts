@@ -71,8 +71,9 @@ export function append(log: Log, body: unknown, ctx: AppendContext): { log: Log;
  * Merges incoming events (e.g. from sync) into a log.
  * - Union by id; duplicates collapse.
  * - Invalid incoming events are rejected and reported, never stored.
- * - Two different events claiming one id: the canonically smaller one is
- *   kept on every device, so merge order never changes the result.
+ * - An event already in the log is never replaced. A different event that
+ *   claims an existing id (only possible with corrupt or forged data, since
+ *   ids are UUIDs) is rejected and reported for a human to look at.
  */
 export function merge(log: Log, incoming: readonly unknown[]): { log: Log; rejected: Rejection[] } {
   const byId = new Map<string, EngineEvent>(log.map((e) => [e.id, e]));
@@ -89,11 +90,8 @@ export function merge(log: Log, incoming: readonly unknown[]): { log: Log; rejec
       byId.set(event.id, deepFreeze(event));
       continue;
     }
-    const a = canonical(existing);
-    const b = canonical(event);
-    if (a === b) continue;
-    if (b < a) byId.set(event.id, deepFreeze(event));
-    rejected.push({ event: raw, reason: `id conflict on ${event.id}: kept the canonical version` });
+    if (canonical(existing) === canonical(event)) continue;
+    rejected.push({ event: raw, reason: `id conflict on ${event.id}: existing event kept, incoming rejected` });
   }
   const events = [...byId.values()].sort(compareEvents);
   return { log: Object.freeze(events), rejected };

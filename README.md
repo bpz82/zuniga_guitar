@@ -3,7 +3,9 @@
 Practice engine for Blake's guitar app. Engine only: logic, data, scheduling, goals, sessions, sync. The UI is built separately against [`docs/API.md`](docs/API.md).
 
 - Spec, amendments and the "Knowingly NOT doing" list: [`docs/ENGINE_SPEC.md`](docs/ENGINE_SPEC.md)
-- Design bylaws (read before every build step): [`docs/IMPORTANT_design-spec-sheet.txt`](docs/IMPORTANT_design-spec-sheet.txt)
+- Mandatory before every build step, checked in every design check:
+  - Design bylaws: [`docs/IMPORTANT_design-spec-sheet.txt`](docs/IMPORTANT_design-spec-sheet.txt)
+  - Architecture principles: [`docs/IMPORTANT_architecture-principles.md`](docs/IMPORTANT_architecture-principles.md)
 
 ## Run the tests
 
