@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zuniga Guitar test harness</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#222222">
+  <style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:0 auto;padding:1rem}section{border-top:1px solid #ccc;padding:.5rem 0}textarea{width:100%;height:12rem;font-family:monospace}input[type=text],input[type=url],input[type=email]{width:100%}label{display:block}button{margin:.2rem}</style>
+</head>
+<body>
+  <h1>Zuniga Guitar: test harness</h1>
+  <p id="status">Loading…</p>
+  <section>
+    <h2>Now</h2>
+    <p id="session"></p>
+    <div id="card">
+      <p id="question"></p>
+      <p id="answer"></p>
+      <button id="reveal">Show answer</button>
+      <div id="rate" hidden>
+        <button id="r-again">Again</button><button id="r-hard">Hard</button><button id="r-good">Good</button><button id="r-easy">Easy</button>
+      </div>
+    </div>
+    <ul id="blocks"></ul>
+    <button id="played">I played</button>
+  </section>
+  <section>
+    <h2>Notifications</h2>
+    <label><input type="checkbox" id="notify-all"> All notifications</label>
+    <div id="notify-windows"></div>
+    <button id="enable-push">Allow notifications on this device</button>
+  </section>
+  <section>
+    <h2>Settings</h2>
+    <button id="use-zone">Use this device's time zone</button>
+    <textarea id="settings" spellcheck="false"></textarea>
+    <button id="save-settings">Save settings</button>
+  </section>
+  <section>
+    <h2>Account and sync</h2>
+    <p id="account">Not connected (this device only)</p>
+    <label>Supabase project URL <input type="url" id="cfg-url"></label>
+    <label>Publishable key <input type="text" id="cfg-key"></label>
+    <label>VAPID public key <input type="text" id="cfg-vapid"></label>
+    <button id="save-config">Save connection</button>
+    <label>Email <input type="email" id="email"></label>
+    <button id="sign-in">Email me a sign-in link</button>
+    <button id="sign-out">Sign out</button>
+    <button id="sync">Sync now</button>
+  </section>
+  <section>
+    <h2>Backup</h2>
+    <button id="export">Export my data</button>
+    <label>Restore from a backup <input type="file" id="import" accept="application/json"></label>
+  </section>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

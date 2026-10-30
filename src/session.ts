@@ -172,15 +172,17 @@ export interface Nudge {
 /**
  * Gentle notifications due in (from, to]: one at the start of each window,
  * only if there is something to do then, never repeated, never for a missed
- * window. The push sender (checkpoint 5) calls this each run with the time
- * of its previous run as `from`.
+ * window. Respects the master switch and each window's toggle. The app
+ * calls this for the days ahead and uploads the result (see planNudges).
  */
 export function nudgesBetween(library: Library, from: number, to: number): Nudge[] {
-  const { dayStart } = library.settings;
+  const { dayStart, notifications } = library.settings;
   const out: Nudge[] = [];
+  if (!notifications) return out;
   for (let date = practiceDay(from, dayStart); date <= practiceDay(to, dayStart); date = addDays(date, 1)) {
     for (const w of windowsFor(library, date)) {
       if (w.start <= from || w.start > to) continue;
+      if (library.settings.windows.find((x) => x.id === w.id)?.notify === false) continue;
       if (sessionFor(library, w.start).empty) continue;
       out.push({ windowId: w.id, at: w.start, silent: isQuiet(library, w.start) });
     }

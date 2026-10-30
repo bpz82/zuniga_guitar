@@ -69,7 +69,9 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **ts-fsrs Date side effect:** left alone unless it causes a real problem.
 - **Goals layer (approved 2026-10-30):** check-ins at 14, 7 and 2 days out; gig default retention 95%; final 7 practice days (gig day included) are full set run-throughs, due cards still served in pocket bursts; order is risk x (1 + weight) and goals never hide other due cards; changing the day start re-buckets past reviews.
 - **Schedule (2026-10-30):** morning guitar session 4:00am; pocket windows 9:45am (sound), 1:00pm (silent; work is 10:30am to 4:00pm), 4:30pm (sound). All in settings.
-- **Session builder choices awaiting Blake's review (checkpoint 4):** quiet hours 10:30 to 4:00pm override every window (silent cards only); morning length is a setting, 60 minimum; new cards are limited by the time box, not a daily count; no nudge for a window with nothing to do; the module contract moves to checkpoint 5 with the test deck.
+- **Session builder (approved 2026-10-30):** quiet hours override every window; morning length is a setting, 60 minimum; new cards limited by time, not count; module contract moved to checkpoint 5.
+- **Shipping to customers (Blake, 2026-10-30):** every schedule and notification setting is user-editable at any time; engine defaults are neutral (Blake's schedule is his own settings event, `fixtures/blake.ts`); onboarding sets a new user's schedule; master and per-window notification toggles (master off until the user opts in); per-user data isolation everywhere (one local database per user, row-level security on every table, per-user handling on the server).
+- **Reminders design (checkpoint 5, for review):** each user's app plans its next 7 days of reminders and uploads them; the server only sends what is due and never runs the engine or reads practice data. A reminder seen more than 15 minutes late is skipped, never sent late.
 
 ## Knowingly NOT doing (v0.1)
 
@@ -87,3 +89,6 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Locking the module contract early | Stays v0 until Songs I Already Know proves it; locked then. The isolation rule is enforced from v0. |
 | Conversational intake interview | Would need an AI service (no paid services). A form asks the same five questions. |
 | One specialist bot per module | Conflicts with the minimal-headcount rule. One builder for everything. |
+| Self-service account deletion button | Deleting a user in Supabase Auth already removes all their data (tested). A button needs a server function and a confirm flow; add before public launch. |
+| Moving a signed-out device's practice into a new account | Local-only practice stays in its own local database. Export then Restore moves it. |
+| Product UI | Built separately against `docs/API.md`; the harness is deliberately bare. |

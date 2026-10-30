@@ -97,14 +97,16 @@ export const WINDOW_IDS: readonly WindowId[] = ['morning', 'before-work', 'durin
 
 export interface PracticeWindow {
   readonly id: WindowId;
-  /** Local time "HH:MM". Notifications fire at the start of each window. */
+  /** Local time "HH:MM". A session starts here; a notification may fire here. */
   readonly start: string;
+  /** Per-window notification toggle. Absent means on. */
+  readonly notify?: boolean;
 }
 
 /**
- * When a practice day begins. Blake: 3:00am America/New_York (2026-10-30).
- * Everything day-based uses it: FSRS's day counting, what is due "today",
- * goal deadlines and expiry. Window times use the same time zone.
+ * When a practice day begins. Everything day-based uses it: FSRS's day
+ * counting, what is due "today", goal deadlines and expiry. Window times and
+ * quiet hours use the same time zone. Set per user at onboarding.
  */
 export interface DayStart {
   /** IANA time zone, e.g. "America/New_York". */
@@ -113,7 +115,8 @@ export interface DayStart {
   readonly hour: number;
 }
 
-export const DEFAULT_DAY_START: DayStart = Object.freeze({ timeZone: 'America/New_York', hour: 3 });
+/** Neutral until onboarding records the user's own zone. */
+export const DEFAULT_DAY_START: DayStart = Object.freeze({ timeZone: 'UTC', hour: 4 });
 
 /** A daily stretch when sound is not allowed (work). "HH:MM" local; may wrap midnight. */
 export interface QuietHours {
@@ -131,6 +134,8 @@ export interface SettingsInput {
   readonly quietHours?: QuietHours;
   /** Length of the morning guitar session. Spec: 1 hour minimum. 60 to 300. */
   readonly morningMinutes?: number;
+  /** Master notification switch. Absent means off: users opt in. */
+  readonly notifications?: boolean;
 }
 
 /** Settings as the engine uses them: every field resolved. */
@@ -138,19 +143,25 @@ export interface Settings extends SettingsInput {
   readonly dayStart: DayStart;
   readonly quietHours: QuietHours;
   readonly morningMinutes: number;
+  readonly notifications: boolean;
 }
 
-/** Blake's schedule (2026-10-30). All of it can be changed with a settings-set event. */
+/**
+ * Generic defaults for a brand-new user, before onboarding. Nobody's real
+ * schedule: onboarding (settingsFromOnboarding) records the user's own, and
+ * every value can be changed at any time with a settings-set event.
+ */
 export const DEFAULT_SETTINGS: Settings = Object.freeze({
   desiredRetention: 0.9,
   dayStart: DEFAULT_DAY_START,
-  quietHours: Object.freeze({ start: '10:30', end: '16:00' }),
+  quietHours: Object.freeze({ start: '09:00', end: '17:00' }),
   morningMinutes: 60,
+  notifications: false,
   windows: Object.freeze([
-    Object.freeze({ id: 'morning', start: '04:00' }),
-    Object.freeze({ id: 'before-work', start: '09:45' }),
-    Object.freeze({ id: 'during-work', start: '13:00' }),
-    Object.freeze({ id: 'after-work', start: '16:30' }),
+    Object.freeze({ id: 'morning', start: '07:00' }),
+    Object.freeze({ id: 'before-work', start: '08:30' }),
+    Object.freeze({ id: 'during-work', start: '12:30' }),
+    Object.freeze({ id: 'after-work', start: '17:30' }),
   ]) as readonly PracticeWindow[],
 });
 

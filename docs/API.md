@@ -135,17 +135,77 @@ const s = sessionFor(lib, Date.now());
 | Function | What it does |
 |---|---|
 | `sessionFor(lib, now)` | The session for right now. Opening the app always gets one (before 4:00am it is the morning session). |
-| `nudgesBetween(lib, from, to)` | Notifications due in (from, to]: one per window start with something to do, `silent` during quiet hours. Never repeats, never replays a missed window. The push sender will call it each run with its previous run time. |
+| `nudgesBetween(lib, from, to)` | Notifications due in (from, to]: one per window start with something to do, `silent` during quiet hours, respecting the master switch and each window's toggle. Never repeats, never replays a missed window. |
 | `windowsFor(lib, date)`, `currentWindow(lib, now)`, `isQuiet(lib, t)` | Window times for a practice day, the window now, whether it is quiet hours. |
 
 Rules:
-- **Windows** (settings, Blake's defaults): morning guitar session 4:00am; pocket bursts 9:45am (sound), 1:00pm (silent), 4:30pm (sound). A window lasts until the next one starts.
+- **Windows** (settings; Blake's are 4:00am, 9:45am, 1:00pm, 4:30pm): a morning guitar session, then pocket bursts before (sound), during (silent) and after (sound) work. A window lasts until the next one starts.
 - **What each window serves:** morning, `guitar` cards; sound bursts, `pocket-sound` and `pocket-silent`; the during-work burst, `pocket-silent` only.
-- **Quiet hours** (10:30am to 4:00pm by default) override everything: only `pocket-silent` cards, even if a 9:45 burst is opened late or the morning session is opened at work.
+- **Quiet hours** (work hours; Blake's are 10:30am to 4:00pm) override everything: only `pocket-silent` cards, even if a 9:45 burst is opened late or the morning session is opened at work.
 - **Bursts** are time-boxed at 3 to 5 minutes: due cards first, then new ones. The UI stops when time is up; the engine never counts cards.
 - **Morning** (`morningMinutes`, 60 by default, 60 to 300): guitar yoga first so it is never squeezed out, then reviews, then timed tasks and run-throughs. Goal blocks are fitted with `splitTime`; recall minutes plus any spare minutes become review time. Blocks done today (a `task-done` or `feel-session` event for that goal and block) are marked `done`.
 - **New cards** are limited by time, not count: they are offered only after due cards, inside the time box.
 
-## Not here yet
+## Settings and onboarding (checkpoint 5)
 
-Storage, sync, the module contract, the test deck and push notifications arrive at checkpoint 5.
+Engine defaults are generic (UTC, 7:00 / 8:30 / 12:30 / 17:30, quiet 9:00 to 17:00, notifications **off**). Each user's own schedule is a `settings-set` event, written by onboarding and changeable any time. Every function returns a validated event body; `append` or `replica.record` it.
+
+| Function | What it does |
+|---|---|
+| `settingsFromOnboarding(answers)` | First settings for a new user: `timeZone` (from the device), `dayStartHour?`, `morning?`, `beforeWork?`, `duringWork?`, `afterWork?` ("HH:MM", leave out to skip), `workStart?`/`workEnd?` (quiet hours), `morningMinutes?`, `notifications?` (default off). |
+| `changeSettings(lib, changes)` | Any edit; untouched fields are kept. |
+| `toggleNotifications(lib, on)` | Master switch. |
+| `toggleWindowNotify(lib, windowId, on)` | One window's notification. The window itself stays. |
+
+## Storage and sync
+
+```ts
+import { Replica, supabaseRemote, planNudges, uploadNudges } from './src/index.ts';
+import { indexedDbStore } from './src/stores/indexeddb.ts';
+
+const replica = await Replica.open(await indexedDbStore(userId), deviceId); // one local database per user
+await replica.record(body);                         // validated, saved, queued
+const lib = replica.library;                        // projected, cached until the log changes
+await replica.sync(supabaseRemote(supabase));       // push queued, pull new; safe to retry
+await uploadNudges(supabase, planNudges(lib, Date.now())); // reminders for the next 7 days
+```
+
+| | |
+|---|---|
+| `Replica.open(store, deviceId)` | Loads and validates the local log; corrupt stored events are set aside (`loadRejected`). |
+| `replica.record(body)` | The only way to write. Throws `RejectedEvent` if invalid. A device's events always sort in the order it recorded them. |
+| `replica.sync(remote)` | Returns `{ pushed, pulled, rejected }`. Offline is fine: events stay queued (`pendingCount`). |
+| `replica.exportJson()` / `replica.restore(events)` | Backup and restore; restore validates and never replaces anything. |
+| `memoryStore()` | In-memory store for tests. |
+| `supabaseRemote(client)` | Sync over a supabase-js client (publishable key; row-level security limits it to the signed-in user). |
+| `planNudges(lib, now)` / `uploadNudges(client, plan)` | The user's own reminders, uploaded in one call. Empty when notifications are off. |
+
+## Module contract v0
+
+Modules never touch the log or library. They get a host scoped to their own items and cards.
+
+```ts
+const host = createHost(replica, MY_MANIFEST);   // { id, contract: 0, templates: [{ template, tags }] }
+await runModule(host, async () => {              // crash boundary
+  await host.addItem('song-1', { title: '...' });
+  await host.addCard('song-1-c', 'song-1', 'song-recall');
+  const { due, fresh } = host.session(Date.now());
+  await host.reportRep('song-1-c', 'good', 4200, { tempo: 96 });
+});
+```
+
+A module that touches another module's data, uses an undeclared template, sends an invalid write, throws inside `runModule`, or writes more than 2,000 events an hour is switched off (`host.enabled === false`). Nothing it tried gets in; the engine and other modules carry on.
+
+## Test deck
+
+`TEST_DECK`, `seedTestDeck(host)` (idempotent, same ids on every device), `prompt(card, item)` for question and answer text. 78 fretboard notes and 24 chord spellings, all silent pocket cards.
+
+## Server side (Supabase)
+
+- `supabase/migrations/20261030000000_init.sql`: tables `events` (append-only), `push_subscriptions`, `nudges`; row-level security per user; `save_push_subscription` and `replace_nudges` functions. Tested by `npm run test:sql`.
+- `supabase/functions/send-nudges`: called every minute; sends due reminders with Web Push. Logic in `supabase/functions/_shared`, unit-tested.
+- Setup: `docs/SETUP.md`.
+
+## Test harness
+
+`harness/` is a bare page (no design) that exercises everything: sessions, the test deck, "I played", settings, notification toggles, sign-in, sync, backup. `npm run build` writes it to `public/` for Vercel; `npm run test:browser` checks it in headless Chromium.

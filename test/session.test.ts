@@ -5,7 +5,6 @@ import {
   BURST_MINUTES,
   currentWindow,
   dayBegins,
-  DEFAULT_DAY_START,
   DEFAULT_SETTINGS,
   emptyLog,
   goalFromIntake,
@@ -19,8 +18,9 @@ import {
 } from '../src/index.ts';
 import type { BlockSegment, CardTag, EventBody, Intake, Library, Log, Rating, ReviewSegment, Session } from '../src/index.ts';
 import { item } from './helpers.ts';
+import { BLAKE_SETTINGS, BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
 
-const NY = DEFAULT_DAY_START;
+const NY = BLAKE_SETTINGS.dayStart;
 const H = 60 * 60 * 1000;
 const MIN = 60_000;
 const DAY = 24 * H;
@@ -41,7 +41,9 @@ function writer() {
       return w;
     },
     add(...bodies: EventBody[]) {
-      for (const b of bodies) log = append(log, b, ctx).log;
+      // Tests back-date events freely; a real device can't, so each event
+      // here is recorded as its own device to keep the times exactly as written.
+      for (const b of bodies) log = append(log, b, { ...ctx, device: `${ctx.device}-${log.length}` }).log;
       return w;
     },
     card(id: string, tags: CardTag[]) {
@@ -54,6 +56,7 @@ function writer() {
       return project(log);
     },
   };
+  log = append(log, BLAKE_SETTINGS_EVENT, ctx).log;
   return w;
 }
 
@@ -78,14 +81,17 @@ function mixedDeck() {
 
 // ------------------------------------------------------------ settings ---
 
-test("defaults are Blake's schedule", () => {
+test("Blake's schedule is his own settings; the engine defaults are generic", () => {
   assert.deepEqual(
-    DEFAULT_SETTINGS.windows.map((w) => [w.id, w.start]),
+    BLAKE_SETTINGS.windows.map((w) => [w.id, w.start]),
     [['morning', '04:00'], ['before-work', '09:45'], ['during-work', '13:00'], ['after-work', '16:30']],
   );
-  assert.deepEqual(DEFAULT_SETTINGS.quietHours, { start: '10:30', end: '16:00' });
+  assert.deepEqual(BLAKE_SETTINGS.quietHours, { start: '10:30', end: '16:00' });
+  assert.deepEqual(BLAKE_SETTINGS.dayStart, { timeZone: 'America/New_York', hour: 3 });
+  assert.equal(DEFAULT_SETTINGS.dayStart.timeZone, 'UTC');
+  assert.deepEqual(DEFAULT_SETTINGS.windows.map((w) => w.start), ['07:00', '08:30', '12:30', '17:30']);
+  assert.equal(DEFAULT_SETTINGS.notifications, false, 'users opt in');
   assert.equal(DEFAULT_SETTINGS.morningMinutes, 60);
-  assert.deepEqual(DEFAULT_SETTINGS.dayStart, NY);
 });
 
 test('settings validation: morning at least an hour, sensible quiet hours', () => {
@@ -139,7 +145,7 @@ test('quiet hours are 10:30 to 4:00pm; a custom wrap-around range works too', ()
   assert.equal(isQuiet(lib, ny('2026-11-02', '10:30')), true);
   assert.equal(isQuiet(lib, ny('2026-11-02', '15:59')), true);
   assert.equal(isQuiet(lib, ny('2026-11-02', '16:00')), false);
-  const night = writer().add({ type: 'settings-set', settings: { desiredRetention: 0.9, windows: [], quietHours: { start: '22:00', end: '06:00' } } }).lib;
+  const night = writer().add({ type: 'settings-set', settings: { ...BLAKE_SETTINGS, quietHours: { start: '22:00', end: '06:00' } } }).lib;
   assert.equal(isQuiet(night, ny('2026-11-02', '23:00')), true);
   assert.equal(isQuiet(night, ny('2026-11-02', '05:00')), true);
   assert.equal(isQuiet(night, ny('2026-11-02', '12:00')), false);
@@ -249,7 +255,7 @@ test('goals asking for more than the morning are squeezed by weight; yoga is nev
 });
 
 test('a longer morning can be set, and the extra time goes to reviews', () => {
-  const w = mixedDeck().add({ type: 'settings-set', settings: { ...DEFAULT_SETTINGS, morningMinutes: 90 } });
+  const w = mixedDeck().add({ type: 'settings-set', settings: { ...BLAKE_SETTINGS, morningMinutes: 90 } });
   assert.equal(review(sessionFor(w.lib, ny('2026-11-02', '04:00')))!.minutes, 90);
 });
 
@@ -343,7 +349,7 @@ test('done means: a silent test deck runs a full day of morning plan, three pock
 });
 
 test('the during-work window is silent even if quiet hours are changed to miss it', () => {
-  const w = mixedDeck().add({ type: 'settings-set', settings: { ...DEFAULT_SETTINGS, quietHours: { start: '22:00', end: '23:00' } } });
+  const w = mixedDeck().add({ type: 'settings-set', settings: { ...BLAKE_SETTINGS, quietHours: { start: '22:00', end: '23:00' } } });
   const s = sessionFor(w.lib, ny('2026-11-02', '13:00'));
   assert.equal(s.quiet, false);
   assert.equal(s.mode, 'silent');
@@ -353,7 +359,7 @@ test('the during-work window is silent even if quiet hours are changed to miss i
 test('a window set after midnight belongs to the same practice day', () => {
   const w = writer().add({
     type: 'settings-set',
-    settings: { ...DEFAULT_SETTINGS, windows: DEFAULT_SETTINGS.windows.map((x) => (x.id === 'after-work' ? { id: x.id, start: '01:30' } : x)) },
+    settings: { ...BLAKE_SETTINGS, windows: BLAKE_SETTINGS.windows.map((x) => (x.id === 'after-work' ? { id: x.id, start: '01:30' } : x)) },
   });
   const slots = windowsFor(w.lib, '2026-11-02');
   const late = slots.at(-1)!;

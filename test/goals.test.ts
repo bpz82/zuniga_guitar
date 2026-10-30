@@ -7,7 +7,6 @@ import {
   buildQueue,
   canonical,
   dayBegins,
-  DEFAULT_DAY_START,
   emptyLog,
   GIG_DEFAULT_RETENTION,
   goalFromIntake,
@@ -19,9 +18,10 @@ import {
   splitTime,
 } from '../src/index.ts';
 import type { EventBody, Intake, Log, PlannedBlock, Rating } from '../src/index.ts';
+import { BLAKE_SETTINGS, BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
 import { card, item } from './helpers.ts';
 
-const NY = DEFAULT_DAY_START;
+const NY = BLAKE_SETTINGS.dayStart;
 const H = 60 * 60 * 1000;
 const DAY = 24 * H;
 /** 9:00am New York on a practice day. */
@@ -35,11 +35,15 @@ function writer() {
   const w = {
     at(ms: number) {
       clock = ms;
-      return w;
+      log = append(log, BLAKE_SETTINGS_EVENT, ctx).log;
+  return w;
     },
     add(...bodies: EventBody[]) {
-      for (const b of bodies) log = append(log, b, ctx).log;
-      return w;
+      // Tests back-date events freely; a real device can't, so each event
+      // here is recorded as its own device to keep the times exactly as written.
+      for (const b of bodies) log = append(log, b, { ...ctx, device: `${ctx.device}-${log.length}` }).log;
+      log = append(log, BLAKE_SETTINGS_EVENT, ctx).log;
+  return w;
     },
     rate(cardId: string, rating: Rating, ms: number) {
       return w.at(ms).add({ type: 'review', cardId, rating, durationMs: 3000 });
@@ -51,6 +55,7 @@ function writer() {
       return project(log);
     },
   };
+  log = append(log, BLAKE_SETTINGS_EVENT, ctx).log;
   return w;
 }
 
@@ -153,8 +158,8 @@ test('goals never change memory state: only due dates move', () => {
   withGig(w);
   const plan = planGoals(w.lib, at9('2026-11-01'));
   for (const cardId of ['c-set1', 'c-other1']) {
-    const a = memoryOf(cardId, plain.reviews.get(cardId)!, 0.9);
-    const b = memoryOf(cardId, w.lib.reviews.get(cardId)!, plan.retentionFor(cardId));
+    const a = memoryOf(cardId, plain.reviews.get(cardId)!, 0.9, NY);
+    const b = memoryOf(cardId, w.lib.reviews.get(cardId)!, plan.retentionFor(cardId), NY);
     for (const k of ['phase', 'stability', 'difficulty', 'reps', 'lapses', 'lastReview'] as const) assert.equal(a[k], b[k], `${cardId} ${k}`);
   }
   assert.ok(canonical(w.log).startsWith(before.slice(0, -1)), 'planning appended nothing besides the goal itself');
@@ -201,7 +206,7 @@ test('peaking guarantee: no set song drops below its gig target before the end o
   const endOfGigDay = dayBegins('2026-12-05', NY);
   let pulled = 0;
   for (const id of ids) {
-    const m = memoryOf(`c-${id}`, lib.reviews.get(`c-${id}`)!, GIG_DEFAULT_RETENTION);
+    const m = memoryOf(`c-${id}`, lib.reviews.get(`c-${id}`)!, GIG_DEFAULT_RETENTION, NY);
     const comesUpInTime = m.due! < endOfGigDay;
     const holdsUp = retrievability(m, endOfGigDay)! >= GIG_DEFAULT_RETENTION;
     if (!comesUpInTime && !holdsUp) {
@@ -224,7 +229,7 @@ test('a pulled-forward song is not pulled again the same practice day', () => {
       const hist = (['easy', 'good', 'good'] as const).map((rating, i) => ({
         v: 1 as const, id: `r${i}`, at: s0 + [0, 9, 30][i]! * DAY, device: 'd', type: 'review' as const, cardId: 'c-s', rating, durationMs: 1,
       }));
-      const m = memoryOf('c-s', hist, GIG_DEFAULT_RETENTION);
+      const m = memoryOf('c-s', hist, GIG_DEFAULT_RETENTION, NY);
       if (m.due! >= endOfGigDay && retrievability(m, endOfGigDay)! < GIG_DEFAULT_RETENTION) {
         start = s0;
         break;

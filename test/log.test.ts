@@ -47,9 +47,10 @@ test('callers cannot set id, time or device: append stamps them', () => {
 
 test('the engine exposes no way to edit or delete events', () => {
   const names = Object.keys(engine).map((k) => k.toLowerCase());
-  for (const banned of ['update', 'delete', 'remove', 'edit', 'set', 'clear', 'truncate']) {
+  for (const banned of ['update', 'delete', 'remove', 'edit', 'clear', 'truncate', 'overwrite', 'rewrite']) {
     assert.ok(!names.some((n) => n === banned || n.startsWith(banned)), `found ${banned}*`);
   }
+  assert.ok(!names.includes('set') && !names.some((n) => n.startsWith('setevent') || n.startsWith('setlog')));
 });
 
 function twoDevices() {
@@ -125,4 +126,16 @@ test('merged events are frozen too', () => {
   }, TypeError);
   remote.minutes = 99; // mutating the caller's copy afterwards must not leak in
   assert.equal((log[0] as { minutes: number }).minutes, 10);
+});
+
+test("a device's events keep their recorded order: same millisecond or a clock that steps back", () => {
+  const ctx = { device: 'phone', now: () => Date.UTC(2026, 10, 1, 12), newId: (() => { let n = 9; return () => `z${n--}`; })() };
+  let log = emptyLog();
+  for (let i = 0; i < 5; i++) log = append(log, { type: 'played', minutes: i + 1 }, ctx).log;
+  assert.deepEqual(log.map((e) => (e as { minutes: number }).minutes), [1, 2, 3, 4, 5], 'ids sort the other way; order still holds');
+  const back = append(log, { type: 'played', minutes: 6 }, { ...ctx, now: () => Date.UTC(2026, 9, 1) });
+  assert.equal(back.log.at(-1), back.event, 'clock went back a month; still last');
+  // Another device's clock is never adjusted.
+  const other = append(back.log, { type: 'played', minutes: 7 }, { device: 'laptop', now: () => Date.UTC(2026, 9, 1), newId: () => 'l1' });
+  assert.equal(other.event.at, Date.UTC(2026, 9, 1));
 });

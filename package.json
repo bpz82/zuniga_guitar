@@ -8,11 +8,16 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "node scripts/check-node.mjs && node --test \"test/**/*.test.ts\"",
-    "typecheck": "tsc -p ."
+    "test": "node scripts/check-node.mjs && node --test --test-timeout=30000 \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p .",
+    "build": "esbuild harness/main.ts --bundle --format=esm --target=es2022 --outfile=public/app.js --log-override:package.json=silent && node scripts/copy-static.mjs",
+    "test:sql": "sh scripts/test-sql.sh",
+    "test:browser": "npm run build && node test/browser/harness.browser.mjs",
+    "vapid-keys": "node scripts/vapid-keys.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "esbuild": "^0.28.0",
     "typescript": "^6.0.0"
   }
 }

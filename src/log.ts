@@ -55,7 +55,7 @@ export function append(log: Log, body: unknown, ctx: AppendContext): { log: Log;
   const candidate = {
     v: SCHEMA_VERSION,
     id: (ctx.newId ?? (() => crypto.randomUUID()))(),
-    at: (ctx.now ?? Date.now)(),
+    at: stamp(log, ctx.device, (ctx.now ?? Date.now)()),
     device: ctx.device,
     ...checked.value,
   };
@@ -112,6 +112,20 @@ export function canonical(value: unknown): string {
     return `{${keys.map((k) => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`).join(',')}}`;
   }
   return JSON.stringify(value);
+}
+
+/**
+ * A device's events must sort in the order it recorded them, or "latest
+ * wins" could pick an older setting: two saves in the same millisecond, or a
+ * clock that steps backwards. So a new event is stamped at least 1ms after
+ * this device's previous event. Other devices' clocks are not touched.
+ */
+function stamp(log: Log, device: string, clock: number): number {
+  for (let i = log.length - 1; i >= 0; i--) {
+    const e = log[i]!;
+    if (e.device === device) return Number.isFinite(clock) ? Math.max(clock, e.at + 1) : clock;
+  }
+  return clock;
 }
 
 function insertSorted(log: Log, event: EngineEvent): Log {

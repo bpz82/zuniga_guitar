@@ -1,0 +1,5 @@
+# Only the settings this project needs. The reminder sender is called by
+# pg_cron with its own secret header, not a user's login, so it does not
+# require a user JWT; it rejects any request without the cron secret.
+[functions.send-nudges]
+verify_jwt = false

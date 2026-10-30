@@ -20,7 +20,9 @@ function writer(device = 'phone') {
       return this;
     },
     add(...bodies: EventBody[]) {
-      for (const b of bodies) log = append(log, b, ctx).log;
+      // Tests back-date events freely; a real device can't, so each event
+      // here is recorded as its own device to keep the times exactly as written.
+      for (const b of bodies) log = append(log, b, { ...ctx, device: `${ctx.device}-${log.length}` }).log;
       return this;
     },
     rate(cardId: string, rating: Rating, at: number) {

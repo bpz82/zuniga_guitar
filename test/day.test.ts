@@ -2,17 +2,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { addDays, dayBegins, daysBetween, practiceDay } from '../src/day.ts';
 import { buildQueue, DEFAULT_DAY_START, memoryOf, project, validateBody } from '../src/index.ts';
+import { BLAKE_SETTINGS, BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
 import type { EventOf, Rating } from '../src/index.ts';
 import { card, device, item, record } from './helpers.ts';
 
-const NY = DEFAULT_DAY_START; // America/New_York, 3:00am
+const NY = BLAKE_SETTINGS.dayStart; // America/New_York, 3:00am
 const UTC_MIDNIGHT = { timeZone: 'UTC', hour: 0 };
 const H = 60 * 60 * 1000;
 /** An instant given as New York wall-clock time in a month with EDT (UTC-4). */
 const edt = (date: string, hh: number, mm = 0) => Date.parse(`${date}T00:00:00Z`) + (hh + 4) * H + mm * 60_000;
 
-test("Blake's default day starts at 3:00am New York time", () => {
+test("Blake's day starts at 3:00am New York time; the engine default is neutral", () => {
   assert.deepEqual(NY, { timeZone: 'America/New_York', hour: 3 });
+  assert.deepEqual(DEFAULT_DAY_START, { timeZone: 'UTC', hour: 4 });
   assert.equal(practiceDay(edt('2026-10-15', 2, 59), NY), '2026-10-14');
   assert.equal(practiceDay(edt('2026-10-15', 3, 0), NY), '2026-10-15');
   assert.equal(practiceDay(edt('2026-10-15', 23, 50), NY), '2026-10-15');
@@ -45,7 +47,7 @@ test('settings accept a valid day start and refuse a bad one', () => {
 
 test('settings without a day start resolve to the default', () => {
   const log = record(device('phone'), [{ type: 'settings-set', settings: { desiredRetention: 0.85, windows: [] } }]);
-  assert.deepEqual(project(log).settings.dayStart, NY);
+  assert.deepEqual(project(log).settings.dayStart, DEFAULT_DAY_START);
 });
 
 function reviews(seq: [Rating, number][]): EventOf<'review'>[] {
@@ -65,7 +67,7 @@ test('7:30pm and 8:30pm New York count as one day for FSRS (they were two UTC da
 });
 
 test('a review due at 7pm is in that morning\'s 4am session, not the night before', () => {
-  const w = record(device('phone'), [item('i1'), card('c1', 'i1')]);
+  const w = record(device('phone'), [BLAKE_SETTINGS_EVENT, item('i1'), card('c1', 'i1')]);
   const lib = project(w);
   const hist = reviews([['easy', edt('2026-10-01', 19)]]);
   const m = memoryOf('c1', hist, 0.9, NY);

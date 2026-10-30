@@ -21,6 +21,9 @@
   },
   "include": [
     "src",
-    "test"
+    "test",
+    "fixtures",
+    "harness",
+    "supabase/functions/_shared"
   ]
 }

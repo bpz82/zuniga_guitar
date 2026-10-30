@@ -194,13 +194,17 @@ function quietHours(v: unknown, p: string) {
 }
 
 function settings(v: unknown, p: string) {
-  const o = obj(v, p, ['desiredRetention', 'windows'], ['dayStart', 'quietHours', 'morningMinutes']);
+  const o = obj(v, p, ['desiredRetention', 'windows'], ['dayStart', 'quietHours', 'morningMinutes', 'notifications']);
   const windows = list(
     o.windows,
     `${p}.windows`,
     (x, q) => {
-      const w = obj(x, q, ['id', 'start']);
-      return { id: oneOf(w.id, `${q}.id`, WINDOW_IDS), start: time(w.start, `${q}.start`) };
+      const w = obj(x, q, ['id', 'start'], ['notify']);
+      return {
+        id: oneOf(w.id, `${q}.id`, WINDOW_IDS),
+        start: time(w.start, `${q}.start`),
+        ...(w.notify === undefined ? {} : { notify: bool(w.notify, `${q}.notify`) }),
+      };
     },
     WINDOW_IDS.length,
   );
@@ -211,6 +215,7 @@ function settings(v: unknown, p: string) {
     ...(o.dayStart === undefined ? {} : { dayStart: dayStart(o.dayStart, `${p}.dayStart`) }),
     ...(o.quietHours === undefined ? {} : { quietHours: quietHours(o.quietHours, `${p}.quietHours`) }),
     ...(o.morningMinutes === undefined ? {} : { morningMinutes: int(o.morningMinutes, `${p}.morningMinutes`, 60, 300) }),
+    ...(o.notifications === undefined ? {} : { notifications: bool(o.notifications, `${p}.notifications`) }),
   };
 }
 
