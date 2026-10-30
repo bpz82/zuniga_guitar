@@ -67,7 +67,9 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Config in the log (2026-10-30, third round):** items, cards, goals and settings stay in the log as versioned events.
 - **Day boundary:** a practice day starts at 3:00am America/New_York (Blake wakes 3:30 to 4am, sleeps by midnight), stored as `settings.dayStart` in the log.
 - **ts-fsrs Date side effect:** left alone unless it causes a real problem.
-- **Goals layer choices awaiting Blake's review (checkpoint 3):** check-ins at 14, 7 and 2 days out; gig default retention 95%; gig final week = last 7 practice days; goal weight leans queue order as risk x (1 + weight).
+- **Goals layer (approved 2026-10-30):** check-ins at 14, 7 and 2 days out; gig default retention 95%; final 7 practice days (gig day included) are full set run-throughs, due cards still served in pocket bursts; order is risk x (1 + weight) and goals never hide other due cards; changing the day start re-buckets past reviews.
+- **Schedule (2026-10-30):** morning guitar session 4:00am; pocket windows 9:45am (sound), 1:00pm (silent; work is 10:30am to 4:00pm), 4:30pm (sound). All in settings.
+- **Session builder choices awaiting Blake's review (checkpoint 4):** quiet hours 10:30 to 4:00pm override every window (silent cards only); morning length is a setting, 60 minimum; new cards are limited by the time box, not a daily count; no nudge for a window with nothing to do; the module contract moves to checkpoint 5 with the test deck.
 
 ## Knowingly NOT doing (v0.1)
 

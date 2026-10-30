@@ -66,3 +66,29 @@ export function daysBetween(a: string, b: string): number {
 export function addDays(date: string, n: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
 }
+
+/**
+ * The instant a local clock time ("HH:MM") happens within a practice day.
+ * Times earlier than the day start (e.g. 01:30 with a 3:00 start) fall on the
+ * next calendar date, because the practice day runs past midnight.
+ */
+export function timeOnDay(date: string, hhmm: string, dayStart: DayStart): number {
+  const [hh, mm] = hhmm.split(':').map(Number) as [number, number];
+  const calendar = hh < dayStart.hour ? addDays(date, 1) : date;
+  const wall = Date.parse(`${calendar}T00:00:00Z`) + hh * HOUR + mm * 60_000;
+  let t = wall - tzOffset(wall, dayStart.timeZone);
+  t = wall - tzOffset(t, dayStart.timeZone);
+  return t;
+}
+
+/** Local clock time of an instant as minutes after midnight (0 to 1439). */
+export function minuteOfDay(t: number, timeZone: string): number {
+  const local = t + tzOffset(t, timeZone);
+  return Math.floor((((local % DAY) + DAY) % DAY) / 60_000);
+}
+
+/** "HH:MM" to minutes after midnight. */
+export function minutesOf(hhmm: string): number {
+  const [hh, mm] = hhmm.split(':').map(Number) as [number, number];
+  return hh * 60 + mm;
+}

@@ -115,27 +115,42 @@ export interface DayStart {
 
 export const DEFAULT_DAY_START: DayStart = Object.freeze({ timeZone: 'America/New_York', hour: 3 });
 
-/** Settings as recorded in the log. `dayStart` may be absent in older events. */
+/** A daily stretch when sound is not allowed (work). "HH:MM" local; may wrap midnight. */
+export interface QuietHours {
+  readonly start: string;
+  readonly end: string;
+}
+
+/** Settings as recorded in the log. Optional fields may be absent in older events. */
 export interface SettingsInput {
   /** Default desired retention, 0.7 to 0.99. */
   readonly desiredRetention: number;
   readonly windows: readonly PracticeWindow[];
   readonly dayStart?: DayStart;
+  /** Inside quiet hours only silent cards are served, whatever the window. */
+  readonly quietHours?: QuietHours;
+  /** Length of the morning guitar session. Spec: 1 hour minimum. 60 to 300. */
+  readonly morningMinutes?: number;
 }
 
 /** Settings as the engine uses them: every field resolved. */
 export interface Settings extends SettingsInput {
   readonly dayStart: DayStart;
+  readonly quietHours: QuietHours;
+  readonly morningMinutes: number;
 }
 
+/** Blake's schedule (2026-10-30). All of it can be changed with a settings-set event. */
 export const DEFAULT_SETTINGS: Settings = Object.freeze({
   desiredRetention: 0.9,
   dayStart: DEFAULT_DAY_START,
+  quietHours: Object.freeze({ start: '10:30', end: '16:00' }),
+  morningMinutes: 60,
   windows: Object.freeze([
-    Object.freeze({ id: 'morning', start: '07:00' }),
-    Object.freeze({ id: 'before-work', start: '08:30' }),
-    Object.freeze({ id: 'during-work', start: '12:30' }),
-    Object.freeze({ id: 'after-work', start: '17:30' }),
+    Object.freeze({ id: 'morning', start: '04:00' }),
+    Object.freeze({ id: 'before-work', start: '09:45' }),
+    Object.freeze({ id: 'during-work', start: '13:00' }),
+    Object.freeze({ id: 'after-work', start: '16:30' }),
   ]) as readonly PracticeWindow[],
 });
 

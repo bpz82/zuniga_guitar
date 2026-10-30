@@ -25,6 +25,6 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 |---|---|
 | 1. Data model | Approved 2026-10-30 |
 | 2. Scheduler | Approved 2026-10-30 |
-| 3. Goals layer (and 3am day boundary) | Built, awaiting review |
-| 4. Session builder | Not started |
-| 5. App shell (storage, sync, notifications, test harness) | Not started |
+| 3. Goals layer (and 3am day boundary) | Approved 2026-10-30 |
+| 4. Session builder | Built, awaiting review |
+| 5. App shell (storage, sync, module contract, test deck, notifications, test harness) | Not started |

@@ -7,7 +7,7 @@
  */
 import { replay } from './log.ts';
 import type { Log } from './log.ts';
-import { DEFAULT_DAY_START, DEFAULT_SETTINGS } from './model.ts';
+import { DEFAULT_SETTINGS } from './model.ts';
 import type { Card, EventOf, Goal, Item, Settings } from './model.ts';
 
 export interface Library {
@@ -48,7 +48,7 @@ export function project(log: Log): Library {
           goalSetAt.set(e.goal.id, e.at);
           break;
         case 'settings-set':
-          settings = { ...e.settings, dayStart: e.settings.dayStart ?? DEFAULT_DAY_START };
+          settings = { ...DEFAULT_SETTINGS, ...e.settings };
           break;
         case 'review': {
           const list = reviews.get(e.cardId);

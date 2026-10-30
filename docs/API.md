@@ -40,7 +40,7 @@ There is no update or delete function, by design.
 | `item-set` | `item: { id, module, fields }` |
 | `card-set` | `card: { id, itemId, template, tags, retired }`. Tags: `guitar`, `pocket-sound`, `pocket-silent`. Retire instead of delete. |
 | `goal-set` | `goal: { id, kind ('general' or 'gig'), what, why, deadline 'YYYY-MM-DD', itemIds, dailyMinutes, weight, targetRetention?, blocks, archived }` |
-| `settings-set` | `settings: { desiredRetention (0.7 to 0.99), windows: [{ id, start 'HH:MM' }], dayStart?: { timeZone, hour } }`. Window ids: `morning`, `before-work`, `during-work`, `after-work`. Missing `dayStart` means 3:00am America/New_York. |
+| `settings-set` | `settings: { desiredRetention (0.7 to 0.99), windows: [{ id, start 'HH:MM' }], dayStart?: { timeZone, hour }, quietHours?: { start, end }, morningMinutes? }`. Window ids: `morning`, `before-work`, `during-work`, `after-work`. Missing optional fields take Blake's defaults: day starts 3:00am America/New_York, quiet 10:30 to 16:00, morning 60 minutes. |
 | `review` | `cardId, rating ('again', 'hard', 'good', 'easy'), durationMs, details?` |
 | `feel-session` | `goalId?, durationMs, note` |
 | `task-done` | `goalId, blockId, durationMs` |
@@ -118,6 +118,34 @@ Rules:
 - **Peaking guarantee:** a gig card that fuzz would push past the gig with recall below target by the end of gig day is pulled forward, at most once per practice day.
 - **Check-ins** at 14, 7 and 2 days before the deadline. Saving the goal (changed or not) clears the pending one.
 
+## Sessions (checkpoint 4)
+
+What to practice right now, and when to nudge. Pure functions; nothing is stored. A missed session needs no handling: its cards stay due and come up next time.
+
+```ts
+import { sessionFor, nudgesBetween } from './src/index.ts';
+
+const s = sessionFor(lib, Date.now());
+// s.mode: 'guitar' (morning), 'sound' or 'silent' (pocket bursts)
+// s.minutes / s.minMinutes: 60/60 for the morning, 5/3 for a burst
+// s.segments: in order. Review segments hold due cards then new ones;
+//   block segments hold a goal block and whether it's done today.
+```
+
+| Function | What it does |
+|---|---|
+| `sessionFor(lib, now)` | The session for right now. Opening the app always gets one (before 4:00am it is the morning session). |
+| `nudgesBetween(lib, from, to)` | Notifications due in (from, to]: one per window start with something to do, `silent` during quiet hours. Never repeats, never replays a missed window. The push sender will call it each run with its previous run time. |
+| `windowsFor(lib, date)`, `currentWindow(lib, now)`, `isQuiet(lib, t)` | Window times for a practice day, the window now, whether it is quiet hours. |
+
+Rules:
+- **Windows** (settings, Blake's defaults): morning guitar session 4:00am; pocket bursts 9:45am (sound), 1:00pm (silent), 4:30pm (sound). A window lasts until the next one starts.
+- **What each window serves:** morning, `guitar` cards; sound bursts, `pocket-sound` and `pocket-silent`; the during-work burst, `pocket-silent` only.
+- **Quiet hours** (10:30am to 4:00pm by default) override everything: only `pocket-silent` cards, even if a 9:45 burst is opened late or the morning session is opened at work.
+- **Bursts** are time-boxed at 3 to 5 minutes: due cards first, then new ones. The UI stops when time is up; the engine never counts cards.
+- **Morning** (`morningMinutes`, 60 by default, 60 to 300): guitar yoga first so it is never squeezed out, then reviews, then timed tasks and run-throughs. Goal blocks are fitted with `splitTime`; recall minutes plus any spare minutes become review time. Blocks done today (a `task-done` or `feel-session` event for that goal and block) are marked `done`.
+- **New cards** are limited by time, not count: they are offered only after due cards, inside the time box.
+
 ## Not here yet
 
-Session builder arrives at checkpoint 4; storage, sync and notifications at 5.
+Storage, sync, the module contract, the test deck and push notifications arrive at checkpoint 5.

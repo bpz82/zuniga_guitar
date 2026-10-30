@@ -185,8 +185,16 @@ function dayStart(v: unknown, p: string) {
   return { timeZone: timeZone(o.timeZone, `${p}.timeZone`), hour: int(o.hour, `${p}.hour`, 0, 23) };
 }
 
+function quietHours(v: unknown, p: string) {
+  const o = obj(v, p, ['start', 'end']);
+  const start = time(o.start, `${p}.start`);
+  const end = time(o.end, `${p}.end`);
+  if (start === end) fail(p, 'start and end must differ');
+  return { start, end };
+}
+
 function settings(v: unknown, p: string) {
-  const o = obj(v, p, ['desiredRetention', 'windows'], ['dayStart']);
+  const o = obj(v, p, ['desiredRetention', 'windows'], ['dayStart', 'quietHours', 'morningMinutes']);
   const windows = list(
     o.windows,
     `${p}.windows`,
@@ -201,6 +209,8 @@ function settings(v: unknown, p: string) {
     desiredRetention: retention(o.desiredRetention, `${p}.desiredRetention`),
     windows,
     ...(o.dayStart === undefined ? {} : { dayStart: dayStart(o.dayStart, `${p}.dayStart`) }),
+    ...(o.quietHours === undefined ? {} : { quietHours: quietHours(o.quietHours, `${p}.quietHours`) }),
+    ...(o.morningMinutes === undefined ? {} : { morningMinutes: int(o.morningMinutes, `${p}.morningMinutes`, 60, 300) }),
   };
 }
 
