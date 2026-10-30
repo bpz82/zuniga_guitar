@@ -1,0 +1,114 @@
+# THE ONE-SHEET
+### Two operating systems for building things that work
+
+---
+
+## PART I — THE ALGORITHM (Elon Musk)
+**Order is non-negotiable. He says he's personally gone backwards on all five steps, multiple
+times.**
+
+**1. Make your requirements less dumb.**
+Every requirement arrives with the name of a *person*. Never "the legal department." Never
+"the safety department." A name. Then question it — no matter how smart that person is. His
+own words: requirements from smart people are the most dangerous, because people are less
+likely to question them. Question them even if they came from him.
+
+**2. Suggest to Delete the part or process.**
+NOT suggest to trim — suggest to delete. Calibration test: if you don't end up adding back at
+least **10%** of what you deleted, you didn't delete enough. Tell the team in advance you're
+going to over-delete on purpose. DO NOT DELETE ANYTHING WITHOUT ASKING
+BLAKE FIRST.
+
+**3. Simplify and optimize.**
+Only now. The common mistake is simplifying a part or process that should not exist at all.
+
+**4. Accelerate cycle time.**
+Every process can be sped up — but only after the first three. His line: if you're digging your
+grave, don't dig it faster. Stop digging.
+
+**5. Automate.**
+Last. Always last. The Nevada and Fremont failure was starting here.
+
+### The corollaries (the postscript)
+- **Camaraderie is dangerous.** It makes it hard for people to challenge each other's work.
+- It's OK to be wrong. Just don't be confident and wrong.
+- Never ask your troops to do something you're not willing to do.
+- Don't just meet with managers. **Skip a level.**
+- **A maniacal sense of urgency is our operating principle.**
+- *The only rules are the ones dictated by the laws of physics. Everything else is a
+recommendation.*
+
+### Three mechanisms that make the algorithm run
+
+**Walk to the red.** A monitor shows every station green or red. Walk straight to the red. Ask
+why until you hit root cause.
+
+**The idiot index.** A $120,000 quoted part was no more complicated than a garage door
+opener — built in-house for $5,000. A $1,500 NASA latch replaced by a modified
+bathroom-stall latch for $30. A $3M air cooling system solved with modified commercial AC
+units.
+
+## PART II — SKUNK WORKS (Kelly Johnson)
+
+**Mottos:** *Be quick, be quiet, be on time.* · KISS — keep it simple, stupid. · If it works,
+don't fix it. · Listen; you'll never learn anything by talking. ·
+### The 14 Points
+1. The manager must be delegated **practically complete control** of his program in all aspects.
+He reports to BLAKE.
+3. The number of people having any connection with the project must be restricted **in an
+almost vicious manner.** Use 10–25% of the so-called “normal” headcount, always suggest
+deleting or combining bots into one bot with multiple jobs..
+9. The contractor must have authority to test his final product in flight. If he doesn't, he rapidly
+loses competency to design anything else.
+10. Specifications agreed in advance — including an explicit section stating which requirements
+will knowingly *not* be complied with, and why.
+13. Outside access strictly controlled.
+### The numbers that prove it
+### Kelly's hardest line
+*"There's a tendency today, which I hate to see, toward design by committee, reviews and
+recommendations, conferences and consultations by those not directly doing the job. Nothing
+very stupid will result — but nothing brilliant either. And it is in the brilliant concept that a major
+advance is achieved."* [On
+committees](https://foundersnotes.com/transcripts/3811/?location=00:12:00)
+
+### And the warning
+*What the Skunk Works does is secret. How it does it is not.* He spent years trying to convince
+others to use these principles. **Very seldom has the formula been followed.**there is
+something in our nature that makes simple things complex
+# ADDENDUM — other design principles worth utilizing
+
+### On simplicity
+Simplicity improves reliability *and* reduces cost — fewer components means fewer to buy and
+fewer that can go wrong. And it doesn't arrive in one stroke: simplicity comes from hundreds of
+little changes. **genius has the fewest moving parts.**
+
+### On complexity and scale
+Complexity is the enemy of scaling.
+### On design
+Design is the fundamental soul of a creation that ends up expressing itself in successive outer
+layers."*
+
+### On deliberate delight
+The Model S door handles sit flush, then light up and pop out as you approach — *a happy
+handshake.* Everyone said a normal handle would work just as well. He took it anyway: surprise
+creates emotional bond, and people tell other people. Showmanship is salesmanship.
+### On evolution over prediction
+*Create an environment that fosters innovation and let it evolve in a Darwinian way. You don't
+want to pick one technology or path and decide it will win, because it may not be the best
+option.* Failure is a side effect of iteration. His test for an engineer: **if you can't tell me four
+ways you screwed something up before you got it right, you weren't the one doing the real
+work.**
+### On repetition as a design tool
+**if your subordinates don't already know what you're about to say, you're not saying it
+enough.**
+### On the limits of any framework
+*there is no one good way to build all airplanes.*
+### Kelly's three underrated points
+**Integrity is a performance multiplier.*
+**Mistakes are acceptable; concealed mistakes are not.** They had to be reported immediately,
+with recommendations for correction.
+**Know when to kill your own brilliant idea.*
+
+**If you cut this sheet down to one sentence:** *question it, name who asked for it, delete it,
+keep the team small, give one person complete authority, and go faster.*
+
