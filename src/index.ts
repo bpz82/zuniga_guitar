@@ -6,3 +6,5 @@ export { append, merge, replay, emptyLog, compareEvents, canonical, RejectedEven
 export type { Log, AppendContext, Rejection } from './log.ts';
 export { project, cardsOfItem } from './project.ts';
 export type { Library } from './project.ts';
+export { memoryOf, retrievability, buildQueue, LEECH_LAPSES } from './scheduler.ts';
+export type { Memory, Phase, QueueOptions, DueCard, Queue } from './scheduler.ts';

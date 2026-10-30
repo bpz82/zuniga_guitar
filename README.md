@@ -9,7 +9,7 @@ Practice engine for Blake's guitar app. Engine only: logic, data, scheduling, go
 
 ## Run the tests
 
-Needs Node 22.18 or newer (runs TypeScript directly, no build step).
+Needs **Node 22.18 or newer** (22 or 24 LTS). Node runs the TypeScript directly, so there is no build step. Node 20 is not supported: it reached end of life on 2026-04-30 and Supabase's JavaScript libraries dropped it on 2026-06-30. On an older Node, `npm test` stops with a message saying so.
 
 ```sh
 npm test          # node's built-in test runner, no dependencies
@@ -17,12 +17,14 @@ npm install       # only needed for the type check
 npm run typecheck
 ```
 
+FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORED.md`](vendor/ts-fsrs/VENDORED.md).
+
 ## Status
 
 | Checkpoint | State |
 |---|---|
-| 1. Data model | Built, awaiting review |
-| 2. Scheduler | Not started |
+| 1. Data model | Approved 2026-10-30 |
+| 2. Scheduler | Built, awaiting review |
 | 3. Goals layer | Not started |
 | 4. Session builder | Not started |
 | 5. App shell (storage, sync, notifications, test harness) | Not started |

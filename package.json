@@ -8,11 +8,11 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.ts\"",
+    "test": "node scripts/check-node.mjs && node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc -p ."
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.8.0"
+    "typescript": "^6.0.0"
   }
 }

@@ -50,6 +50,29 @@ Goal blocks: `{ id, kind, label, minutes, params? }`. Active kinds: `recall`, `f
 
 To edit an item, card, goal or settings, append a new `-set` event with the full new version. The latest by time wins; the old version stays in history.
 
+## Scheduler (checkpoint 2)
+
+FSRS-6 with fuzz and learning steps (1 and 10 minutes) and a relearning step (10 minutes). Nothing is stored: everything is computed from the log.
+
+```ts
+import { buildQueue, memoryOf, retrievability, project } from './src/index.ts';
+
+const lib = project(log);
+const queue = buildQueue(lib, { now: Date.now() });
+// queue.due:     cards to practice, in order (steps first, then riskiest reviews)
+// queue.fresh:   never-reviewed cards, in the order they were added
+// queue.leeches: cards with 8+ lapses, still scheduled, flagged for a breakdown
+```
+
+| Function | What it does |
+|---|---|
+| `buildQueue(lib, { now, retentionFor?, weightFor? })` | Today's queue. `retentionFor(cardId)` defaults to settings; `weightFor(cardId)` defaults to 1. The goals layer will supply both. |
+| `memoryOf(cardId, reviews, retention)` | One card's memory: `phase` (`new`, `learning`, `review`, `relearning`), `stability`, `difficulty`, `reps`, `lapses`, `lastReview`, `due`, `leech`. |
+| `retrievability(memory, now)` | Recall probability now, 0 to 1 (null for new cards). |
+| `LEECH_LAPSES` | 8. |
+
+Each `due` entry is `{ memory, retrievability, priority }`. A backlog after a break is just a long queue: show what fits today; the rest stays due and is re-ranked tomorrow.
+
 ## Not here yet
 
-Scheduling (due dates, FSRS state) arrives at checkpoint 2, goals math at 3, session builder at 4, storage, sync and notifications at 5.
+Goals math arrives at checkpoint 3, session builder at 4, storage, sync and notifications at 5.

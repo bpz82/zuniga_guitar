@@ -61,6 +61,9 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Stats:** at most one line on Today (due count and retention).
 - **Recordings, later:** Supabase Storage, not Cloudflare R2.
 - **Done means, revised:** burying leaves the engine test list (deferred to Songs).
+- **FSRS (2026-10-30, second round):** FSRS-6, from a pinned vendored copy of ts-fsrs v5.4.2 with its license (`vendor/ts-fsrs/VENDORED.md`).
+- **Runtime:** Node 22.18 or newer. Node 20 is end-of-life and not supported.
+- **Architecture principles** (`docs/IMPORTANT_architecture-principles.md`) are mandatory alongside the design sheet.
 
 ## Knowingly NOT doing (v0.1)
 
