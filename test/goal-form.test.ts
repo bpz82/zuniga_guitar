@@ -71,7 +71,7 @@ test('a gig goal: set songs, guitar yoga, recall time, improv takes ramping from
 test('the form refuses anything vague, out of range or inconsistent, naming the field', () => {
   const l = lib().lib;
   const bad: [string, GoalForm, RegExp][] = [
-    ['no blocks', { ...RECORD, tasks: [], songwriting: undefined }, /at least one/],
+    ['no blocks', (({ songwriting: _s, ...r }) => ({ ...r, tasks: [] }))(RECORD), /at least one/],
     ['empty task label', { ...RECORD, tasks: [{ label: ' ', minutes: 10 }] }, /timed task 1/],
     ['task too long', { ...RECORD, tasks: [{ label: 'x', minutes: 121 }] }, /timed task 1/],
     ['too many tasks', { ...RECORD, tasks: Array(6).fill({ label: 'x', minutes: 1 }) }, /at most 5/],
