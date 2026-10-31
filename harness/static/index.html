@@ -40,6 +40,28 @@
     <h3>Archived</h3>
     <ul data-zg="songs-archived"></ul>
   </section>
+  <section data-zg="goals">
+    <h2>Goals</h2>
+    <ul data-zg="goals-list"></ul>
+    <h3>New goal</h3>
+    <label>Kind <select data-zg="goal-kind"><option value="general">Deadline (e.g. write a new record)</option><option value="gig">Gig</option></select></label>
+    <label>What <input type="text" data-zg="goal-what" maxlength="500" placeholder="e.g. Write a new record"></label>
+    <label>Why <input type="text" data-zg="goal-why" maxlength="2000"></label>
+    <label>By (date) <input type="date" data-zg="goal-deadline"></label>
+    <fieldset><legend>Songs it is about (a gig's set)</legend><div data-zg="goal-songs"></div></fieldset>
+    <label>Timed tasks, one per line <textarea data-zg="goal-tasks" placeholder="10 min in Chord Chemistry"></textarea></label>
+    <label>Songwriting prompt: minutes per take (empty = none) <input type="number" data-zg="goal-write-minutes" min="1" max="60"></label>
+    <label>Songwriting takes a day <input type="number" data-zg="goal-write-takes" min="1" max="5" placeholder="1"></label>
+    <label>Your own songwriting prompt (empty = a new one each day) <input type="text" data-zg="goal-write-prompt" maxlength="200"></label>
+    <label>Improv takes a day (empty = none) <input type="number" data-zg="goal-improv-takes" min="1" max="10"></label>
+    <label>Improv minutes per take <input type="number" data-zg="goal-improv-minutes" min="1" max="30" placeholder="1"></label>
+    <label>Ramp improv up to (takes) <input type="number" data-zg="goal-improv-ramp-to" min="2" max="10"></label>
+    <label>…over the last (days) <input type="number" data-zg="goal-improv-ramp-days" min="1" max="60"></label>
+    <label>Guitar yoga minutes (empty = none) <input type="number" data-zg="goal-feel" min="1" max="60"></label>
+    <label>Recall minutes for the songs (empty = none) <input type="number" data-zg="goal-recall" min="1" max="240"></label>
+    <label>Minutes a day in total (empty = the sum) <input type="number" data-zg="goal-minutes" min="0" max="1440"></label>
+    <button data-zg="goal-save">Save goal</button>
+  </section>
   <section data-zg="recorder">
     <h2>Recorder</h2>
     <p data-zg="rec-status">Takes are saved on this device first, then backed up when you sync.</p>

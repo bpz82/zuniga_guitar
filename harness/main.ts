@@ -31,6 +31,9 @@ import { setupMetronome } from './metronome-ui.ts';
 import { setupSongs } from './songs-ui.ts';
 import { setupEar } from './ear-ui.ts';
 import { setupRecorder } from './recorder-ui.ts';
+import { setupGoals } from './goals-ui.ts';
+import { improvFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
+import { runTakes } from '../src/modules/recorder/takes.ts';
 import { RECORDER, uploadPending } from '../src/modules/recorder/takes.ts';
 import { indexedDbBlobStore } from '../src/modules/recorder/blobs.ts';
 import type { BlobStore } from '../src/modules/recorder/blobs.ts';
@@ -81,6 +84,7 @@ let earUi!: ReturnType<typeof setupEar>;
 let recHost!: ModuleHost;
 let recBlobs!: BlobStore;
 let recorder!: ReturnType<typeof setupRecorder>;
+let goalsUi!: ReturnType<typeof setupGoals>;
 /** Takes storage, when signed in. */
 const cloud = () => (client && userId !== 'local' ? { storage: supabaseTakeStorage(client as unknown as StorageClientLike), userId } : null);
 let revealed = false;
@@ -184,7 +188,16 @@ function render() {
       const li = document.createElement('li');
       li.dataset.zg = 'block';
       const b = seg.block;
-      li.textContent = `${b.label} · ${b.minutes} min ${seg.done ? '✓' : ''}`;
+      // Improv takes and songwriting prompts: today's concrete prompt, recorded.
+      const take = improvFor(b) ?? songwritingFor(b, s.date);
+      li.textContent = `${b.label} · ${b.minutes} min${take ? ` · ${take.prompt} (${take.takes} × ${take.minutes} min, recorded)` : ''} ${seg.done ? '✓' : ''}`;
+      if (take && !seg.done) {
+        const rec = document.createElement('button');
+        rec.dataset.zg = 'block-record';
+        rec.textContent = 'Record';
+        rec.onclick = () => void recorder.improv(take, { goalId: b.goalId, blockId: b.blockId });
+        li.append(' ', rec);
+      }
       if (!seg.done) {
         const btn = document.createElement('button');
         btn.dataset.zg = 'block-done';
@@ -217,6 +230,7 @@ function render() {
   songsUi.render();
   earUi.render();
   recorder.render();
+  goalsUi.render();
   $('notify-windows').replaceChildren(
     ...lib.settings.windows.map((w) => {
       const label = document.createElement('label');
@@ -288,6 +302,7 @@ function wire() {
   songsUi.wire();
   earUi.wire();
   recorder.wire();
+  goalsUi.wire();
   $('enable-push').onclick = () => void enableNotifications().catch((e) => say((e as Error).message));
   $('save-config').onclick = () => {
     config = { supabaseUrl: ($('cfg-url') as HTMLInputElement).value.trim(), publishableKey: ($('cfg-key') as HTMLInputElement).value.trim(), vapidPublicKey: ($('cfg-vapid') as HTMLInputElement).value.trim() };
@@ -348,7 +363,13 @@ async function main() {
   earUi = setupEar(replica, earHost, say, afterChange);
   recHost = createHost(replica, RECORDER);
   recBlobs = await indexedDbBlobStore(userId);
-  recorder = setupRecorder(recHost, () => recBlobs, cloud, say, afterChange);
+  // A goal block's takes are all recorded: tick the block off for today.
+  recorder = setupRecorder(recHost, () => recBlobs, cloud, say, afterChange, async ({ runId, block }) => {
+    if (!block) return;
+    const durationMs = runTakes(recHost, runId).reduce((sum, t) => sum + t.durationMs, 0);
+    await record({ ok: true, value: { type: 'task-done', goalId: block.goalId, blockId: block.blockId, durationMs } });
+  });
+  goalsUi = setupGoals(replica, songsHost, record, say);
   wire();
   $('card').dataset.started = String(Date.now());
   render();

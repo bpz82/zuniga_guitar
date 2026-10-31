@@ -39,3 +39,4 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 | Songs skip learning steps; module contract locked as v1 | Built, awaiting review |
 | Ear training module | Built, awaiting review |
 | Recorder and improv takes (Storage bucket + RLS) | Built, awaiting review |
+| Goals intake and songwriting prompts | Built, awaiting review |

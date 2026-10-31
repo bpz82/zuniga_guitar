@@ -308,6 +308,54 @@ try {
   assert.equal(versions, 6, '3 takes + rename + archive + restore: every version kept');
   step('recorder: list, play, rename, archive and restore takes (no delete)');
 
+  // Goals: "write a new record by X" with a timed task and a daily songwriting prompt (it is the morning session now).
+  await page.selectOption('[data-zg="goal-kind"]', 'general');
+  await page.fill('[data-zg="goal-what"]', 'Write a new record');
+  await page.fill('[data-zg="goal-why"]', 'Ten new songs by spring');
+  await page.fill('[data-zg="goal-deadline"]', '2027-03-01');
+  await page.fill('[data-zg="goal-tasks"]', '10 min in Chord Chemistry');
+  await page.fill('[data-zg="goal-write-minutes"]', '1');
+  await page.click('[data-zg="goal-save"]');
+  await until(() => document.querySelectorAll('[data-zg="goals-list"] [data-zg="goal"]').length === 1);
+  assert.match(await page.textContent('[data-zg="goals-list"]'), /Write a new record · general · by 2027-03-01 · 11 min a day · 10 min in Chord Chemistry, Songwriting prompt/);
+  const blockText = await page.textContent('[data-zg="blocks"]');
+  assert.match(blockText, /10 min in Chord Chemistry · 10 min/);
+  assert.match(blockText, /Songwriting prompt · 1 min · .*[Rr]ecord.* \(1 × \d+ min, recorded\)/);
+  step('goals: a deadline goal from the intake form; its timed task and today\'s songwriting prompt show in the session');
+
+  await page.click('[data-zg="blocks"] [data-zg="block-record"]');
+  await until(() => !document.querySelector('[data-zg="rec-stop"]').hidden);
+  await page.clock.runFor(1_500);
+  await page.click('[data-zg="rec-stop"]');
+  await until(() => window.zg.replica.log.some((e) => e.type === 'task-done' && e.blockId === 'write'));
+  const written = await takesNow();
+  const forBlock = written.find((f) => f.blockId === 'write');
+  assert.ok(forBlock && forBlock.goalId.startsWith('goal-') && forBlock.of === 1, 'the take is tied to the goal block');
+  await until(() => !document.querySelector('[data-zg="blocks"]').textContent.includes('Record') || document.querySelectorAll('[data-zg="blocks"] [data-zg="block-record"]').length === 0);
+  assert.match(await page.textContent('[data-zg="blocks"]'), /Songwriting prompt .*✓/);
+  step('goals: recording the songwriting prompt ticks the block off for today');
+
+  await page.selectOption('[data-zg="goal-kind"]', 'gig');
+  await page.fill('[data-zg="goal-what"]', 'Friday gig');
+  await page.fill('[data-zg="goal-deadline"]', '2026-11-10');
+  await page.fill('[data-zg="goal-tasks"]', '');
+  await page.fill('[data-zg="goal-write-minutes"]', '');
+  await page.fill('[data-zg="goal-improv-takes"]', '5');
+  await page.fill('[data-zg="goal-improv-minutes"]', '1');
+  await page.fill('[data-zg="goal-improv-ramp-to"]', '4');
+  await page.fill('[data-zg="goal-improv-ramp-days"]', '14');
+  await page.click('[data-zg="goal-save"]');
+  await until(() => document.querySelector('[data-zg="status"]').textContent.includes('Goal: improv ramp'));
+  await page.fill('[data-zg="goal-improv-ramp-to"]', '10');
+  await page.click('[data-zg="goal-save"]');
+  await until(() => document.querySelectorAll('[data-zg="goals-list"] [data-zg="goal"]').length === 2);
+  // 7 days before the gig, half way through a 14-day ramp from 5 to 10: 8 takes today.
+  assert.match(await page.textContent('[data-zg="blocks"]'), /Improv takes · \d+ min · Improv takes \(8 × 1 min, recorded\)/);
+  await page.click('[data-zg="goals-list"] [data-zg="goal"] >> text=Friday gig >> [data-zg="goal-archive"]');
+  await until(() => document.querySelectorAll('[data-zg="goals-list"] [data-zg="goal"]').length === 1);
+  assert.equal(await page.evaluate(() => [...window.zg.replica.library.goals.values()].filter((g) => g.archived).length), 1, 'archived, kept in history');
+  step('goals: a gig goal ramps improv takes toward the date; bad input refused; archive keeps the goal');
+
   assert.ok(await page.isChecked('[data-zg="notify-morning-always"]'), 'morning reminder always on by default');
   await page.uncheck('[data-zg="notify-morning-always"]');
   await page.waitForFunction(() => window.zg.replica.library.settings.alwaysRemindMorning === false);

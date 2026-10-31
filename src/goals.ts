@@ -12,7 +12,7 @@ import { buildQueue, retrievability } from './scheduler.ts';
 import type { Memory, Queue } from './scheduler.ts';
 import type { Library } from './project.ts';
 import { ACTIVE_BLOCK_KINDS } from './model.ts';
-import type { BlockKind, EventBody, Goal, GoalBlock, GoalKind } from './model.ts';
+import type { BlockKind, Details, EventBody, Goal, GoalBlock, GoalKind } from './model.ts';
 import { validateBody } from './validate.ts';
 import type { Validation } from './validate.ts';
 
@@ -84,6 +84,10 @@ export interface PlannedBlock {
   readonly weight: number;
   /** Protected blocks are never squeezed by splitTime. */
   readonly protected: boolean;
+  /** The block's own settings, for the module that runs it (e.g. a tempo ladder's tempos). */
+  readonly params?: Details;
+  /** Days until the goal's deadline (0 on the day itself). Ramps use it. */
+  readonly daysLeft: number;
 }
 
 export interface CheckIn {
@@ -187,6 +191,7 @@ function blocksForToday(goal: Goal, today: string): PlannedBlock[] {
     );
   if (runnable.length === 0) return [];
   const minutes = apportion(runnable.map((b) => b.minutes), goal.dailyMinutes);
+  const daysLeft = daysBetween(today, goal.deadline);
   return runnable.map((b, i) => ({
     goalId: goal.id,
     blockId: b.id,
@@ -195,6 +200,8 @@ function blocksForToday(goal: Goal, today: string): PlannedBlock[] {
     minutes: minutes[i]!,
     weight: goal.weight,
     protected: PROTECTED_KINDS.includes(b.kind),
+    ...(b.params === undefined || b.id.endsWith(':run-through') ? {} : { params: b.params }),
+    daysLeft,
   }));
 }
 

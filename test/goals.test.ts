@@ -258,10 +258,30 @@ test('blocks scale to the goal\'s daily minutes; reserved kinds wait and give th
   const blocks = [
     { id: 'b1', kind: 'recall' as const, label: 'Set songs', minutes: 15 },
     { id: 'b2', kind: 'feel-session' as const, label: 'Guitar yoga', minutes: 10 },
-    { id: 'b3', kind: 'improv-takes' as const, label: 'Improv takes', minutes: 5 },
+    { id: 'b3', kind: 'gig-memo' as const, label: 'Post-gig memo', minutes: 5 },
   ];
   const plan = planGoals(withGig(library(), { blocks, dailyMinutes: 30 }).lib, at9('2026-11-01'));
   assert.deepEqual(plan.blocks.map((b) => [b.blockId, b.minutes, b.protected]), [['b1', 18, false], ['b2', 12, true]]);
+});
+
+test('improv takes and songwriting prompts are runnable now (recorder, 2026-10-31): they keep their time and their params', () => {
+  const blocks = [
+    { id: 'b1', kind: 'recall' as const, label: 'Set songs', minutes: 15 },
+    { id: 'b2', kind: 'improv-takes' as const, label: 'Improv takes', minutes: 5, params: { takes: 5, minutes: 1 } },
+    { id: 'b3', kind: 'creative-prompt' as const, label: 'Songwriting prompt', minutes: 10, params: { takes: 1, minutes: 10 } },
+  ];
+  const plan = planGoals(withGig(library(), { blocks, dailyMinutes: 30 }).lib, at9('2026-11-01'));
+  assert.deepEqual(plan.blocks.map((b) => [b.blockId, b.kind, b.minutes]), [['b1', 'recall', 15], ['b2', 'improv-takes', 5], ['b3', 'creative-prompt', 10]]);
+  assert.deepEqual(plan.blocks[1]!.params, { takes: 5, minutes: 1 });
+  assert.equal(plan.blocks[1]!.daysLeft, 33, 'days to the 2026-12-04 deadline');
+});
+
+test('planned blocks carry their params to the module (the tempo ladder button needed this)', () => {
+  const ladder = { cardId: 'mx-free-c', startBpm: 60, targetBpm: 90, stepBpm: 5, cleanReps: 2, repBars: 4 };
+  const blocks = [{ id: 'lad', kind: 'tempo-ladder' as const, label: 'Ladder', minutes: 10, params: ladder }];
+  const plan = planGoals(withGig(library(), { blocks, dailyMinutes: 10 }).lib, at9('2026-11-01'));
+  assert.deepEqual(plan.blocks[0]!.params, ladder);
+  assert.deepEqual(splitTime(plan.blocks, 60)[0]!.params, ladder, 'and keep them through the time split');
 });
 
 test('a goal with no blocks gets one recall block for its whole daily time', () => {
@@ -288,6 +308,7 @@ const block = (goalId: string, minutes: number, weight: number, isProtected = fa
   label: goalId,
   minutes,
   weight,
+  daysLeft: 10,
   protected: isProtected,
 });
 

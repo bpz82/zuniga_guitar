@@ -109,11 +109,25 @@ const fitted = splitTime(plan.blocks, 60);      // fit blocks into 60 minutes
 | `splitTime(blocks, minutes)` | Fits blocks into a time budget: protected blocks (guitar yoga) first, the rest by goal weight, capped at what each asked for. Whole minutes. |
 | `isActive(goal, today)` | Not archived and the deadline day has not passed. |
 
+### The intake form (2026-10-31)
+
+`goalFromForm(form, id, lib, now)` (`src/goal-form.ts`) builds a goal from what a person fills in, checking every field strictly, then calls `goalFromIntake`. A gig, or a deadline ("write a new record by 2027-03-01"), with any of:
+
+| Form field | Block made | Notes |
+|---|---|---|
+| `tasks: [{ label, minutes }]` (up to 5) | `timed-task` | Plain words work: `tasksFromText("10 min in Chord Chemistry")`; the line must start with the minutes. Checked off. |
+| `songwriting: { minutes, takes, prompt? }` | `creative-prompt` | A concrete prompt each day, recorded. Without `prompt`, today's comes from the list (`src/modules/songwriting/prompts.ts`), rotating so none repeats until all 20 have come up. Never a count of "ideas". |
+| `improv: { takes, minutes, prompt?, rampTo?, rampDays? }` | `improv-takes` | N takes of M minutes, recorded. With a ramp, takes climb to `rampTo` over the last `rampDays` before the date (spec example: 5 to 10 one-minute takes a day for a gig). |
+| `feel` | `feel-session` | Guitar yoga, protected. |
+| `recall` (needs `itemIds`) | `recall` | Time for the goal's songs; a gig's set gets 95% retention and deadline peaking. |
+
+`dailyMinutes` defaults to the sum of the blocks. `archiveGoal(lib, id)` and `checkInGoal(lib, id, dailyMinutes)` re-save the goal (history kept; a check-in is cleared by saving). Recording an improv or songwriting block's takes ticks it off with a `task-done` event. `improvFor(block)` and `songwritingFor(block, date)` (`src/modules/recorder/blocks.ts`) give today's prompt, takes and minutes; they read params leniently because older goals stored these blocks' params freely.
+
 Rules:
 - **Active** through the deadline practice day; gone at the next 3:00am. No cleanup event needed.
 - **Retention:** a goal's `targetRetention`, or 95% for gig goals, else `settings.desiredRetention`. A card in several goals takes the highest.
 - **Order:** risk x weight. Material in no goal has weight 1; goal material has 1 + goal weight (highest goal wins). New goal cards are introduced first. Weight leans the order; it does not override a card that is far more forgotten.
-- **Blocks:** a goal with no blocks gets one recall block. Blocks are scaled to the goal's `dailyMinutes`. Reserved kinds (tempo ladders, creative prompts, improv takes, gig memo) are skipped until their modules ship, and their time goes to the other blocks.
+- **Blocks:** a goal with no blocks gets one recall block. Blocks are scaled to the goal's `dailyMinutes`. Runnable: recall, feel-session, timed-task, tempo-ladder (metronome), improv-takes and creative-prompt (recorder, 2026-10-31). Reserved: gig-memo (skipped; its time goes to the other blocks). Each planned block carries its `params` and `daysLeft` to the module that runs it.
 - **Gig final week** (last 7 practice days, gig day included): recall blocks become "Full set run-through" timed tasks.
 - **Peaking guarantee:** a gig card that fuzz would push past the gig with recall below target by the end of gig day is pulled forward, at most once per practice day.
 - **Check-ins** at 14, 7 and 2 days before the deadline. Saving the goal (changed or not) clears the pending one.
