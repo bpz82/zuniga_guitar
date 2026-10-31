@@ -9,7 +9,7 @@
  * only silent cards are served, so the phone never makes a sound at work.
  */
 import { addDays, dayBegins, minuteOfDay, minutesOf, practiceDay, timeOnDay } from './day.ts';
-import { goalQueue, planGoals, splitTime } from './goals.ts';
+import { gigMemos, goalQueue, planGoals, splitTime } from './goals.ts';
 import type { PlannedBlock } from './goals.ts';
 import type { Library } from './project.ts';
 import type { DueCard } from './scheduler.ts';
@@ -119,8 +119,12 @@ export function sessionFor(library: Library, now: number): Session {
   const due = queue.due.filter((d) => fits(d.memory.cardId));
   const fresh = queue.fresh.filter(fits);
 
+  // A gig's rundown memo, on gig night, in whatever session is open.
+  const done = doneToday(library, date);
+  const memos: BlockSegment[] = gigMemos(library, now).map((b) => ({ kind: 'block', block: b, done: done(b) }));
+
   if (mode !== 'guitar') {
-    const segments: Segment[] = [{ kind: 'review', minutes: BURST_MINUTES.max, due, fresh }];
+    const segments: Segment[] = [{ kind: 'review', minutes: BURST_MINUTES.max, due, fresh }, ...memos];
     return finish({ date, windowId: window?.id ?? null, mode, quiet, minutes: BURST_MINUTES.max, minMinutes: BURST_MINUTES.min, segments });
   }
 
@@ -132,12 +136,12 @@ export function sessionFor(library: Library, now: number): Session {
   const other = fitted.filter((b) => b.kind !== 'recall');
   const used = fitted.reduce((s, b) => s + b.minutes, 0);
   const reviewMinutes = recall.reduce((s, b) => s + b.minutes, 0) + (budget - used);
-  const done = doneToday(library, date);
   const block = (b: PlannedBlock): BlockSegment => ({ kind: 'block', block: b, done: done(b) });
   const segments: Segment[] = [
     ...other.filter((b) => b.protected).map(block),
     ...(reviewMinutes > 0 ? [{ kind: 'review' as const, minutes: reviewMinutes, due, fresh }] : []),
     ...other.filter((b) => !b.protected).map(block),
+    ...memos,
   ];
   return finish({ date, windowId: window?.id ?? null, mode, quiet, minutes: budget, minMinutes: budget, segments });
 }

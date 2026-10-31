@@ -156,7 +156,12 @@ export interface Queue {
    * re-ranked tomorrow, so it spreads over the following days by itself.
    */
   readonly due: readonly DueCard[];
-  /** Never-reviewed active cards: higher weight first, then the order they were added. */
+  /**
+   * Never-reviewed active cards: higher weight first; within a weight,
+   * modules take turns, the module with the fewest cards already started
+   * going first, each in the order its cards were added. One big deck never
+   * hides another module's new cards (2026-10-31).
+   */
   readonly fresh: readonly string[];
   /** Active cards with 8+ lapses. Still scheduled; flagged for a breakdown. */
   readonly leeches: readonly string[];
@@ -172,7 +177,9 @@ export function buildQueue(library: Library, options: QueueOptions): Queue {
   const { dayStart } = library.settings;
   const today = practiceDay(now, dayStart);
   const due: DueCard[] = [];
-  const fresh: { id: string; weight: number }[] = [];
+  const fresh: { id: string; weight: number; module: string }[] = [];
+  /** Cards already started (reviewed at least once), per module: new material is shared out evenly. */
+  const started = new Map<string, number>();
   const leeches: string[] = [];
 
   for (const card of library.cards.values()) {
@@ -180,8 +187,12 @@ export function buildQueue(library: Library, options: QueueOptions): Queue {
     const memory = memoryOf(card.id, library.reviews.get(card.id) ?? [], retentionFor(card.id), dayStart, usesSteps(library, card.id));
     const weight = weightFor(card.id);
     if (!(weight > 0) || !Number.isFinite(weight)) throw new RangeError(`weight for ${card.id} must be a positive number`);
+    if (memory.phase !== 'new') {
+      const m = library.items.get(card.itemId)?.module ?? '';
+      started.set(m, (started.get(m) ?? 0) + 1);
+    }
     if (memory.phase === 'new') {
-      fresh.push({ id: card.id, weight });
+      fresh.push({ id: card.id, weight, module: library.items.get(card.itemId)?.module ?? '' });
       continue;
     }
     if (memory.leech) leeches.push(card.id);
@@ -200,7 +211,7 @@ export function buildQueue(library: Library, options: QueueOptions): Queue {
 
   // Stable sort: equal weights keep the order cards were added.
   fresh.sort((a, b) => b.weight - a.weight);
-  return { due, fresh: fresh.map((f) => f.id), leeches };
+  return { due, fresh: takeTurns(fresh, started), leeches };
 }
 
 function isDue(memory: Memory, now: number, today: string, dayStart: DayStart, pullForward: (m: Memory) => boolean): boolean {
@@ -213,4 +224,32 @@ function isDue(memory: Memory, now: number, today: string, dayStart: DayStart, p
 
 function compareIds(a: DueCard, b: DueCard): number {
   return a.memory.cardId < b.memory.cardId ? -1 : a.memory.cardId > b.memory.cardId ? 1 : 0;
+}
+
+/**
+ * Within each weight (already sorted, highest first), interleaves modules
+ * round-robin, keeping each module's own order: A1 B1 C1 A2 B2 A3... The
+ * module with the fewest started cards goes first (ties: the order modules
+ * first appear), so the turn moves on after every new card is started,
+ * however often the queue is rebuilt.
+ */
+function takeTurns(sorted: readonly { id: string; weight: number; module: string }[], started: ReadonlyMap<string, number>): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < sorted.length; ) {
+    let j = i;
+    while (j < sorted.length && sorted[j]!.weight === sorted[i]!.weight) j++;
+    const lanes = new Map<string, string[]>();
+    for (const f of sorted.slice(i, j)) {
+      const lane = lanes.get(f.module);
+      if (lane) lane.push(f.id);
+      else lanes.set(f.module, [f.id]);
+    }
+    const queues = [...lanes.entries()]
+      .map(([m, q], order) => ({ q, order, started: started.get(m) ?? 0 }))
+      .sort((a, b) => a.started - b.started || a.order - b.order)
+      .map((x) => x.q);
+    for (let k = 0; out.length < j; k++) for (const q of queues) if (k < q.length) out.push(q[k]!);
+    i = j;
+  }
+  return out;
 }

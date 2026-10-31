@@ -247,3 +247,36 @@ test('pullForward: a review card can be pulled forward at most once per practice
   assert.deepEqual(q.due.map((d) => d.memory.cardId), ['c1']);
   assert.deepEqual(buildQueue(project(w.log), { now }).due, [], 'nothing due without the hook');
 });
+
+test('new cards take turns between modules, so one big deck never hides another module\'s new cards', () => {
+  const w = writer().add(
+    { type: 'item-set', item: { id: 'a', module: 'test-deck', fields: {} } },
+    { type: 'item-set', item: { id: 'b', module: 'theory', fields: {} } },
+    { type: 'item-set', item: { id: 'c', module: 'songs', fields: {} } },
+    ...['a1', 'a2', 'a3', 'a4'].map((id) => card(id, 'a')),
+    ...['b1', 'b2'].map((id) => card(id, 'b')),
+    card('c1', 'c'),
+  );
+  const q = buildQueue(project(w.log), { now: T0 });
+  assert.deepEqual(q.fresh, ['a1', 'b1', 'c1', 'a2', 'b2', 'a3', 'a4']);
+  // Weight still comes first: goal material leads, then turns within each weight.
+  const weighted = buildQueue(project(w.log), { now: T0, weightFor: (id) => (id === 'a4' || id === 'b2' ? 3 : 1) });
+  assert.deepEqual(weighted.fresh, ['a4', 'b2', 'a1', 'b1', 'c1', 'a2', 'a3']);
+});
+
+test('the turn moves on after each new card is started, however often the queue is rebuilt', () => {
+  const w = writer().add(
+    { type: 'item-set', item: { id: 'a', module: 'test-deck', fields: {} } },
+    { type: 'item-set', item: { id: 'b', module: 'theory', fields: {} } },
+    ...['a1', 'a2', 'a3'].map((id) => card(id, 'a')),
+    ...['b1', 'b2'].map((id) => card(id, 'b')),
+  );
+  const next = () => buildQueue(project(w.log), { now: T0 + DAY }).fresh[0];
+  const order: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const id = next()!;
+    order.push(id);
+    w.rate(id, 'good', T0 + i * 1000);
+  }
+  assert.deepEqual(order, ['a1', 'b1', 'a2', 'b2', 'a3'], 'one each, in turn');
+});

@@ -32,7 +32,9 @@ import { setupSongs } from './songs-ui.ts';
 import { setupEar } from './ear-ui.ts';
 import { setupRecorder } from './recorder-ui.ts';
 import { setupGoals } from './goals-ui.ts';
-import { improvFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
+import { setupTheory } from './theory-ui.ts';
+import { THEORY, contentOf, seedTheory } from '../src/modules/theory/practice.ts';
+import { improvFor, memoFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
 import { runTakes } from '../src/modules/recorder/takes.ts';
 import { RECORDER, uploadPending } from '../src/modules/recorder/takes.ts';
 import { indexedDbBlobStore } from '../src/modules/recorder/blobs.ts';
@@ -85,6 +87,8 @@ let recHost!: ModuleHost;
 let recBlobs!: BlobStore;
 let recorder!: ReturnType<typeof setupRecorder>;
 let goalsUi!: ReturnType<typeof setupGoals>;
+let theoryHost!: ModuleHost;
+let theoryUi!: ReturnType<typeof setupTheory>;
 /** Takes storage, when signed in. */
 const cloud = () => (client && userId !== 'local' ? { storage: supabaseTakeStorage(client as unknown as StorageClientLike), userId } : null);
 let revealed = false;
@@ -148,7 +152,13 @@ function render() {
   const card = next ? lib.cards.get(next) : undefined;
   const item = card ? lib.items.get(card.itemId) : undefined;
   $('practice').hidden = true;
-  if (card && item && card.template === 'tempo-exercise') {
+  // Every card shown is named on the card element (tests and ratings read it).
+  $('card').dataset.card = card?.id ?? '';
+  // Theory cards draw themselves (question, source, options); this also clears them for any other card.
+  const isTheory = theoryUi.showCard(card && item?.module === THEORY.id ? card.id : '', revealed, () => Number($('card').dataset.started ?? Date.now()));
+  if (isTheory) {
+    // drawn by the theory panel
+  } else if (card && item && card.template === 'tempo-exercise') {
     // A metronome exercise: practised with the metronome, logged when it stops.
     $('question').textContent = `Metronome exercise: ${String(item.fields.name ?? card.id)}`;
     $('answer').textContent = '';
@@ -189,7 +199,7 @@ function render() {
       li.dataset.zg = 'block';
       const b = seg.block;
       // Improv takes and songwriting prompts: today's concrete prompt, recorded.
-      const take = improvFor(b) ?? songwritingFor(b, s.date);
+      const take = improvFor(b) ?? songwritingFor(b, s.date) ?? memoFor(b);
       li.textContent = `${b.label} · ${b.minutes} min${take ? ` · ${take.prompt} (${take.takes} × ${take.minutes} min, recorded)` : ''} ${seg.done ? '✓' : ''}`;
       if (take && !seg.done) {
         const rec = document.createElement('button');
@@ -231,6 +241,7 @@ function render() {
   earUi.render();
   recorder.render();
   goalsUi.render();
+  theoryUi.renderTopics();
   $('notify-windows').replaceChildren(
     ...lib.settings.windows.map((w) => {
       const label = document.createElement('label');
@@ -273,7 +284,9 @@ function wire() {
       const started = Number($('card').dataset.started ?? Date.now());
       revealed = false;
       const module = replica.library.items.get(replica.library.cards.get(cardId)?.itemId ?? '')?.module;
-      if (module === SONGS.id) {
+      if (module === THEORY.id) {
+        await theoryUi.rate(cardId, rating, Math.max(0, Date.now() - started));
+      } else if (module === SONGS.id) {
         const r = await runModule(songsHost, () => rateSong(songsHost, cardId, rating, Math.max(0, Date.now() - started)));
         if (!r.ok) say(`Songs switched off: ${r.error}`);
         else if (!r.value.ok) say(`Songs: ${r.value.error}`);
@@ -370,13 +383,17 @@ async function main() {
     await record({ ok: true, value: { type: 'task-done', goalId: block.goalId, blockId: block.blockId, durationMs } });
   });
   goalsUi = setupGoals(replica, songsHost, record, say);
+  theoryHost = createHost(replica, THEORY);
+  const theorySeeded = await runModule(theoryHost, () => seedTheory(theoryHost));
+  if (!theorySeeded.ok) say(`Theory cards failed: ${theorySeeded.error}`);
+  theoryUi = setupTheory(theoryHost, say, afterChange);
   wire();
   $('card').dataset.started = String(Date.now());
   render();
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
   if (client) await syncNow().catch((e) => say(`Offline: ${(e as Error).message}`));
   setInterval(render, 30_000);
-  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder } };
+  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) } };
 }
 
 void main();

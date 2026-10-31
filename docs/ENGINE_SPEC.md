@@ -89,6 +89,10 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 
 - **Goals intake and songwriting prompts (Blake, 2026-10-31):** an intake form for a gig or a deadline ("write a new record by X") with timed tasks ("10 min in Chord Chemistry"), a daily songwriting prompt (concrete, timed, recorded; 20 prompts rotating, or the goal's own), improv takes (with the gig ramp, e.g. 5 to 10 one-minute takes), guitar yoga and recall for the goal's songs. `improv-takes` and `creative-prompt` are runnable block kinds now; `gig-memo` stays reserved. Planned blocks carry their params (this also fixes the tempo-ladder button, which never appeared because params were dropped) and days to the deadline. The log's rules for these two block kinds are unchanged so older goals still load; new goals are checked strictly by the form. Check-ins (14, 7, 2 days) and archiving are in the harness. Contract v1 unchanged.
 
+- **Post-gig memo on gig night (Blake, 2026-10-31):** the `gig-memo` block is live. On the gig's own practice day, from 18:00 (or the block's `from` time) until the day ends (3am for Blake, so late-night rundowns count), it shows in whatever session is open with Record: one take, up to 30 minutes. Not part of the daily time split. Gig goals made with the form include it by default (untick to leave it out). No block kind is reserved now.
+- **Theory and physics flashcards (Blake, 2026-10-31):** 120 starter cards in ten topics (harmonic series, strings and scale length, intonation and temperament, resonance and pickups, decibels and hearing, guitar frequency ranges, signal flow and gain staging, EQ/compression/reverb, tape and noise reduction for Fostex cassette 4-tracks with dbx and Maxell XLII, practical guitar theory). Q/A and multiple-choice cards, all `pocket-silent` (off-instrument, fine at work), FSRS through contract v1, each citing Benade (Fundamentals of Musical Acoustics, Dover) or Winer (The Audio Expert, 2nd ed., Routledge 2018) by chapter, or saying plainly when a fact comes from neither. Written in original words: no quotations, no figures. Topics switch on and off. Out-of-scope item "physics and theory lessons" is in scope in this flashcard form.
+- **New cards take turns between modules (2026-10-31):** within a weight, the module with the fewest started cards goes next, so one large deck (the built-in test deck's 102 cards) never holds back another module's new cards. A newly added deck catches up first.
+
 ## Knowingly NOT doing (v0.1)
 
 | Requirement | Why not |
@@ -100,7 +104,7 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Sibling burying | A song has exactly one card (title only, Blake 2026-10-31), so there are no siblings to bury. Deferred until an item has more than one card. The item-to-cards link stays in the model (`cardsOfItem`). |
 | Pocket results feeding guitar priority | Songs are guitar-only (title, play, rate), so no song has a pocket card whose result could move it up. Deferred until a module makes pocket cards linked to guitar cards. |
 | Locking the module contract early (superseded Oct 31 2026: contract locked as v1, see amendments) | Songs I Already Know needed no contract change. Proposed: lock v0 as v1 unchanged. Awaiting Blake's yes. The isolation rule is enforced from v0. |
-| Post-gig voice memo, recorded creative prompts, improv takes (superseded Oct 31 2026 except the gig memo: recorder, improv takes and songwriting prompts built, see amendments) | Need the recorder. Ship with the recorder module; block types are reserved now. |
+| Post-gig voice memo, recorded creative prompts, improv takes (superseded Oct 31 2026: recorder, improv takes, songwriting prompts and the gig memo built, see amendments) | Need the recorder. Ship with the recorder module; block types are reserved now. |
 | Shared-service interfaces (randomizer, recorder, metronome) | Defined with the first module that uses each one, not predicted now. |
 | Conversational intake interview | Would need an AI service (no paid services). A form asks the same five questions. |
 | One specialist bot per module | Conflicts with the minimal-headcount rule. One builder for everything. |
@@ -110,7 +114,7 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Graphics pass changing layout structure, behavior, timing or beat-tied animation | The graphics lead (ChatGPT) edits only look files in `harness/static/theme/` (CSS, design tokens, icons, fonts; see `docs/THEME.md`). Structure is fixed by `data-zg` hooks guarded by `test/hooks.test.ts`; behavior, timing and anything tied to the beat stay in code. |
 | Metronome pattern/groove editor | UI work; the four presets cover the request. Patterns are already data (`hitsFor`), so an editor can be added without engine changes. |
 | Timing error from the microphone | Needs the recorder module (mic access). Until then timing error comes from tapping along, which includes touch-screen delay. |
-| Recorder, improv takes, creative prompts, gig memo (superseded Oct 31 2026 except the gig memo, see amendments) | Still deferred: they need the recorder, not the metronome. They will sync to the metronome clock service. |
+| Recorder, improv takes, creative prompts, gig memo (superseded Oct 31 2026, all built, see amendments) | Still deferred: they need the recorder, not the metronome. They will sync to the metronome clock service. |
 | Removing `setup-keys.html` | Needed only for setup. On the pre-customer checklist in `docs/SETUP.md`; removal waits for Blake's yes. |
 | Hard delete of a song | The log is append-only; Blake asked for archive. Archived songs are not served and can be restored with their history. |
 | Song details (chords, keys, tabs, links) | Blake, 2026-10-31: a song card holds only a title. |
@@ -126,7 +130,12 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Recorder: removing a user's takes when their account is deleted | Supabase Storage does not cascade with Auth users. On the pre-customer checklist (`docs/SETUP.md`); needs a service-role function. |
 | Recorder: trimming, waveforms, mixing, sharing links | Not asked for. Takes play as recorded. |
 | Recorder: blocking recording in quiet hours | The recorder makes no sound; playing back is the user's choice. The metronome keeps its own quiet-hours rule. |
-| Goals: the post-gig rundown voice memo (`gig-memo`) | The recorder can record it, but it belongs after the gig, when the goal has already expired. Needs a decision on when it shows (gig night? the next morning?). Stays reserved. |
+| Goals: the post-gig rundown voice memo (`gig-memo`) (superseded Oct 31 2026: Blake chose gig night, built) | The recorder can record it, but it belongs after the gig, when the goal has already expired. Needs a decision on when it shows (gig night? the next morning?). Stays reserved. |
 | Goals: AI-written or personalised songwriting prompts | Would need an AI service (no paid services). Twenty fixed prompts rotate; a goal can set its own. |
 | Goals: counting songs written, "ideas", or output | No arbitrary counts (spec). Blocks are timed and recorded; the takes are the record of the work. |
 | Goals: editing a goal's blocks after saving | Check-ins adjust the daily minutes, as specified. For new blocks, archive the goal and make a new one (history kept). |
+| Theory: lessons beyond flashcards (explanations, diagrams, audio demos) | Flashcards first, as asked. The cards are data, so lessons can link to them later. |
+| Theory: quoting or reproducing Benade or Winer | Copyright. Every card states facts in original words and cites the chapter; no passages, no figures. |
+| Theory: a chapter for topics neither book covers (CAGED, modes, cassette types, a specific machine) | Marked as general knowledge instead of attaching an unrelated chapter. |
+| Theory: practising one topic only for a session | Topics switch on and off for scheduling; a one-topic practice mode was not asked for. |
+| Gig memo: a reminder notification on gig night | Not asked for; the memo shows when the app is opened. Notifications stay one per practice window. |

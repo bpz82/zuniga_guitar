@@ -7,7 +7,7 @@
  * cannot change memory state. Nothing here writes to the log; a goal is
  * created or edited by appending the goal-set event goalFromIntake returns.
  */
-import { addDays, dayBegins, daysBetween, practiceDay } from './day.ts';
+import { addDays, dayBegins, daysBetween, practiceDay, timeOnDay } from './day.ts';
 import { buildQueue, retrievability } from './scheduler.ts';
 import type { Memory, Queue } from './scheduler.ts';
 import type { Library } from './project.ts';
@@ -27,7 +27,10 @@ export const BASE_WEIGHT = 1;
 /** Block kinds that are never squeezed when time runs short (guitar yoga). */
 export const PROTECTED_KINDS: readonly BlockKind[] = ['feel-session'];
 
-const RUNNABLE: ReadonlySet<BlockKind> = new Set(ACTIVE_BLOCK_KINDS);
+/** Kinds that share the goal's daily minutes. The gig memo is not daily practice: it shows on gig night (gigMemos). */
+const RUNNABLE: ReadonlySet<BlockKind> = new Set(ACTIVE_BLOCK_KINDS.filter((k) => k !== 'gig-memo'));
+/** When the gig memo appears on gig day, unless the block says otherwise (Blake: gig night by default). */
+export const GIG_MEMO_FROM = '18:00';
 
 // ------------------------------------------------------------- intake ----
 
@@ -276,6 +279,40 @@ function roundKeepingTotal(values: readonly number[], total: number, caps?: read
 
 function sum(xs: readonly number[]): number {
   return xs.reduce((a, b) => a + b, 0);
+}
+
+// ------------------------------------------------------------ gig memo ---
+
+/**
+ * Post-gig rundown memos due now: on the goal's deadline day (gig day), from
+ * the block's `from` time (default 18:00) until that practice day ends (the
+ * day boundary, e.g. 3am, so a late-night rundown still counts). Shown in
+ * whatever session is open; not part of any day's time split.
+ */
+export function gigMemos(library: Library, now: number): PlannedBlock[] {
+  const { dayStart } = library.settings;
+  const today = practiceDay(now, dayStart);
+  const out: PlannedBlock[] = [];
+  for (const g of library.goals.values()) {
+    if (!isActive(g, today) || g.deadline !== today) continue;
+    for (const b of g.blocks) {
+      if (b.kind !== 'gig-memo') continue;
+      const from = typeof b.params?.from === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(b.params.from) ? b.params.from : GIG_MEMO_FROM;
+      if (now < timeOnDay(today, from, dayStart)) continue;
+      out.push({
+        goalId: g.id,
+        blockId: b.id,
+        kind: 'gig-memo',
+        label: b.label,
+        minutes: b.minutes,
+        weight: g.weight,
+        protected: false,
+        ...(b.params === undefined ? {} : { params: b.params }),
+        daysLeft: 0,
+      });
+    }
+  }
+  return out;
 }
 
 // -------------------------------------------------------- convenience ----

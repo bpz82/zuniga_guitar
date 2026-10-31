@@ -40,3 +40,4 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 | Ear training module | Built, awaiting review |
 | Recorder and improv takes (Storage bucket + RLS) | Built, awaiting review |
 | Goals intake and songwriting prompts | Built, awaiting review |
+| Theory and physics flashcards; gig memo on gig night | Built, awaiting review |

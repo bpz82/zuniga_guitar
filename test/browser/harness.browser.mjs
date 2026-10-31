@@ -30,6 +30,16 @@ page.on('pageerror', (e) => errors.push(e.message));
 await page.clock.install({ time: new Date('2026-11-02T18:00:00Z') });
 const status = () => page.textContent('[data-zg=\"status\"]');
 const step = (name) => console.log(`ok - ${name}`);
+// The page clock is fake, so the page's own polling (waitForFunction) is not
+// re-run while real async work finishes (storage, microphone, MediaRecorder).
+// After such work, poll from here instead.
+const until = async (fn, arg) => {
+  for (let i = 0; i < 300; i++) {
+    if (await page.evaluate(fn, arg)) return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(`timed out waiting for ${fn}`);
+};
 
 try {
   await page.goto(url);
@@ -43,7 +53,7 @@ try {
   await page.click('[data-zg=\"reveal\"]');
   assert.notEqual((await page.textContent('[data-zg=\"answer\"]')).trim(), '');
   await page.click('[data-zg=\"r-good\"]');
-  await page.waitForFunction((c) => document.querySelector('[data-zg=\"card\"]').dataset.card !== c, first);
+  await until((c) => document.querySelector('[data-zg=\"card\"]').dataset.card !== c, first);
   const pending = await page.evaluate(() => window.zg.replica.pendingCount);
   const reviews = await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first);
   assert.equal(reviews, 1);
@@ -54,7 +64,7 @@ try {
   assert.equal(await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first), 1);
   assert.equal(await page.evaluate(() => window.zg.replica.pendingCount), pending);
   assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.keys()].filter((k) => k.startsWith('td-')).length), 102, 'seeding again added nothing');
-  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 107, 'plus the metronome\'s Free practice exercise and the 4 level-1 ear skills');
+  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 227, 'plus the metronome\'s Free practice exercise, the 4 level-1 ear skills and the 120 theory cards');
   step('the review survives a reload (IndexedDB), still queued to sync');
 
   assert.equal(await page.isChecked('[data-zg=\"notify-all\"]'), false);
@@ -162,10 +172,10 @@ try {
   await page.click('[data-zg="practice"]');
   const answerRight = async () => {
     await page.click('[data-zg="ear-play"]');
-    await page.waitForFunction(() => window.zg.ear.ui.current().firstEnd !== null);
+    await until(() => window.zg.ear.ui.current().firstEnd !== null);
     const answer = await ear(() => window.zg.ear.ui.current().trial.answer);
     await page.click(`[data-zg="ear-choice"][data-choice="${answer}"]`);
-    await page.waitForFunction(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✓'));
+    await until(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✓'));
   };
   await answerRight();
   for (const id of ['ear-direction-down-c', 'ear-direction-same-c']) {
@@ -187,10 +197,11 @@ try {
     const c = window.zg.ear.ui.current();
     c.taps = c.trial.rhythm.onsets.map((o) => (o * 60) / c.trial.rhythm.bpm + 0.03); // a steady 30 ms touch lag
   });
-  await page.clock.runFor(16_000); // the bar ends; grading runs by itself
-  await page.waitForFunction(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✓'));
+  await page.clock.runFor(20_000); // the bar ends (about 12.5 s in); grading runs by itself
+  await until(() => (window.zg.replica.library.reviews.get('ear-rhythm-r1-c') ?? []).length === 1);
   const tapped = await ear(() => window.zg.replica.library.reviews.get('ear-rhythm-r1-c')[0].details);
-  assert.deepEqual([tapped.correct, tapped.missed, tapped.extra, tapped.lagMs], [true, 0, 0, 30]);
+  assert.deepEqual([tapped.correct, tapped.missed, tapped.extra, tapped.lagMs], [true, 0, 0, 30], JSON.stringify(tapped));
+  await until(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✓'));
   step('ear: rhythm echo is tapped back and graded after the bar, touch lag removed');
 
   await page.fill('[data-zg="songs-new"]', '  Blackbird ');
@@ -231,10 +242,10 @@ try {
 
   await ear(() => window.zg.ear.ui.select('ear-direction-same-c'));
   await page.click('[data-zg="ear-play"]');
-  await page.waitForFunction(() => window.zg.ear.ui.current().firstEnd !== null);
+  await until(() => window.zg.ear.ui.current().firstEnd !== null);
   const wrong = await ear(() => window.zg.ear.ui.current().trial.choices.find((c) => c.id !== 'same').id);
   await page.click(`[data-zg="ear-choice"][data-choice="${wrong}"]`);
-  await page.waitForFunction(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✗ The answer: Same'));
+  await until(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✗ The answer: Same'));
   assert.ok(await page.isVisible('[data-zg="ear-resolve"]'));
   await page.click('[data-zg="ear-resolve"]');
   await page.click('[data-zg="ear-next"]');
@@ -242,26 +253,17 @@ try {
   step('ear: a wrong answer is corrected at once (the answer shown and replayed), then the next skill');
 
   await page.click('[data-zg="ear-unlock"]');
-  await page.waitForFunction(() => document.querySelector('[data-zg="ear-level"]').textContent.startsWith('Level 2'));
+  await until(() => document.querySelector('[data-zg="ear-level"]').textContent.startsWith('Level 2'));
   assert.ok(await ear(() => window.zg.replica.library.cards.has('ear-degree-5-c')));
   await page.clock.setSystemTime(new Date('2026-11-03T18:00:00Z')); // quiet hours (17:00-19:00 set above)
   assert.ok(await page.isHidden('[data-zg="ear-next"]'), 'Next appears only after answering');
   const playsBefore = await ear(() => window.zg.ear.ui.current().plays);
   await page.click('[data-zg="ear-play"]');
-  await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Quiet hours: ear training needs sound.'));
+  await until(() => document.querySelector('[data-zg="status"]').textContent.includes('Quiet hours: ear training needs sound.'));
   assert.equal(await ear(() => window.zg.ear.ui.current().plays), playsBefore, 'nothing played');
   await page.clock.setSystemTime(new Date('2026-11-03T07:30:00Z'));
   step('ear: unlock the next level by hand; nothing plays in quiet hours');
 
-  // The page clock is fake, so the page's own polling never advances while
-  // real async work (microphone, MediaRecorder) finishes: poll from here instead.
-  const until = async (fn, arg) => {
-    for (let i = 0; i < 300; i++) {
-      if (await page.evaluate(fn, arg)) return;
-      await new Promise((r) => setTimeout(r, 100));
-    }
-    throw new Error(`timed out waiting for ${fn}`);
-  };
   // Recorder: a free take, then a timed improv run of 2 takes x 1 minute, saved separately.
   const takesNow = () => page.evaluate(() => [...window.zg.replica.library.items.values()].filter((i) => i.module === 'recorder').map((i) => i.fields));
   await page.fill('[data-zg="rec-title"]', 'Blues in A');
@@ -351,10 +353,70 @@ try {
   await until(() => document.querySelectorAll('[data-zg="goals-list"] [data-zg="goal"]').length === 2);
   // 7 days before the gig, half way through a 14-day ramp from 5 to 10: 8 takes today.
   assert.match(await page.textContent('[data-zg="blocks"]'), /Improv takes · \d+ min · Improv takes \(8 × 1 min, recorded\)/);
+  assert.match(await page.textContent('[data-zg="goals-list"]'), /Friday gig .*Post-gig rundown memo/);
+  // Gig night: from 6pm on the gig's day the rundown memo shows, with Record (neutral defaults: UTC, day starts 4am).
+  await page.clock.setSystemTime(new Date('2026-11-10T20:00:00Z'));
+  await page.clock.runFor(30_000);
+  await until(() => document.querySelector('[data-zg="blocks"]').textContent.includes('Post-gig rundown memo'));
+  await page.click('[data-zg="blocks"] [data-zg="block"] >> text=Post-gig rundown memo >> [data-zg="block-record"]');
+  await until(() => !document.querySelector('[data-zg="rec-stop"]').hidden);
+  await page.clock.runFor(2_000);
+  await page.click('[data-zg="rec-stop"]');
+  await until(() => window.zg.replica.log.some((e) => e.type === 'task-done' && e.blockId === 'memo'));
+  assert.ok((await takesNow()).some((f) => f.blockId === 'memo' && f.title === 'Post-gig rundown memo'));
+  await page.clock.setSystemTime(new Date('2026-11-03T07:40:00Z'));
+  await page.clock.runFor(30_000);
   await page.click('[data-zg="goals-list"] [data-zg="goal"] >> text=Friday gig >> [data-zg="goal-archive"]');
   await until(() => document.querySelectorAll('[data-zg="goals-list"] [data-zg="goal"]').length === 1);
   assert.equal(await page.evaluate(() => [...window.zg.replica.library.goals.values()].filter((g) => g.archived).length), 1, 'archived, kept in history');
-  step('goals: a gig goal ramps improv takes toward the date; bad input refused; archive keeps the goal');
+  step('goals: a gig goal ramps improv takes toward the date; its rundown memo shows on gig night and records; bad input refused; archive keeps the goal');
+
+  // Theory and physics cards in the silent work-hours burst (neutral defaults: 12:30 UTC window, quiet hours 17-19 set above).
+  await page.clock.setSystemTime(new Date('2026-11-03T13:00:00Z'));
+  await page.clock.runFor(30_000); // the page's own refresh picks up the new time
+  assert.match(await page.textContent('[data-zg="session"]'), /during-work · silent/);
+  const seen = new Set();
+  for (let i = 0; i < 12 && seen.size < 2; i++) {
+    const cardId = await page.evaluate(() => document.querySelector('[data-zg="card"]').dataset.card);
+    const content = await page.evaluate((id) => window.zg.theory.content(id) ?? null, cardId);
+    if (content) assert.match(await page.textContent('[data-zg="card-source"]'), /^Source: (Benade|Winer|.*not from Benade or Winer)/);
+    const before = await page.evaluate((id) => (window.zg.replica.library.reviews.get(id) ?? []).length, cardId);
+    if (content?.type === 'mc' && !seen.has('mc')) {
+      assert.equal(await page.locator('[data-zg="mc-choice"]').count(), 4);
+      assert.ok(await page.isHidden('[data-zg="reveal"]'));
+      const wrong = content.wrong[0];
+      await page.click(`[data-zg="mc-choice"] >> text="${wrong}"`);
+      await until((id) => (window.zg.replica.library.reviews.get(id) ?? []).length === 1, cardId);
+      assert.match(await page.textContent('[data-zg="card-feedback"]'), /^✗ The answer: /);
+      const r = await page.evaluate((id) => window.zg.replica.library.reviews.get(id)[0], cardId);
+      assert.deepEqual([r.rating, r.details.correct, r.details.topic], ['again', false, content.topic]);
+      seen.add('mc');
+      continue;
+    }
+    // Q/A (theory or test deck): show the answer, rate Good.
+    await page.click('[data-zg="reveal"]');
+    if (content?.type === 'qa' && !seen.has('qa')) {
+      assert.equal(await page.textContent('[data-zg="answer"]'), content.answer);
+      await page.click('[data-zg="r-good"]');
+      await until((args) => (window.zg.replica.library.reviews.get(args.id) ?? []).length === args.n + 1, { id: cardId, n: before });
+      const r = await page.evaluate((id) => window.zg.replica.library.reviews.get(id).at(-1), cardId);
+      assert.deepEqual([r.rating, r.details.topic], ['good', content.topic]);
+      seen.add('qa');
+      continue;
+    }
+    await page.click('[data-zg="r-good"]');
+    await until((args) => (window.zg.replica.library.reviews.get(args.id) ?? []).length === args.n + 1, { id: cardId, n: before });
+  }
+  assert.deepEqual([...seen].sort(), ['mc', 'qa'], 'both card types came up in the silent burst');
+  step('theory: silent work-hours burst serves Q/A and multiple-choice cards with their sources, through the contract');
+
+  await page.click('[data-zg="theory-topic"] >> text=Tape and noise reduction >> input');
+  await until(() => document.querySelector('[data-zg="theory-topics"]').textContent.includes('Tape and noise reduction (0 of 12 cards on)'));
+  assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.values()].filter((c) => c.id.startsWith('th-tape-') && c.retired).length), 12);
+  await page.click('[data-zg="theory-topic"] >> text=Tape and noise reduction >> input');
+  await until(() => document.querySelector('[data-zg="theory-topics"]').textContent.includes('Tape and noise reduction (12 of 12 cards on)'));
+  step('theory: cards by topic, switched off and back on');
+  await page.clock.setSystemTime(new Date('2026-11-03T07:40:00Z'));
 
   assert.ok(await page.isChecked('[data-zg="notify-morning-always"]'), 'morning reminder always on by default');
   await page.uncheck('[data-zg="notify-morning-always"]');
@@ -363,13 +425,14 @@ try {
   await page.waitForFunction(() => window.zg.replica.library.settings.alwaysRemindMorning === true);
   step('morning-reminder setting is saved from its checkbox');
 
+  const firstReviews = await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first);
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload(); // let the worker take control and cache the shell
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
   await context.setOffline(true);
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  assert.equal(await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first), 1);
+  assert.equal(await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first), firstReviews, 'every review still there offline');
   assert.ok(await page.evaluate(async () => Boolean(await caches.match('./sounds/kick.mp3'))), 'drum sounds cached for offline');
   await context.setOffline(false);
   step('works offline after the first visit (service worker shell + local data)');

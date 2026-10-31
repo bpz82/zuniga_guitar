@@ -13,10 +13,13 @@ export const RATINGS = ['again', 'hard', 'good', 'easy'] as const;
 const STATIC = [
   // practice now
   'status', 'session', 'card', 'question', 'answer', 'reveal', 'practice', 'rate', 'blocks', 'played',
+  'mc-choices', 'card-feedback', 'card-source',
+  // theory and physics cards
+  'theory', 'theory-topics',
   // goals
   'goals', 'goals-list', 'goal-kind', 'goal-what', 'goal-why', 'goal-deadline', 'goal-songs', 'goal-tasks', 'goal-write-minutes', 'goal-write-takes',
   'goal-write-prompt', 'goal-improv-takes', 'goal-improv-minutes', 'goal-improv-ramp-to', 'goal-improv-ramp-days', 'goal-feel', 'goal-recall',
-  'goal-minutes', 'goal-save',
+  'goal-minutes', 'goal-memo', 'goal-save',
   // recorder and takes
   'recorder', 'rec-status', 'rec-timer', 'rec-title', 'rec-start', 'rec-stop', 'improv-prompt', 'improv-takes', 'improv-minutes', 'improv-start',
   'take-player', 'takes-list', 'takes-archived',
@@ -50,7 +53,7 @@ export const HOOKS: readonly Hook[] = [
 ];
 
 /** Hooks the code puts on elements it creates (lists, per-row buttons). */
-export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice', 'take', 'take-play', 'take-rename', 'take-archive', 'take-restore', 'goal-song', 'goal', 'goal-checkin', 'goal-checkin-save', 'goal-archive', 'block-record'] as const;
+export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice', 'take', 'take-play', 'take-rename', 'take-archive', 'take-restore', 'goal-song', 'goal', 'goal-checkin', 'goal-checkin-save', 'goal-archive', 'block-record', 'mc-choice', 'theory-topic'] as const;
 
 /** Finds a hooked element; throws if it is missing, so a broken page fails loudly. */
 export function hook<T extends HTMLElement = HTMLInputElement>(name: Hook, root: ParentNode = document): T {

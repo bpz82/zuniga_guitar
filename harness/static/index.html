@@ -21,6 +21,9 @@
     <div data-zg="card">
       <p data-zg="question"></p>
       <p data-zg="answer"></p>
+      <div data-zg="mc-choices"></div>
+      <p data-zg="card-feedback"></p>
+      <p data-zg="card-source"></p>
       <button data-zg="reveal">Show answer</button>
       <button data-zg="practice" hidden>Practise with the metronome</button>
       <div data-zg="rate" hidden>
@@ -39,6 +42,11 @@
     <ul data-zg="songs-list"></ul>
     <h3>Archived</h3>
     <ul data-zg="songs-archived"></ul>
+  </section>
+  <section data-zg="theory">
+    <h2>Theory and physics cards</h2>
+    <p>Silent cards for pocket bursts, work hours included. Turn topics on or off:</p>
+    <div data-zg="theory-topics"></div>
   </section>
   <section data-zg="goals">
     <h2>Goals</h2>
@@ -59,6 +67,7 @@
     <label>…over the last (days) <input type="number" data-zg="goal-improv-ramp-days" min="1" max="60"></label>
     <label>Guitar yoga minutes (empty = none) <input type="number" data-zg="goal-feel" min="1" max="60"></label>
     <label>Recall minutes for the songs (empty = none) <input type="number" data-zg="goal-recall" min="1" max="240"></label>
+    <label><input type="checkbox" data-zg="goal-memo" checked> Gigs: a post-gig rundown voice memo on gig night (from 6pm)</label>
     <label>Minutes a day in total (empty = the sum) <input type="number" data-zg="goal-minutes" min="0" max="1440"></label>
     <button data-zg="goal-save">Save goal</button>
   </section>

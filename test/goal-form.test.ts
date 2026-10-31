@@ -1,12 +1,12 @@
 /** Goal intake form, songwriting prompts, and the recorder's goal blocks (improv takes, songwriting). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { append, dayBegins, emptyLog, planGoals, project, sessionFor, validateBody } from '../src/index.ts';
+import { append, dayBegins, emptyLog, gigMemos, planGoals, project, sessionFor, validateBody } from '../src/index.ts';
 import type { EventBody, Library, Log } from '../src/index.ts';
 import { archiveGoal, checkInGoal, goalFromForm, tasksFromText } from '../src/goal-form.ts';
 import type { GoalForm } from '../src/goal-form.ts';
 import { PROMPTS, promptForDay } from '../src/modules/songwriting/prompts.ts';
-import { improvFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
+import { improvFor, memoFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
 import { checkImprov } from '../src/modules/recorder/core.ts';
 import { BLAKE_SETTINGS, BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
 
@@ -63,9 +63,9 @@ test('a gig goal: set songs, guitar yoga, recall time, improv takes ramping from
     ),
   );
   if (body.type !== 'goal-set') throw new Error('not a goal');
-  assert.deepEqual(body.goal.blocks.map((b) => b.kind), ['feel-session', 'recall', 'improv-takes']);
+  assert.deepEqual(body.goal.blocks.map((b) => b.kind), ['feel-session', 'recall', 'improv-takes', 'gig-memo'], 'a gig gets the post-gig memo by default');
   assert.deepEqual(body.goal.itemIds, ['song-a', 'song-b']);
-  assert.equal(body.goal.dailyMinutes, 35);
+  assert.equal(body.goal.dailyMinutes, 35, 'the memo adds nothing to the daily minutes');
 });
 
 test('the form refuses anything vague, out of range or inconsistent, naming the field', () => {
@@ -160,4 +160,40 @@ test('timed tasks typed in plain words: the minutes lead the line, the line is t
   const r = tasksFromText('10 min in Chord Chemistry\nwork on stuff');
   assert.ok(!r.ok && /line 2/.test(r.error));
   assert.deepEqual(ok(tasksFromText('')), []);
+});
+
+// ------------------------------------------------- post-gig memo (gig night) --
+
+const GIG: GoalForm = { kind: 'gig', what: 'Friday gig', why: '', deadline: '2026-11-06', tasks: [{ label: '20 min run the set', minutes: 20 }] };
+
+test('post-gig memo: shows on gig night by default (from 18:00 until the practice day ends), in any session', () => {
+  const { lib: l } = lib(ok(goalFromForm(GIG, 'gig', lib().lib, NOW)));
+  assert.deepEqual(gigMemos(l, ny('2026-11-05', '21:00')), [], 'not the night before');
+  assert.deepEqual(gigMemos(l, ny('2026-11-06', '17:59')), [], 'not before gig night');
+  const memo = gigMemos(l, ny('2026-11-06', '21:30'));
+  assert.deepEqual(memo.map((b) => [b.goalId, b.blockId, b.kind, b.label]), [['gig', 'memo', 'gig-memo', 'Post-gig rundown memo']]);
+  assert.equal(gigMemos(l, ny('2026-11-07', '01:30')).length, 1, 'after midnight is still gig night (the day ends at 3am)');
+  assert.deepEqual(gigMemos(l, ny('2026-11-07', '03:30')), [], 'gone when the practice day ends');
+  for (const hhmm of ['21:30', '23:59']) {
+    const s = sessionFor(l, ny('2026-11-06', hhmm));
+    assert.ok(s.segments.some((x) => x.kind === 'block' && x.block.kind === 'gig-memo' && !x.done), hhmm);
+  }
+  assert.deepEqual(memoFor(memo[0]!), { prompt: 'Post-gig rundown memo', takes: 1, minutes: 30 });
+});
+
+test('post-gig memo: not daily practice, ticked off once recorded, its time can be set, and it can be left out', () => {
+  const { log, lib: l } = lib(ok(goalFromForm(GIG, 'gig', lib().lib, NOW)));
+  assert.ok(!planGoals(l, ny('2026-11-06', '04:05')).blocks.some((b) => b.kind === 'gig-memo'), 'never in the morning split');
+  const done = project(append(log, { type: 'task-done', goalId: 'gig', blockId: 'memo', durationMs: 300_000 }, { device: 'p', now: () => ny('2026-11-06', '23:00'), newId: () => 'm1' }).log);
+  const seg = sessionFor(done, ny('2026-11-06', '23:30')).segments.find((x) => x.kind === 'block' && x.block.kind === 'gig-memo');
+  assert.ok(seg && seg.kind === 'block' && seg.done);
+  const late = ok(goalFromForm({ ...GIG, gigMemo: { from: '22:30' } }, 'late', lib().lib, NOW));
+  const lateLib = lib(late).lib;
+  assert.deepEqual(gigMemos(lateLib, ny('2026-11-06', '22:00')), []);
+  assert.equal(gigMemos(lateLib, ny('2026-11-06', '22:30')).length, 1);
+  const none = ok(goalFromForm({ ...GIG, gigMemo: false }, 'none', lib().lib, NOW));
+  assert.ok(none.type === 'goal-set' && !none.goal.blocks.some((b) => b.kind === 'gig-memo'));
+  assert.equal(goalFromForm({ ...GIG, gigMemo: { from: '9pm' } }, 'x', lib().lib, NOW).ok, false);
+  assert.equal(goalFromForm({ ...RECORD, gigMemo: true }, 'x', lib().lib, NOW).ok, false, 'deadline goals have no gig');
+  assert.equal(goalFromForm({ ...GIG, tasks: [] }, 'x', lib().lib, NOW).ok, false, 'a memo alone is not a plan');
 });

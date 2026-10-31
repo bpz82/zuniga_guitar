@@ -35,6 +35,8 @@ export interface GoalForm {
   readonly feel?: number;
   /** Recall minutes a day for the goal's songs. */
   readonly recall?: number;
+  /** Gig goals: a post-gig rundown voice memo on gig night. Default on for gigs (Blake, 2026-10-31); false to leave it out. */
+  readonly gigMemo?: boolean | { readonly from: string };
 }
 
 export const FORM_LIMITS = Object.freeze({
@@ -107,6 +109,13 @@ export function blocksFromForm(form: GoalForm): Check<GoalBlock[]> {
       },
     });
   }
+  const memo = form.gigMemo ?? form.kind === 'gig';
+  if (memo) {
+    if (form.kind !== 'gig') return fail('the post-gig memo is for gig goals');
+    const from = typeof memo === 'object' ? memo.from : undefined;
+    if (from !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(from)) return fail('post-gig memo: a time like 21:30');
+    blocks.push({ id: 'memo', kind: 'gig-memo', label: 'Post-gig rundown memo', minutes: 10, ...(from ? { params: { from } } : {}) });
+  }
   return { ok: true, value: blocks };
 }
 
@@ -132,9 +141,10 @@ export function goalFromForm(form: GoalForm, goalId: string, library: Library, n
   if (!text(form.what, 500)) return fail('what: 1 to 500 characters');
   const blocks = blocksFromForm(form);
   if (!blocks.ok) return blocks;
-  if (blocks.value.length === 0) return fail('add at least one thing to practise toward the goal');
+  if (!blocks.value.some((b) => b.kind !== 'gig-memo')) return fail('add at least one thing to practise toward the goal');
   for (const id of form.itemIds ?? []) if (!library.items.has(id)) return fail(`unknown song or item ${id}`);
-  const sum = blocks.value.reduce((s, b) => s + b.minutes, 0);
+  // The gig memo is on gig night, not daily practice: it adds nothing to the daily minutes.
+  const sum = blocks.value.filter((b) => b.kind !== 'gig-memo').reduce((s, b) => s + b.minutes, 0);
   const intake: Intake = {
     kind: form.kind,
     what: form.what.trim(),

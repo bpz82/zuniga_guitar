@@ -48,19 +48,21 @@ export interface Card {
  * builder can place any block by time without knowing what it is. Deferred
  * kinds are reserved now so their modules slot in without reworking goals.
  */
-export type ActiveBlockKind = 'recall' | 'feel-session' | 'timed-task' | 'tempo-ladder' | 'improv-takes' | 'creative-prompt';
-/** Reserved: the post-gig memo needs a post-gig time slot (the goal has expired by then). */
-export type DeferredBlockKind = 'gig-memo';
+export type ActiveBlockKind = 'recall' | 'feel-session' | 'timed-task' | 'tempo-ladder' | 'improv-takes' | 'creative-prompt' | 'gig-memo';
+/** No block kind is reserved any more (the gig memo went live 2026-10-31). Kept so new reserved kinds can slot in. */
+export type DeferredBlockKind = never;
 export type BlockKind = ActiveBlockKind | DeferredBlockKind;
 /**
  * tempo-ladder: run by the metronome module; params { cardId, startBpm, targetBpm, stepBpm, cleanReps, repBars }.
  * improv-takes: run by the recorder; params { takes, minutes, prompt?, rampTo?, rampDays? }.
  * creative-prompt: a songwriting prompt, recorded; params { takes?, minutes?, prompt? }.
- * The log accepts any flat params for these two (older goals stored them freely);
+ * gig-memo: a post-gig rundown voice memo, shown on gig night (from params.from, default 18:00,
+ *   until the practice day ends), not part of the daily time split; params { from?, minutes? }.
+ * The log accepts any flat params for these three (older goals stored them freely);
  * new goals are checked strictly by goalFromForm, and readers apply defaults.
  */
-export const ACTIVE_BLOCK_KINDS: readonly ActiveBlockKind[] = ['recall', 'feel-session', 'timed-task', 'tempo-ladder', 'improv-takes', 'creative-prompt'];
-export const DEFERRED_BLOCK_KINDS: readonly DeferredBlockKind[] = ['gig-memo'];
+export const ACTIVE_BLOCK_KINDS: readonly ActiveBlockKind[] = ['recall', 'feel-session', 'timed-task', 'tempo-ladder', 'improv-takes', 'creative-prompt', 'gig-memo'];
+export const DEFERRED_BLOCK_KINDS: readonly DeferredBlockKind[] = [];
 
 export interface GoalBlock {
   readonly id: string;

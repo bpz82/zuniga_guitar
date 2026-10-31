@@ -50,3 +50,10 @@ export function songwritingFor(b: Pick<PlannedBlock, 'kind' | 'goalId' | 'blockI
   const text = own ? (p.prompt as string).trim() : fromList.text;
   return { prompt: text.length > 200 ? `${text.slice(0, 199)}…` : text, takes, minutes };
 }
+
+/** The post-gig rundown memo: one take, up to `minutes` (default 30); stop when done. */
+export function memoFor(b: Pick<PlannedBlock, 'kind' | 'label' | 'params'>): ImprovPrompt | null {
+  if (b.kind !== 'gig-memo') return null;
+  const p = b.params ?? {};
+  return { prompt: textOr(b.label, 'Post-gig rundown'), takes: 1, minutes: clampInt(p.minutes, 1, IMPROV_LIMITS.minutes.max, IMPROV_LIMITS.minutes.max) };
+}

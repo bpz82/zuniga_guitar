@@ -60,7 +60,7 @@ import { buildQueue, memoryOf, retrievability, project } from './src/index.ts';
 const lib = project(log);
 const queue = buildQueue(lib, { now: Date.now() });
 // queue.due:     cards to practice, in order (steps first, then riskiest reviews)
-// queue.fresh:   never-reviewed cards, in the order they were added
+// queue.fresh:   never-reviewed cards: higher weight first, then modules take turns (each in the order added)
 // queue.leeches: cards with 8+ lapses, still scheduled, flagged for a breakdown
 ```
 
@@ -121,13 +121,13 @@ const fitted = splitTime(plan.blocks, 60);      // fit blocks into 60 minutes
 | `feel` | `feel-session` | Guitar yoga, protected. |
 | `recall` (needs `itemIds`) | `recall` | Time for the goal's songs; a gig's set gets 95% retention and deadline peaking. |
 
-`dailyMinutes` defaults to the sum of the blocks. `archiveGoal(lib, id)` and `checkInGoal(lib, id, dailyMinutes)` re-save the goal (history kept; a check-in is cleared by saving). Recording an improv or songwriting block's takes ticks it off with a `task-done` event. `improvFor(block)` and `songwritingFor(block, date)` (`src/modules/recorder/blocks.ts`) give today's prompt, takes and minutes; they read params leniently because older goals stored these blocks' params freely.
+Gig goals also get `gig-memo` by default (`gigMemo: false` leaves it out; `{ from: 'HH:MM' }` moves it): a post-gig rundown memo shown on gig night by `gigMemos(lib, now)`, from 18:00 until the practice day ends, in whatever session is open, never part of the daily minutes. `memoFor(block)` gives its recording settings (one take, up to 30 minutes). `dailyMinutes` defaults to the sum of the blocks (the memo excluded). `archiveGoal(lib, id)` and `checkInGoal(lib, id, dailyMinutes)` re-save the goal (history kept; a check-in is cleared by saving). Recording an improv or songwriting block's takes ticks it off with a `task-done` event. `improvFor(block)` and `songwritingFor(block, date)` (`src/modules/recorder/blocks.ts`) give today's prompt, takes and minutes; they read params leniently because older goals stored these blocks' params freely.
 
 Rules:
 - **Active** through the deadline practice day; gone at the next 3:00am. No cleanup event needed.
 - **Retention:** a goal's `targetRetention`, or 95% for gig goals, else `settings.desiredRetention`. A card in several goals takes the highest.
 - **Order:** risk x weight. Material in no goal has weight 1; goal material has 1 + goal weight (highest goal wins). New goal cards are introduced first. Weight leans the order; it does not override a card that is far more forgotten.
-- **Blocks:** a goal with no blocks gets one recall block. Blocks are scaled to the goal's `dailyMinutes`. Runnable: recall, feel-session, timed-task, tempo-ladder (metronome), improv-takes and creative-prompt (recorder, 2026-10-31). Reserved: gig-memo (skipped; its time goes to the other blocks). Each planned block carries its `params` and `daysLeft` to the module that runs it.
+- **Blocks:** a goal with no blocks gets one recall block. Blocks are scaled to the goal's `dailyMinutes`. Daily blocks: recall, feel-session, timed-task, tempo-ladder (metronome), improv-takes and creative-prompt (recorder, 2026-10-31). The gig-memo is not daily practice: it shows on gig night (`gigMemos`) and takes no daily minutes. Each planned block carries its `params` and `daysLeft` to the module that runs it.
 - **Gig final week** (last 7 practice days, gig day included): recall blocks become "Full set run-through" timed tasks.
 - **Peaking guarantee:** a gig card that fuzz would push past the gig with recall below target by the end of gig day is pulled forward, at most once per practice day.
 - **Check-ins** at 14, 7 and 2 days before the deadline. Saving the goal (changed or not) clears the pending one.
@@ -239,6 +239,23 @@ await runModule(host, () => rateSong(host, cardId, 'good', msTaken));
 | `rateSong(host, cardId, rating, durationMs)` | Logs one play. Archived songs cannot be rated. |
 
 Song cards have **no learning or relearning steps** (Blake, 2026-10-31): every rating schedules in whole days, so a song is never repeated in the same session. From a first rating: Again tomorrow, Hard about 2 days, Good about 3, Easy about 8 (fuzz applies). A forgotten song comes back the next morning and still counts as a lapse.
+
+## Theory and physics flashcards
+
+120 starter cards (`src/modules/theory/deck.ts`), module `theory` via contract v1, all tagged `pocket-silent`: off the instrument, silent, served in every pocket burst including work hours, never in the morning guitar session.
+
+- **Card types:** `qa` (show the answer, rate Again/Hard/Good/Easy) and `mc` (four options, shuffled per showing; right logs Good, wrong logs Again and shows the answer with a short explanation).
+- **Sources:** every card cites Benade, *Fundamentals of Musical Acoustics* (Dover), or Winer, *The Audio Expert*, 2nd ed. (Routledge 2018), by chapter number and title (`CHAPTERS`, checked against publisher and retailer contents listings), or says plainly that the fact comes from neither (CAGED, modes, cassette types, NIOSH limits). Cards are original wording about facts: no quotations, no figures. A test refuses quotation marks.
+- **Topics:** harmonics, strings, temperament, resonance, loudness, ranges, signal, processing, tape, theory. `setTopic(host, topic, on)` retires or restores a topic's cards (history kept; launching again never switches a topic back on).
+- **Content stays in code;** the log holds only each card's id and topic, so corrections reach every device with the app.
+
+| `src/modules/theory/practice.ts` | |
+|---|---|
+| `seedTheory(host)` | Adds missing cards. Safe on every launch. |
+| `contentOf(host, cardId)` | The card's question, answer (and options, explanation), topic and source. |
+| `rateQa(host, cardId, rating, durationMs)` / `answerMc(host, cardId, option, durationMs)` | Log one answer. |
+| `optionsFor(card, seed)` | A multiple-choice card's options in a shuffled order. |
+| `topics(host)`, `setTopic(host, topic, on)` | Cards by topic: counts, and switching a topic on or off. |
 
 ## Recorder and improv takes
 

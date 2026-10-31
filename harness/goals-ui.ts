@@ -30,11 +30,13 @@ export function setupGoals(replica: Replica, songsHost: ModuleHost, record: (r: 
     const daily = optional('goal-minutes');
     const feel = optional('goal-feel');
     const recall = optional('goal-recall');
+    const kind = $<HTMLSelectElement>('goal-kind').value as GoalForm['kind'];
     const itemIds = songBoxes.filter((b) => b.checked).map((b) => b.value);
     return {
       ok: true,
       value: {
-        kind: $<HTMLSelectElement>('goal-kind').value as GoalForm['kind'],
+        kind,
+        ...(kind === 'gig' ? { gigMemo: $('goal-memo').checked } : {}),
         what: $('goal-what').value,
         why: $('goal-why').value,
         deadline: $('goal-deadline').value,

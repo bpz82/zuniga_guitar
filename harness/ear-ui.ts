@@ -140,15 +140,16 @@ export function setupEar(replica: Replica, host: ModuleHost, say: (s: string) =>
         const c = current;
         const { start, end } = player.play(c.trial.events);
         c.plays++;
-        const endMs = Date.now() + (end - player.now()) * 1000;
+        const endMs = Date.now() + Math.round((end - player.now()) * 1000);
         if (c.firstEnd === null && !c.trial.rhythm) c.firstEnd = endMs;
         if (c.trial.rhythm && !c.done) {
           c.taps = [];
           c.barStart = start + c.trial.rhythm.answerAt;
           const playsNow = c.plays;
+          // Whole milliseconds: the audio clock is fractional, and timers should fire on whole ms.
           window.setTimeout(() => {
             if (current === c && c.plays === playsNow) void gradeTaps();
-          }, endMs - Date.now() + 400);
+          }, Math.ceil(endMs - Date.now() + 400));
         }
       };
       $('ear-tap').onpointerdown = () => {

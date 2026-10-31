@@ -21,6 +21,8 @@ export {
   CHECK_IN_DAYS,
   BASE_WEIGHT,
   PROTECTED_KINDS,
+  gigMemos,
+  GIG_MEMO_FROM,
 } from './goals.ts';
 export type { Intake, PlannedBlock, CheckIn, GoalPlan } from './goals.ts';
 export { timeOnDay } from './day.ts';

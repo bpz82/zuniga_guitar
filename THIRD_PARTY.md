@@ -17,6 +17,10 @@ Everything here is shipped inside the app. Each entry says where it came from, i
 
 None. Every ear-training sound (tones, chords, clicks) is synthesized in the browser with Web Audio (`src/modules/ear/audio.ts`). No samples, no third-party audio.
 
+## Theory and physics flashcard content
+
+Written for this app in original words. The cards cite, by chapter, Arthur H. Benade, *Fundamentals of Musical Acoustics* (Dover, 1990), and Ethan Winer, *The Audio Expert*, 2nd ed. (Routledge, 2018), as where each topic is treated. Nothing from either book is reproduced: no quotations, no figures, no tables.
+
 ## Recorder
 
 None. Recording uses the browser's own MediaRecorder; nothing third-party is shipped.
