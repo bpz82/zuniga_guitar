@@ -146,6 +146,56 @@ try {
   assert.match(await status(), /looks like a secret key/);
   step('refuses a secret key in the app');
 
+  // Songs I Already Know, in the next morning's guitar session (neutral defaults: morning at 07:00 UTC).
+  await page.clock.setSystemTime(new Date('2026-11-03T07:05:00Z'));
+  // Setup only: retire the metronome's free-practice card so a song is the next card served.
+  await page.evaluate(async () => {
+    const c = window.zg.replica.library.cards.get('mx-free-c');
+    await window.zg.replica.record({ type: 'card-set', card: { ...c, retired: true } });
+  });
+  await page.fill('[data-zg="songs-new"]', '  Blackbird ');
+  await page.click('[data-zg="songs-add"]');
+  await page.waitForFunction(() => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === 1);
+  await page.fill('[data-zg="songs-new"]', 'BLACKBIRD');
+  await page.click('[data-zg="songs-add"]');
+  await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('already in your songs'));
+  await page.fill('[data-zg="songs-paste"]', 'Little Wing\n\nblackbird\nWonderwall\n');
+  await page.click('[data-zg="songs-paste-add"]');
+  await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Added 2 songs; skipped 1'));
+  assert.equal(await page.locator('[data-zg="songs-list"] [data-zg="song"]').count(), 3);
+  step('songs: add a title, duplicates refused, paste a list (blank lines and repeats skipped)');
+
+  assert.match(await page.textContent('[data-zg="session"]'), /morning · guitar/);
+  assert.equal(await page.textContent('[data-zg="question"]'), 'Play: Blackbird');
+  assert.ok(await page.isHidden('[data-zg="reveal"]'), 'nothing to reveal for a song');
+  assert.ok(await page.isVisible('[data-zg="r-easy"]'));
+  await page.click('[data-zg="r-easy"]');
+  await page.waitForFunction(() => document.querySelector('[data-zg="question"]').textContent === 'Play: Little Wing');
+  const rated = await page.evaluate(() => {
+    const card = [...window.zg.replica.library.cards.values()].find((c) => window.zg.replica.library.items.get(c.itemId)?.fields.title === 'Blackbird');
+    return window.zg.replica.library.reviews.get(card.id).map((r) => r.rating);
+  });
+  assert.deepEqual(rated, ['easy']);
+  assert.equal(await page.evaluate(() => window.zg.songs.enabled), true);
+  step('songs: served in the morning session, played, rated through the module contract');
+
+  await page.click('[data-zg="songs-list"] [data-zg="song"] >> nth=1 >> [data-zg="song-archive"]');
+  await page.waitForFunction(() => document.querySelectorAll('[data-zg="songs-archived"] [data-zg="song"]').length === 1);
+  assert.equal(await page.textContent('[data-zg="question"]'), 'Play: Wonderwall', 'an archived song is not served');
+  await page.click('[data-zg="songs-archived"] [data-zg="song-restore"]');
+  await page.waitForFunction(() => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === 3);
+  page.once('dialog', (d) => d.accept('Little Wing (live)'));
+  await page.click('[data-zg="songs-list"] [data-zg="song"] >> nth=1 >> [data-zg="song-rename"]');
+  await page.waitForFunction(() => document.querySelector('[data-zg="songs-list"]').textContent.includes('Little Wing (live)'));
+  step('songs: archive (not served, history kept), restore, rename');
+
+  assert.ok(await page.isChecked('[data-zg="notify-morning-always"]'), 'morning reminder always on by default');
+  await page.uncheck('[data-zg="notify-morning-always"]');
+  await page.waitForFunction(() => window.zg.replica.library.settings.alwaysRemindMorning === false);
+  await page.check('[data-zg="notify-morning-always"]');
+  await page.waitForFunction(() => window.zg.replica.library.settings.alwaysRemindMorning === true);
+  step('morning-reminder setting is saved from its checkbox');
+
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload(); // let the worker take control and cache the shell
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));

@@ -10,12 +10,16 @@ import {
   createHost,
   planNudges,
   prompt,
+  rateSong,
   Replica,
   runModule,
   seedTestDeck,
   sessionFor,
+  songByCard,
+  SONGS,
   supabaseRemote,
   TEST_DECK,
+  toggleAlwaysRemindMorning,
   toggleNotifications,
   toggleWindowNotify,
   uploadNudges,
@@ -24,6 +28,7 @@ import type { EventBody, ModuleHost, Rating, SupabaseLike, Validation, WindowId 
 import { indexedDbStore } from '../src/stores/indexeddb.ts';
 import { METRONOME, ladderParams } from '../src/modules/metronome/practice.ts';
 import { setupMetronome } from './metronome-ui.ts';
+import { setupSongs } from './songs-ui.ts';
 import { hook, RATINGS } from './hooks.ts';
 import type { Hook } from './hooks.ts';
 
@@ -60,6 +65,8 @@ let userId = 'local';
 let replica!: Replica;
 let deck!: ModuleHost;
 let metronome!: ReturnType<typeof setupMetronome>;
+let songsHost!: ModuleHost;
+let songsUi!: ReturnType<typeof setupSongs>;
 let revealed = false;
 
 function say(text: string) {
@@ -121,6 +128,13 @@ function render() {
     $('rate').hidden = $('reveal').hidden = true;
     $('practice').hidden = false;
     $('practice').onclick = () => metronome.select(card.id);
+  } else if (card && item && item.module === SONGS.id) {
+    // A song: no answer to reveal. Play it, then rate how it went.
+    $('question').textContent = `Play: ${songByCard(songsHost, card.id)?.title ?? card.id}`;
+    $('answer').textContent = '';
+    $('card').dataset.card = card.id;
+    $('reveal').hidden = true;
+    $('rate').hidden = false;
   } else if (card && item) {
     const q = card.itemId.startsWith('td-') ? prompt(card, item) : { question: `${card.template}: ${JSON.stringify(item.fields)}`, answer: '' };
     $('question').textContent = q.question;
@@ -169,6 +183,8 @@ function render() {
 
   ($('settings') as HTMLTextAreaElement).value = JSON.stringify(lib.settings, null, 2);
   ($('notify-all') as HTMLInputElement).checked = lib.settings.notifications;
+  ($('notify-morning-always') as HTMLInputElement).checked = lib.settings.alwaysRemindMorning;
+  songsUi.render();
   $('notify-windows').replaceChildren(
     ...lib.settings.windows.map((w) => {
       const label = document.createElement('label');
@@ -210,7 +226,12 @@ function wire() {
       const cardId = $('card').dataset.card!;
       const started = Number($('card').dataset.started ?? Date.now());
       revealed = false;
-      if (cardId.startsWith('td-')) {
+      const module = replica.library.items.get(replica.library.cards.get(cardId)?.itemId ?? '')?.module;
+      if (module === SONGS.id) {
+        const r = await runModule(songsHost, () => rateSong(songsHost, cardId, rating, Math.max(0, Date.now() - started)));
+        if (!r.ok) say(`Songs switched off: ${r.error}`);
+        else if (!r.value.ok) say(`Songs: ${r.value.error}`);
+      } else if (cardId.startsWith('td-')) {
         const r = await runModule(deck, () => deck.reportRep(cardId, rating, Math.max(0, Date.now() - started)));
         if (!r.ok) say(`Test deck switched off: ${r.error}`);
       } else {
@@ -231,6 +252,8 @@ function wire() {
   $('use-zone').onclick = () =>
     record(changeSettings(replica.library, { dayStart: { ...replica.library.settings.dayStart, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } }));
   $('notify-all').onchange = () => record(toggleNotifications(replica.library, ($('notify-all') as HTMLInputElement).checked));
+  $('notify-morning-always').onchange = () => record(toggleAlwaysRemindMorning(replica.library, ($('notify-morning-always') as HTMLInputElement).checked));
+  songsUi.wire();
   $('enable-push').onclick = () => void enableNotifications().catch((e) => say((e as Error).message));
   $('save-config').onclick = () => {
     config = { supabaseUrl: ($('cfg-url') as HTMLInputElement).value.trim(), publishableKey: ($('cfg-key') as HTMLInputElement).value.trim(), vapidPublicKey: ($('cfg-vapid') as HTMLInputElement).value.trim() };
@@ -283,13 +306,15 @@ async function main() {
   const seeded = await runModule(deck, () => seedTestDeck(deck));
   metronome = setupMetronome(replica, createHost(replica, METRONOME), say, afterChange);
   await metronome.init();
+  songsHost = createHost(replica, SONGS);
+  songsUi = setupSongs(songsHost, say, afterChange);
   wire();
   $('card').dataset.started = String(Date.now());
   render();
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
   if (client) await syncNow().catch((e) => say(`Offline: ${(e as Error).message}`));
   setInterval(render, 30_000);
-  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome };
+  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost };
 }
 
 void main();

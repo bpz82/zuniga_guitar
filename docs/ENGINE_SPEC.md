@@ -78,7 +78,8 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Shared metronome clock service defined** (`src/services/metronome-clock.ts`); the metronome implements it. Recorder and improv takes will sync to it.
 - **Contract v0 addition:** `host.reviews(cardId)`, reviews of the module's own cards only.
 - **Design guardrails (Blake, 2026-10-31):** all visual styling in `harness/static/theme/` (CSS, icons, fonts, one design-tokens file); every element the code uses has a fixed `data-zg` hook; behavior and timing stay out of the theme. Editable files: `docs/THEME.md`.
-- **Proposed, not applied (awaiting Blake):** always send the morning reminder, even when no cards are due, because the morning hour is practice either way.
+- **Morning reminder always fires (Blake, 2026-10-31):** the morning window's reminder is sent even when nothing is due. Setting `alwaysRemindMorning`, default on; nothing is sent until the user turns notifications on (master switch still off by default), and the morning window's own toggle still wins. All other windows still only remind when something is due.
+- **Songs I Already Know (Blake, 2026-10-31):** a song is a title only (one item, one `song` card tagged `guitar`). Add one, paste a list (one title per line), rename, archive and restore; no hard delete. Practice: the morning session serves it through the normal FSRS queue, Blake plays it and rates it Again/Hard/Good/Easy. No chords, keys, tabs or links. Built on contract v0 with no contract changes. Songs are ordinary events, so the database and row-level security are unchanged.
 
 ## Knowingly NOT doing (v0.1)
 
@@ -88,11 +89,11 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Load balancing | Solves clumping in large multi-user decks. One person with a small library doesn't have that problem. |
 | Stats screen | No decision depends on it. One line on Today at most. |
 | Cloudflare R2 | Outside the locked stack. Supabase Storage covers recordings later. |
-| Sibling burying | Only matters once songs have several sibling cards. Built with Songs I Already Know. The item-to-cards link stays in the model. |
-| Pocket results feeding guitar priority | Needs guitar song cards to prove. Built with Songs I Already Know. |
+| Sibling burying | A song has exactly one card (title only, Blake 2026-10-31), so there are no siblings to bury. Deferred until an item has more than one card. The item-to-cards link stays in the model (`cardsOfItem`). |
+| Pocket results feeding guitar priority | Songs are guitar-only (title, play, rate), so no song has a pocket card whose result could move it up. Deferred until a module makes pocket cards linked to guitar cards. |
 | Post-gig voice memo, recorded creative prompts, improv takes | Need the recorder. Ship with the recorder module; block types are reserved now. |
 | Shared-service interfaces (randomizer, recorder, metronome) | Defined with the first module that uses each one, not predicted now. |
-| Locking the module contract early | Stays v0 until Songs I Already Know proves it; locked then. The isolation rule is enforced from v0. |
+| Locking the module contract early | Songs I Already Know needed no contract change. Proposed: lock v0 as v1 unchanged. Awaiting Blake's yes. The isolation rule is enforced from v0. |
 | Conversational intake interview | Would need an AI service (no paid services). A form asks the same five questions. |
 | One specialist bot per module | Conflicts with the minimal-headcount rule. One builder for everything. |
 | Self-service account deletion button | Deleting a user in Supabase Auth already removes all their data (tested). A button needs a server function and a confirm flow; add before public launch. |
@@ -103,3 +104,5 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Timing error from the microphone | Needs the recorder module (mic access). Until then timing error comes from tapping along, which includes touch-screen delay. |
 | Recorder, improv takes, creative prompts, gig memo | Still deferred: they need the recorder, not the metronome. They will sync to the metronome clock service. |
 | Removing `setup-keys.html` | Needed only for setup. On the pre-customer checklist in `docs/SETUP.md`; removal waits for Blake's yes. |
+| Hard delete of a song | The log is append-only; Blake asked for archive. Archived songs are not served and can be restored with their history. |
+| Song details (chords, keys, tabs, links) | Blake, 2026-10-31: a song card holds only a title. |

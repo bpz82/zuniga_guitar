@@ -211,7 +211,7 @@ function quietHours(v: unknown, p: string) {
 }
 
 function settings(v: unknown, p: string) {
-  const o = obj(v, p, ['desiredRetention', 'windows'], ['dayStart', 'quietHours', 'morningMinutes', 'notifications']);
+  const o = obj(v, p, ['desiredRetention', 'windows'], ['dayStart', 'quietHours', 'morningMinutes', 'notifications', 'alwaysRemindMorning']);
   const windows = list(
     o.windows,
     `${p}.windows`,
@@ -233,6 +233,7 @@ function settings(v: unknown, p: string) {
     ...(o.quietHours === undefined ? {} : { quietHours: quietHours(o.quietHours, `${p}.quietHours`) }),
     ...(o.morningMinutes === undefined ? {} : { morningMinutes: int(o.morningMinutes, `${p}.morningMinutes`, 60, 300) }),
     ...(o.notifications === undefined ? {} : { notifications: bool(o.notifications, `${p}.notifications`) }),
+    ...(o.alwaysRemindMorning === undefined ? {} : { alwaysRemindMorning: bool(o.alwaysRemindMorning, `${p}.alwaysRemindMorning`) }),
   };
 }
 

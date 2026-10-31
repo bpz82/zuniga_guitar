@@ -132,6 +132,13 @@ export interface SettingsInput {
   readonly morningMinutes?: number;
   /** Master notification switch. Absent means off: users opt in. */
   readonly notifications?: boolean;
+  /**
+   * Send the morning reminder even when nothing is due: the morning hour is
+   * practice either way (Blake, 2026-10-31). Absent means on. Only matters
+   * once the user has turned notifications on, and the morning window's own
+   * toggle still wins.
+   */
+  readonly alwaysRemindMorning?: boolean;
 }
 
 /** Settings as the engine uses them: every field resolved. */
@@ -140,6 +147,7 @@ export interface Settings extends SettingsInput {
   readonly quietHours: QuietHours;
   readonly morningMinutes: number;
   readonly notifications: boolean;
+  readonly alwaysRemindMorning: boolean;
 }
 
 /**
@@ -153,6 +161,7 @@ export const DEFAULT_SETTINGS: Settings = Object.freeze({
   quietHours: Object.freeze({ start: '09:00', end: '17:00' }),
   morningMinutes: 60,
   notifications: false,
+  alwaysRemindMorning: true,
   windows: Object.freeze([
     Object.freeze({ id: 'morning', start: '07:00' }),
     Object.freeze({ id: 'before-work', start: '08:30' }),

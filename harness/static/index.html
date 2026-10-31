@@ -30,6 +30,16 @@
     <ul data-zg="blocks"></ul>
     <button data-zg="played">I played</button>
   </section>
+  <section data-zg="songs">
+    <h2>Songs I already know</h2>
+    <label>Song title <input type="text" data-zg="songs-new" maxlength="200" placeholder="e.g. Blackbird"></label>
+    <button data-zg="songs-add">Add song</button>
+    <label>Paste a list (one title per line) <textarea data-zg="songs-paste" spellcheck="false"></textarea></label>
+    <button data-zg="songs-paste-add">Add these songs</button>
+    <ul data-zg="songs-list"></ul>
+    <h3>Archived</h3>
+    <ul data-zg="songs-archived"></ul>
+  </section>
   <section data-zg="metronome">
     <h2>Metronome</h2>
     <p data-zg="mx-position">stopped</p>
@@ -73,6 +83,7 @@
   <section>
     <h2>Notifications</h2>
     <label><input type="checkbox" data-zg="notify-all"> All notifications</label>
+    <label><input type="checkbox" data-zg="notify-morning-always"> Morning reminder even when nothing is due</label>
     <div data-zg="notify-windows"></div>
     <button data-zg="enable-push">Allow notifications on this device</button>
   </section>

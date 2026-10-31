@@ -11,6 +11,7 @@ import {
   settingsFromOnboarding,
   toggleNotifications,
   toggleWindowNotify,
+  toggleAlwaysRemindMorning,
 } from '../src/index.ts';
 import type { EventBody, Log, Validation } from '../src/index.ts';
 import { BLAKE_SETTINGS, BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
@@ -108,4 +109,13 @@ test('notification toggles: master switch and one per window', () => {
 test('a new user gets no notifications until they opt in', () => {
   const log = withDueCard(emptyLog());
   assert.deepEqual(nudgesBetween(project(log), Date.UTC(2026, 10, 2), Date.UTC(2026, 10, 3)), []);
+});
+
+test('the always-remind-morning switch is a normal settings edit', () => {
+  let log = apply(emptyLog(), BLAKE_SETTINGS_EVENT);
+  log = apply(log, ok(toggleAlwaysRemindMorning(project(log), false)));
+  assert.equal(project(log).settings.alwaysRemindMorning, false);
+  assert.deepEqual(project(log).settings.windows, BLAKE_SETTINGS.windows, 'nothing else changed');
+  log = apply(log, ok(toggleAlwaysRemindMorning(project(log), true)));
+  assert.equal(project(log).settings.alwaysRemindMorning, true);
 });

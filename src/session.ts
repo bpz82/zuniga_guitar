@@ -172,7 +172,9 @@ export interface Nudge {
 /**
  * Gentle notifications due in (from, to]: one at the start of each window,
  * only if there is something to do then, never repeated, never for a missed
- * window. Respects the master switch and each window's toggle. The app
+ * window. The morning reminder is the exception: with alwaysRemindMorning
+ * (the default) it fires even when nothing is due. Respects the master
+ * switch and each window's toggle. The app
  * calls this for the days ahead and uploads the result (see planNudges).
  */
 export function nudgesBetween(library: Library, from: number, to: number): Nudge[] {
@@ -183,7 +185,8 @@ export function nudgesBetween(library: Library, from: number, to: number): Nudge
     for (const w of windowsFor(library, date)) {
       if (w.start <= from || w.start > to) continue;
       if (library.settings.windows.find((x) => x.id === w.id)?.notify === false) continue;
-      if (sessionFor(library, w.start).empty) continue;
+      const always = w.id === 'morning' && library.settings.alwaysRemindMorning;
+      if (!always && sessionFor(library, w.start).empty) continue;
       out.push({ windowId: w.id, at: w.start, silent: isQuiet(library, w.start) });
     }
   }

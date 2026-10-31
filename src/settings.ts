@@ -66,6 +66,11 @@ export function toggleNotifications(library: Library, on: boolean): Validation<E
   return changeSettings(library, { notifications: on });
 }
 
+/** Morning reminder even when nothing is due (default on). */
+export function toggleAlwaysRemindMorning(library: Library, on: boolean): Validation<EventBody> {
+  return changeSettings(library, { alwaysRemindMorning: on });
+}
+
 /** One window's notification toggle. Refuses a window the user does not have. */
 export function toggleWindowNotify(library: Library, windowId: WindowId, on: boolean): Validation<EventBody> {
   if (!library.settings.windows.some((w) => w.id === windowId)) {

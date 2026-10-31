@@ -10,6 +10,7 @@ export const BLAKE_SETTINGS: Settings = Object.freeze({
   quietHours: Object.freeze({ start: '10:30', end: '16:00' }),
   morningMinutes: 60,
   notifications: true,
+  alwaysRemindMorning: true,
   windows: Object.freeze([
     Object.freeze({ id: 'morning', start: '04:00' }),
     Object.freeze({ id: 'before-work', start: '09:45' }),

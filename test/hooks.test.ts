@@ -29,8 +29,10 @@ test('index.html has no hooks the code does not know about (catches renames)', (
   assert.deepEqual(unknown, [], 'add these to harness/hooks.ts or restore their names');
 });
 
+const HARNESS_CODE = readdirSync('harness').filter((f) => f.endsWith('.ts')).map((f) => join('harness', f));
+
 test('elements the code creates carry their hooks', () => {
-  const code = read('harness/main.ts');
+  const code = HARNESS_CODE.map(read).join('\n');
   for (const h of CREATED_HOOKS) assert.ok(code.includes(`dataset.zg = '${h}'`), h);
 });
 
@@ -47,7 +49,8 @@ test('metronome voice hooks match the voices the engine plays', () => {
 });
 
 test('code finds elements only through hooks and never styles them', () => {
-  for (const f of ['harness/main.ts', 'harness/metronome-ui.ts', ...files('src')]) {
+  assert.ok(HARNESS_CODE.includes(join('harness', 'songs-ui.ts')), 'every harness file is scanned');
+  for (const f of [...HARNESS_CODE, ...files('src')]) {
     const code = read(f);
     for (const banned of ['getElementById', 'getElementsByClassName', ".querySelector('#", '.querySelectorAll(', '.style.', '.className', 'classList.', 'style=']) {
       assert.ok(!code.includes(banned), `${f} uses ${banned}`);

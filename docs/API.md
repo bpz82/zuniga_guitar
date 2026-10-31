@@ -135,7 +135,7 @@ const s = sessionFor(lib, Date.now());
 | Function | What it does |
 |---|---|
 | `sessionFor(lib, now)` | The session for right now. Opening the app always gets one (before 4:00am it is the morning session). |
-| `nudgesBetween(lib, from, to)` | Notifications due in (from, to]: one per window start with something to do, `silent` during quiet hours, respecting the master switch and each window's toggle. Never repeats, never replays a missed window. |
+| `nudgesBetween(lib, from, to)` | Notifications due in (from, to]: one per window start with something to do (the morning one fires even with nothing due while `alwaysRemindMorning` is on, the default), `silent` during quiet hours, respecting the master switch and each window's toggle. Never repeats, never replays a missed window. |
 | `windowsFor(lib, date)`, `currentWindow(lib, now)`, `isQuiet(lib, t)` | Window times for a practice day, the window now, whether it is quiet hours. |
 
 Rules:
@@ -148,7 +148,7 @@ Rules:
 
 ## Settings and onboarding (checkpoint 5)
 
-Engine defaults are generic (UTC, 7:00 / 8:30 / 12:30 / 17:30, quiet 9:00 to 17:00, notifications **off**). Each user's own schedule is a `settings-set` event, written by onboarding and changeable any time. Every function returns a validated event body; `append` or `replica.record` it.
+Engine defaults are generic (UTC, 7:00 / 8:30 / 12:30 / 17:30, quiet 9:00 to 17:00, notifications **off**, morning reminder even when nothing is due **on**). Each user's own schedule is a `settings-set` event, written by onboarding and changeable any time. Every function returns a validated event body; `append` or `replica.record` it.
 
 | Function | What it does |
 |---|---|
@@ -156,6 +156,7 @@ Engine defaults are generic (UTC, 7:00 / 8:30 / 12:30 / 17:30, quiet 9:00 to 17:
 | `changeSettings(lib, changes)` | Any edit; untouched fields are kept. |
 | `toggleNotifications(lib, on)` | Master switch. |
 | `toggleWindowNotify(lib, windowId, on)` | One window's notification. The window itself stays. |
+| `toggleAlwaysRemindMorning(lib, on)` | Morning reminder even when nothing is due (default on). Has no effect until notifications are on; the morning window's own toggle still wins. |
 
 ## Storage and sync
 
@@ -200,6 +201,27 @@ A module that touches another module's data, uses an undeclared template, sends 
 
 `TEST_DECK`, `seedTestDeck(host)` (idempotent, same ids on every device), `prompt(card, item)` for question and answer text. 78 fretboard notes and 24 chord spellings, all silent pocket cards.
 
+## Songs I Already Know
+
+A song is a **title only**: one item `{ title }` and one `song` card tagged `guitar`, so it is served in the morning session through the normal queue (never in a pocket burst). Blake plays it and rates it Again, Hard, Good or Easy. All writes go through the contract; every function checks its input first and returns a `Validation`, so bad input is an error for the user and never switches the module off.
+
+```ts
+import { SONGS, addSong, pasteSongs, renameSong, archiveSong, restoreSong, rateSong, songs } from './src/index.ts';
+const host = createHost(replica, SONGS);
+await runModule(host, () => addSong(host, crypto.randomUUID(), 'Blackbird'));
+await runModule(host, () => pasteSongs(host, 'Little Wing\nWonderwall', () => crypto.randomUUID()));
+await runModule(host, () => rateSong(host, cardId, 'good', msTaken));
+```
+
+| Function | What it does |
+|---|---|
+| `songs(host)` | Every song `{ itemId, cardId, title, archived }`, in the order added. |
+| `addSong(host, key, title)` | Adds one. Title trimmed, 1 to 200 characters, one line. A title already listed (any case, archived included) is refused. |
+| `pasteSongs(host, text, newKey)` | One title per line. Blank lines ignored, duplicates skipped and reported. Every line is checked first: one bad line and nothing is added. At most 200 new songs per paste. |
+| `renameSong(host, itemId, title)` | New title; history stays with the song. |
+| `archiveSong` / `restoreSong(host, itemId)` | Archive retires the card: not served, history kept. Restore brings it back with its history. There is no hard delete (the log is append-only). |
+| `rateSong(host, cardId, rating, durationMs)` | Logs one play. Archived songs cannot be rated. |
+
 ## Server side (Supabase)
 
 - `supabase/migrations/20261030000000_init.sql`: tables `events` (append-only), `push_subscriptions`, `nudges`; row-level security per user; `save_push_subscription` and `replace_nudges` functions. Tested by `npm run test:sql`.
@@ -208,7 +230,7 @@ A module that touches another module's data, uses an undeclared template, sends 
 
 ## Test harness
 
-`harness/` is a bare page (no design) that exercises everything: sessions, the test deck, "I played", settings, notification toggles, sign-in by emailed code, sync, backup. `npm run build` writes it to `public/` for Vercel, with the public Supabase connection built in from `ZG_SUPABASE_URL`, `ZG_SUPABASE_PUBLISHABLE_KEY` and `ZG_VAPID_PUBLIC_KEY` (secret keys are refused). `npm run test:browser` checks it in headless Chromium.
+`harness/` is a bare page (no design) that exercises everything: sessions, the test deck, songs, "I played", settings, notification toggles, sign-in by emailed code, sync, backup. `npm run build` writes it to `public/` for Vercel, with the public Supabase connection built in from `ZG_SUPABASE_URL`, `ZG_SUPABASE_PUBLISHABLE_KEY` and `ZG_VAPID_PUBLIC_KEY` (secret keys are refused). `npm run test:browser` checks it in headless Chromium.
 
 ## Metronome module
 

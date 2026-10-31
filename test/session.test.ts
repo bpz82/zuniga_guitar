@@ -292,15 +292,40 @@ test('one gentle nudge per window, silent during work hours', () => {
   );
 });
 
-test('no nudge when there is nothing to do, and never twice for the same window', () => {
+test('no nudge when there is nothing to do (except the morning, see below), and never twice for the same window', () => {
   const empty = writer().lib;
-  assert.deepEqual(nudgesBetween(empty, dayBegins('2026-11-02', NY), dayBegins('2026-11-03', NY)), []);
+  assert.deepEqual(
+    nudgesBetween(empty, dayBegins('2026-11-02', NY), dayBegins('2026-11-03', NY)).map((n) => n.windowId),
+    ['morning'],
+    'pocket windows with nothing to do stay quiet',
+  );
   const lib = mixedDeck().lib;
   const t1 = ny('2026-11-02', '13:00');
   assert.equal(nudgesBetween(lib, t1 - MIN, t1).length, 1);
   assert.equal(nudgesBetween(lib, t1, t1 + 5 * MIN).length, 0, 'the next run does not repeat it');
   // A sender that was down all day only nudges for windows in its range; nothing is replayed later.
   assert.equal(nudgesBetween(lib, ny('2026-11-02', '17:00'), ny('2026-11-02', '23:00')).length, 0);
+});
+
+test('the morning reminder always fires, even with nothing due (Blake, 2026-10-31), unless turned off', () => {
+  const w = writer();
+  const day = () => nudgesBetween(w.lib, dayBegins('2026-11-02', NY), dayBegins('2026-11-03', NY));
+  assert.deepEqual(day().map((n) => [n.windowId, n.at === ny('2026-11-02', '04:00'), n.silent]), [['morning', true, false]]);
+  w.add({ type: 'settings-set', settings: { ...BLAKE_SETTINGS, alwaysRemindMorning: false } });
+  assert.deepEqual(day(), [], 'off: back to only when something is due');
+  w.add({ type: 'settings-set', settings: { ...BLAKE_SETTINGS, windows: BLAKE_SETTINGS.windows.map((x) => (x.id === 'morning' ? { ...x, notify: false } : x)) } });
+  assert.deepEqual(day(), [], 'the morning window toggle still wins');
+  w.add({ type: 'settings-set', settings: { ...BLAKE_SETTINGS, notifications: false } });
+  assert.deepEqual(day(), [], 'the master switch still wins');
+});
+
+test('alwaysRemindMorning: on by default, validated strictly, and older settings events without it get the default', () => {
+  assert.equal(DEFAULT_SETTINGS.alwaysRemindMorning, true);
+  assert.equal(DEFAULT_SETTINGS.notifications, false, 'secure default: nothing is sent until the user opts in');
+  assert.equal(validateBody({ type: 'settings-set', settings: { ...BLAKE_SETTINGS, alwaysRemindMorning: 'yes' } }).ok, false);
+  const { alwaysRemindMorning: _, ...older } = BLAKE_SETTINGS;
+  const w = writer().add({ type: 'settings-set', settings: older });
+  assert.equal(w.lib.settings.alwaysRemindMorning, true);
 });
 
 test('only silent cards due at 1pm means a silent nudge; only guitar cards due means no 1pm nudge', () => {
