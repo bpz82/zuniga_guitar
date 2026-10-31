@@ -18,7 +18,7 @@ import type { Validation } from '../validate.ts';
 
 export const SONGS: ModuleManifest = Object.freeze({
   id: 'songs',
-  contract: 0,
+  contract: 1,
   templates: Object.freeze([Object.freeze({ template: 'song', tags: Object.freeze(['guitar'] as const) })]),
 });
 

@@ -1,6 +1,10 @@
 /**
- * Module contract, version 0 (stays unlocked until Songs I Already Know
- * proves it). A module never touches the log or the library. It gets a host
+ * Module contract, version 1: LOCKED (Blake, 2026-10-31). It is version 0
+ * unchanged; Songs I Already Know proved it without needing any change.
+ * Changing the host's surface, the manifest shape or the rules below needs
+ * Blake's yes and a new version; test/contract.test.ts fails otherwise.
+ *
+ * A module never touches the log or the library. It gets a host
  * scoped to its own items and cards, and every write is checked here and
  * then validated again by the log.
  *
@@ -13,7 +17,7 @@ import type { Replica } from './replica.ts';
 import type { DueCard } from './scheduler.ts';
 import type { Card, CardTag, Details, EventOf, Item, Rating } from './model.ts';
 
-export const CONTRACT_VERSION = 0;
+export const CONTRACT_VERSION = 1;
 /** A runaway module is stopped after this many writes in an hour. */
 export const MAX_WRITES_PER_HOUR = 2000;
 

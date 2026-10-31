@@ -17,7 +17,7 @@ import type { MetronomeConfig, Workout } from './core.ts';
 
 export const METRONOME: ModuleManifest = Object.freeze({
   id: 'metronome',
-  contract: 0,
+  contract: 1,
   templates: Object.freeze([Object.freeze({ template: 'tempo-exercise', tags: Object.freeze(['guitar'] as const) })]),
 });
 

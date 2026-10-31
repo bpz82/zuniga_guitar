@@ -9,7 +9,7 @@ import type { Card, Item } from '../model.ts';
 
 export const TEST_DECK: ModuleManifest = Object.freeze({
   id: 'test-deck',
-  contract: 0,
+  contract: 1,
   templates: Object.freeze([
     Object.freeze({ template: 'fret-note', tags: Object.freeze(['pocket-silent'] as const) }),
     Object.freeze({ template: 'chord-spelling', tags: Object.freeze(['pocket-silent'] as const) }),

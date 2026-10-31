@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   canonical,
   chordSpelling,
+  CONTRACT_VERSION,
   ContractViolation,
   createHost,
   deckEntries,
@@ -20,7 +21,7 @@ import { dayBegins } from '../src/day.ts';
 
 let t = Date.UTC(2026, 10, 2, 14);
 const clock = () => (t += 1000);
-const SONGS: ModuleManifest = { id: 'songs', contract: 0, templates: [{ template: 'song-recall', tags: ['guitar'] }] };
+const SONGS: ModuleManifest = { id: 'songs', contract: 1, templates: [{ template: 'song-recall', tags: ['guitar'] }] };
 
 async function setup() {
   const replica = await Replica.open(memoryStore(), 'phone', { now: clock });
@@ -174,4 +175,17 @@ test('a runaway module is stopped by the write budget', async () => {
   await assert.rejects(host.addItem('s', { n: -1 }), /writes in an hour/);
   assert.equal(host.enabled, false);
   assert.equal(replica.log.length, MAX_WRITES_PER_HOUR);
+});
+
+test('contract v1 is locked: version, host surface and manifest shape are frozen (Blake, 2026-10-31)', async () => {
+  assert.equal(CONTRACT_VERSION, 1);
+  const { songs } = await setup();
+  const surface = Object.keys(songs).sort();
+  assert.deepEqual(
+    surface,
+    ['addCard', 'addItem', 'cards', 'disabledReason', 'enabled', 'items', 'moduleId', 'reportRep', 'retireCard', 'reviews', 'session'],
+    'the host surface changed: that needs Blake\'s yes and a new contract version',
+  );
+  for (const m of [TEST_DECK, SONGS]) assert.deepEqual(Object.keys(m).sort(), ['contract', 'id', 'templates']);
+  assert.equal(MAX_WRITES_PER_HOUR, 2000);
 });

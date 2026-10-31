@@ -24,8 +24,9 @@ import {
   SONGS,
   songs,
   TEST_DECK,
+  usesSteps,
 } from '../src/index.ts';
-import type { ReviewSegment, Session } from '../src/index.ts';
+import type { ModuleManifest, ReviewSegment, Session } from '../src/index.ts';
 import { BLAKE_SETTINGS, BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
 
 const NY = BLAKE_SETTINGS.dayStart;
@@ -233,4 +234,54 @@ test('songs sync like everything else: a second device replays the same list and
   const there = createHost(other, SONGS, { now: clock });
   assert.deepEqual(songs(there), songs(host));
   assert.equal(other.library.reviews.get(songs(there)[0]!.cardId)?.length, 1);
+});
+
+// ------------------------------------------- no learning steps (Blake, 2026-10-31) --
+
+const OTHER: ModuleManifest = { id: 'other-guitar', contract: 1, templates: [{ template: 'drill', tags: ['guitar'] }] };
+
+test('song cards skip learning steps; every other card keeps them', async () => {
+  const { replica, host } = await setup();
+  const deck = createHost(replica, TEST_DECK, { now: clock });
+  ok(await runModule(deck, () => seedTestDeck(deck)));
+  ok(await addSong(host, 'a1', 'Blackbird'));
+  assert.equal(usesSteps(replica.library, 'song-a1-c'), false);
+  assert.equal(usesSteps(replica.library, 'td-fret-6-0-c'), true);
+  assert.equal(usesSteps(replica.library, 'no-such-card'), true);
+});
+
+test('a first rating of a song schedules it in days: never again the same session', async () => {
+  for (const rating of ['again', 'hard', 'good', 'easy'] as const) {
+    const { replica, host } = await setup();
+    ok(await addSong(host, 'a1', 'Blackbird'));
+    t = ny('2026-11-02', '04:05');
+    ok(await rateSong(host, 'song-a1-c', rating, 200_000));
+    for (const hhmm of ['04:20', '04:59']) {
+      assert.deepEqual(served(sessionFor(replica.library, ny('2026-11-02', hhmm))), [], `${rating}: not back at ${hhmm}`);
+    }
+    const tomorrow = served(sessionFor(replica.library, ny('2026-11-03', '04:05')));
+    assert.deepEqual(tomorrow, rating === 'again' ? ['song-a1-c'] : [], `${rating}: tomorrow morning`);
+  }
+});
+
+test('the same rating on another module\'s guitar card still uses the 10-minute learning step', async () => {
+  const { replica } = await setup();
+  const other = createHost(replica, OTHER, { now: clock });
+  await other.addItem('o1', { name: 'Spider drill' });
+  await other.addCard('o1-c', 'o1', 'drill');
+  t = ny('2026-11-02', '04:05');
+  await other.reportRep('o1-c', 'good', 60_000);
+  assert.deepEqual(served(sessionFor(replica.library, ny('2026-11-02', '04:20'))), ['o1-c']);
+});
+
+test('a forgotten song comes back the next morning, not minutes later, and the lapse still counts', async () => {
+  const { replica, host } = await setup();
+  ok(await addSong(host, 'a1', 'Blackbird'));
+  t = ny('2026-11-02', '04:05');
+  ok(await rateSong(host, 'song-a1-c', 'good', 1000));
+  t = ny('2026-11-10', '04:05');
+  ok(await rateSong(host, 'song-a1-c', 'again', 1000));
+  assert.deepEqual(served(sessionFor(replica.library, ny('2026-11-10', '04:30'))), []);
+  const next = review(sessionFor(replica.library, ny('2026-11-11', '04:05')))!;
+  assert.deepEqual(next.due.map((d) => [d.memory.cardId, d.memory.phase, d.memory.lapses]), [['song-a1-c', 'review', 1]]);
 });

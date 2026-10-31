@@ -56,7 +56,7 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Isolation rule:** modules touch the engine only through the module contract, never its data. A broken module must never be able to corrupt the event log.
 - **Notifications stay in scope:** Web Push (VAPID) with a Supabase cron/edge function, for the installed app on iPhone (home-screen install) and laptop.
 - **Goal blocks:** recorder- and metronome-dependent blocks are deferred to their modules, but the block types are designed now so they slot in without rework.
-- **Kept:** fuzz, learning and relearning steps.
+- **Kept:** fuzz, learning and relearning steps (song cards skip the steps, 2026-10-31, below).
 - **Check-in:** when the app is opened within N days of a goal's deadline, it re-shows that goal's plan and lets Blake adjust the daily time.
 - **Stats:** at most one line on Today (due count and retention).
 - **Recordings, later:** Supabase Storage, not Cloudflare R2.
@@ -79,7 +79,9 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Contract v0 addition:** `host.reviews(cardId)`, reviews of the module's own cards only.
 - **Design guardrails (Blake, 2026-10-31):** all visual styling in `harness/static/theme/` (CSS, icons, fonts, one design-tokens file); every element the code uses has a fixed `data-zg` hook; behavior and timing stay out of the theme. Editable files: `docs/THEME.md`.
 - **Morning reminder always fires (Blake, 2026-10-31):** the morning window's reminder is sent even when nothing is due. Setting `alwaysRemindMorning`, default on; nothing is sent until the user turns notifications on (master switch still off by default), and the morning window's own toggle still wins. All other windows still only remind when something is due.
-- **Songs I Already Know (Blake, 2026-10-31):** a song is a title only (one item, one `song` card tagged `guitar`). Add one, paste a list (one title per line), rename, archive and restore; no hard delete. Practice: the morning session serves it through the normal FSRS queue, Blake plays it and rates it Again/Hard/Good/Easy. No chords, keys, tabs or links. Built on contract v0 with no contract changes. Songs are ordinary events, so the database and row-level security are unchanged.
+- **Songs I Already Know (Blake, 2026-10-31):** a song is a title only (one item, one `song` card tagged `guitar`). Add one, paste a list (one title per line), rename, archive and restore; no hard delete. Practice: the morning session serves it through the normal FSRS queue, Blake plays it and rates it Again/Hard/Good/Easy. No chords, keys, tabs or links. Built on contract v0 with no contract changes.
+- **Songs skip learning steps (Blake, 2026-10-31):** song cards schedule in whole days from every rating (no 10-minute same-session repeat, no 1-minute relearning step); all other cards keep the steps. `NO_STEP_MODULES` in `src/scheduler.ts`.
+- **Module contract locked as v1 (Blake, 2026-10-31):** v0 unchanged. Changes need Blake's yes and a new version; a test freezes the surface. Songs are ordinary events, so the database and row-level security are unchanged.
 
 ## Knowingly NOT doing (v0.1)
 
@@ -93,7 +95,6 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Pocket results feeding guitar priority | Songs are guitar-only (title, play, rate), so no song has a pocket card whose result could move it up. Deferred until a module makes pocket cards linked to guitar cards. |
 | Post-gig voice memo, recorded creative prompts, improv takes | Need the recorder. Ship with the recorder module; block types are reserved now. |
 | Shared-service interfaces (randomizer, recorder, metronome) | Defined with the first module that uses each one, not predicted now. |
-| Locking the module contract early | Songs I Already Know needed no contract change. Proposed: lock v0 as v1 unchanged. Awaiting Blake's yes. The isolation rule is enforced from v0. |
 | Conversational intake interview | Would need an AI service (no paid services). A form asks the same five questions. |
 | One specialist bot per module | Conflicts with the minimal-headcount rule. One builder for everything. |
 | Self-service account deletion button | Deleting a user in Supabase Auth already removes all their data (tested). A button needs a server function and a confirm flow; add before public launch. |

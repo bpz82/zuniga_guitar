@@ -53,29 +53,47 @@ const PHASE: Readonly<Record<State, Phase>> = {
 };
 
 // FSRS-6 defaults; fuzz and learning/relearning steps on (Blake, 2026-10-30).
-const schedulers = new Map<number, FSRS>();
-function schedulerFor(retention: number): FSRS {
+const schedulers = new Map<string, FSRS>();
+function schedulerFor(retention: number, steps = true): FSRS {
   if (!(retention >= 0.7 && retention <= 0.99)) throw new RangeError(`retention ${retention} outside 0.7 to 0.99`);
-  let f = schedulers.get(retention);
+  const key = `${retention}|${steps}`;
+  let f = schedulers.get(key);
   if (f === undefined) {
-    f = fsrs({ request_retention: retention, enable_fuzz: true, enable_short_term: true });
-    schedulers.set(retention, f);
+    f = fsrs({ request_retention: retention, enable_fuzz: true, enable_short_term: steps });
+    schedulers.set(key, f);
   }
   return f;
 }
 
 /**
+ * Modules whose cards skip learning and relearning steps: every rating
+ * schedules in whole days, never a same-session repeat. Songs I Already Know
+ * (Blake, 2026-10-31): a known song rated Good is not replayed 10 minutes
+ * later. Keyed by the item's module, which the contract makes trustworthy.
+ */
+export const NO_STEP_MODULES: readonly string[] = Object.freeze(['songs']);
+
+/** Whether a card uses learning/relearning steps. */
+export function usesSteps(library: Library, cardId: string): boolean {
+  const card = library.cards.get(cardId);
+  const module = card ? library.items.get(card.itemId)?.module : undefined;
+  return module === undefined || !NO_STEP_MODULES.includes(module);
+}
+
+/**
  * Replays one card's reviews (oldest first) into its memory state.
  * `retention` affects only `due`. `dayStart` decides which reviews count as
- * the same day (FSRS treats same-day repeats differently).
+ * the same day (FSRS treats same-day repeats differently). `steps: false`
+ * skips learning and relearning steps (see NO_STEP_MODULES).
  */
 export function memoryOf(
   cardId: string,
   reviews: readonly EventOf<'review'>[],
   retention: number,
   dayStart: DayStart = DEFAULT_DAY_START,
+  steps = true,
 ): Memory {
-  const f = schedulerFor(retention);
+  const f = schedulerFor(retention, steps);
   const first = reviews[0];
   const last = reviews.at(-1);
   if (first === undefined || last === undefined) {
@@ -159,7 +177,7 @@ export function buildQueue(library: Library, options: QueueOptions): Queue {
 
   for (const card of library.cards.values()) {
     if (card.retired) continue;
-    const memory = memoryOf(card.id, library.reviews.get(card.id) ?? [], retentionFor(card.id), dayStart);
+    const memory = memoryOf(card.id, library.reviews.get(card.id) ?? [], retentionFor(card.id), dayStart, usesSteps(library, card.id));
     const weight = weightFor(card.id);
     if (!(weight > 0) || !Number.isFinite(weight)) throw new RangeError(`weight for ${card.id} must be a positive number`);
     if (memory.phase === 'new') {

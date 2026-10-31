@@ -67,7 +67,7 @@ const queue = buildQueue(lib, { now: Date.now() });
 | Function | What it does |
 |---|---|
 | `buildQueue(lib, { now, retentionFor?, weightFor?, pullForward? })` | Today's queue. Defaults: settings retention, weight 1, nothing pulled forward. Use `goalQueue` to apply goals. Learning steps are due at their exact time; reviews are due for their whole practice day. |
-| `memoryOf(cardId, reviews, retention, dayStart?)` | One card's memory: `phase` (`new`, `learning`, `review`, `relearning`), `stability`, `difficulty`, `reps`, `lapses`, `lastReview`, `due`, `leech`. |
+| `memoryOf(cardId, reviews, retention, dayStart?, steps?)` | One card's memory (`steps: false` skips learning and relearning steps; `buildQueue` passes `usesSteps(lib, cardId)`, false for song cards): `phase` (`new`, `learning`, `review`, `relearning`), `stability`, `difficulty`, `reps`, `lapses`, `lastReview`, `due`, `leech`. |
 | `retrievability(memory, now)` | Recall probability now, 0 to 1 (null for new cards). |
 | `LEECH_LAPSES` | 8. |
 
@@ -181,19 +181,21 @@ await uploadNudges(supabase, planNudges(lib, Date.now())); // reminders for the 
 | `supabaseRemote(client)` | Sync over a supabase-js client (publishable key; row-level security limits it to the signed-in user). |
 | `planNudges(lib, now)` / `uploadNudges(client, plan)` | The user's own reminders, uploaded in one call. Empty when notifications are off. |
 
-## Module contract v0
+## Module contract v1 (locked)
 
 Modules never touch the log or library. They get a host scoped to their own items and cards.
 
 ```ts
-const host = createHost(replica, MY_MANIFEST);   // { id, contract: 0, templates: [{ template, tags }] }
+const host = createHost(replica, MY_MANIFEST);   // { id, contract: 1, templates: [{ template, tags }] }
 await runModule(host, async () => {              // crash boundary
   await host.addItem('song-1', { title: '...' });
-  await host.addCard('song-1-c', 'song-1', 'song-recall');
+  await host.addCard('song-1-c', 'song-1', 'song');
   const { due, fresh } = host.session(Date.now());
   await host.reportRep('song-1-c', 'good', 4200, { tempo: 96 });
 });
 ```
+
+Locked 2026-10-31 (Blake): v1 is v0 unchanged. Any change to the host, the manifest or these rules needs Blake's yes and a new version (`test/contract.test.ts` guards it).
 
 A module that touches another module's data, uses an undeclared template, sends an invalid write, throws inside `runModule`, or writes more than 2,000 events an hour is switched off (`host.enabled === false`). Nothing it tried gets in; the engine and other modules carry on.
 
@@ -221,6 +223,8 @@ await runModule(host, () => rateSong(host, cardId, 'good', msTaken));
 | `renameSong(host, itemId, title)` | New title; history stays with the song. |
 | `archiveSong` / `restoreSong(host, itemId)` | Archive retires the card: not served, history kept. Restore brings it back with its history. There is no hard delete (the log is append-only). |
 | `rateSong(host, cardId, rating, durationMs)` | Logs one play. Archived songs cannot be rated. |
+
+Song cards have **no learning or relearning steps** (Blake, 2026-10-31): every rating schedules in whole days, so a song is never repeated in the same session. From a first rating: Again tomorrow, Hard about 2 days, Good about 3, Easy about 8 (fuzz applies). A forgotten song comes back the next morning and still counts as a lapse.
 
 ## Server side (Supabase)
 
