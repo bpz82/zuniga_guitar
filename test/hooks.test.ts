@@ -76,3 +76,41 @@ test('pages load tokens, then theme, then the protected base.css; no inline styl
   }
   assert.match(read('harness/static/base.css'), /\[hidden\]\s*\{\s*display:\s*none !important;\s*\}/);
 });
+
+// ------------------------------------------------- app shell (2026-10-31) --
+
+test('app shell: one container per screen; every section sits inside exactly one screen; only Today starts visible', async () => {
+  const { SCREENS } = await import('../harness/routes.ts');
+  const main = html.slice(html.indexOf('<main data-zg="screens">'), html.indexOf('</main>'));
+  assert.ok(main.length > 0, 'screens container present');
+  const opens = SCREENS.map((s) => ({ s, at: main.indexOf(`<div data-zg="screen-${s}"`) }));
+  for (const o of opens) assert.ok(o.at >= 0, `screen-${o.s}`);
+  const sorted = [...opens].sort((a, b) => a.at - b.at);
+  // Everything with a section tag in the page lives inside <main>, in some screen.
+  assert.equal(html.split('<section').length - 1, main.split('<section').length - 1, 'no section outside the screens');
+  assert.ok(main.indexOf('<section') > sorted[0]!.at, 'no section before the first screen');
+  for (const { s, at } of opens) {
+    const tag = main.slice(at, main.indexOf('>', at) + 1);
+    assert.equal(/\shidden[\s>]/.test(tag), s !== 'today', `screen-${s} starts ${s === 'today' ? 'visible' : 'hidden'}`);
+  }
+  // Each tab and the gear link to their screen's hash.
+  for (const s of SCREENS) {
+    const hook = s === 'settings' ? 'gear' : `tab-${s}`;
+    assert.match(html, new RegExp(`<a href="#/${s}" data-zg="${hook}"`), hook);
+  }
+});
+
+test('base.css: the protected hidden rule, then structure only, all at zero specificity so the theme wins', () => {
+  const css = read('harness/static/base.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1]!.trim(), body: m[2]! }));
+  const STRUCTURAL = new Set(['position', 'left', 'right', 'top', 'bottom', 'z-index', 'display', 'flex', 'flex-direction', 'min-width', 'text-align', 'align-items', 'justify-content', 'gap', 'column-gap', 'grid-template-columns', 'grid-template-areas', 'grid-area', 'padding-bottom', 'background']);
+  for (const { selector, body } of rules) {
+    if (selector === '[hidden]') continue;
+    assert.match(selector, /^:where\(/, `${selector} is wrapped in :where()`);
+    for (const decl of body.split(';').map((d) => d.trim()).filter(Boolean)) {
+      const [prop, value] = decl.split(':').map((x) => x.trim()) as [string, string];
+      assert.ok(STRUCTURAL.has(prop), `${selector}: ${prop} is not structural`);
+      if (prop === 'background') assert.ok(['Canvas', 'none'].includes(value), `${selector}: background only as a placeholder (${value})`);
+    }
+  }
+});

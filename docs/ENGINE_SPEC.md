@@ -93,6 +93,8 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Theory and physics flashcards (Blake, 2026-10-31):** 120 starter cards in ten topics (harmonic series, strings and scale length, intonation and temperament, resonance and pickups, decibels and hearing, guitar frequency ranges, signal flow and gain staging, EQ/compression/reverb, tape and noise reduction for Fostex cassette 4-tracks with dbx and Maxell XLII, practical guitar theory). Q/A and multiple-choice cards, all `pocket-silent` (off-instrument, fine at work), FSRS through contract v1, each citing Benade (Fundamentals of Musical Acoustics, Dover) or Winer (The Audio Expert, 2nd ed., Routledge 2018) by chapter, or saying plainly when a fact comes from neither. Written in original words: no quotations, no figures. Topics switch on and off. Out-of-scope item "physics and theory lessons" is in scope in this flashcard form.
 - **New cards take turns between modules (2026-10-31):** within a weight, the module with the fewest started cards goes next, so one large deck (the built-in test deck's 102 cards) never holds back another module's new cards. A newly added deck catches up first.
 
+- **App shell (Blake, 2026-10-31):** phone-first shell replacing the one stacked page. Today is the default screen (what is due now, Start session, today's goal blocks, the next reminder); a bottom tab bar on phones and a side nav on laptops for Today, Practice (session + metronome), Songs, Ear, Record, Goals, Cards; Settings behind a gear (notifications, morning reminder, quiet hours, account, sign out, backup) with setup and raw settings in a closed developer panel. One screen at a time, hash routing (back and forward work), last tab remembered for the practice day (a new day opens on Today; Settings is never remembered). Today also has a tab, so there is always a way back to it. Module logic, contract v1 and every existing hook unchanged; structure only in `base.css` (zero-specificity `:where()` rules the theme can override).
+
 ## Knowingly NOT doing (v0.1)
 
 | Requirement | Why not |
@@ -139,3 +141,6 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Theory: a chapter for topics neither book covers (CAGED, modes, cassette types, a specific machine) | Marked as general knowledge instead of attaching an unrelated chapter. |
 | Theory: practising one topic only for a session | Topics switch on and off for scheduling; a one-topic practice mode was not asked for. |
 | Gig memo: a reminder notification on gig night | Not asked for; the memo shows when the app is opened. Notifications stay one per practice window. |
+| Shell: icons in the tab bar, transitions, swipe between tabs | Visual work for the graphics pass; labels and structure are in place. |
+| Shell: a separate screen per module setting (e.g. a quiet-hours picker with a clock) | Settings uses plain fields; the raw settings editor stays in the developer panel for everything else. |
+| Shell: remembering the scroll position of each screen | Not asked for. Every screen opens at the top when you switch to it. |

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Zuniga Guitar test harness</title>
+  <title>Zuniga Guitar</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="theme/icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,168 +13,221 @@
   <link rel="stylesheet" href="base.css">
 </head>
 <body>
-  <h1>Zuniga Guitar: test harness</h1>
-  <p data-zg="status">Loading…</p>
-  <section>
-    <h2>Now</h2>
-    <p data-zg="session"></p>
-    <div data-zg="card">
-      <p data-zg="question"></p>
-      <p data-zg="answer"></p>
-      <div data-zg="mc-choices"></div>
-      <p data-zg="card-feedback"></p>
-      <p data-zg="card-source"></p>
-      <button data-zg="reveal">Show answer</button>
-      <button data-zg="practice" hidden>Practise with the metronome</button>
-      <div data-zg="rate" hidden>
-        <button data-zg="r-again">Again</button><button data-zg="r-hard">Hard</button><button data-zg="r-good">Good</button><button data-zg="r-easy">Easy</button>
+  <div data-zg="shell">
+    <header data-zg="topbar">
+      <h1>Zuniga Guitar</h1>
+      <a href="#/settings" data-zg="gear" aria-label="Settings">⚙</a>
+    </header>
+    <p data-zg="status">Loading…</p>
+    <nav data-zg="nav" aria-label="Main">
+      <a href="#/today" data-zg="tab-today">Today</a>
+      <a href="#/practice" data-zg="tab-practice">Practice</a>
+      <a href="#/songs" data-zg="tab-songs">Songs</a>
+      <a href="#/ear" data-zg="tab-ear">Ear</a>
+      <a href="#/record" data-zg="tab-record">Record</a>
+      <a href="#/goals" data-zg="tab-goals">Goals</a>
+      <a href="#/cards" data-zg="tab-cards">Cards</a>
+    </nav>
+    <main data-zg="screens">
+      <div data-zg="screen-today">
+        <section data-zg="today">
+          <h2>Today</h2>
+          <p data-zg="today-now"></p>
+          <a href="#/practice" data-zg="today-start">Start session</a>
+          <h3>Today's goal blocks</h3>
+          <ul data-zg="today-blocks"></ul>
+          <p data-zg="today-reminder"></p>
+        </section>
       </div>
-    </div>
-    <ul data-zg="blocks"></ul>
-    <button data-zg="played">I played</button>
-  </section>
-  <section data-zg="songs">
-    <h2>Songs I already know</h2>
-    <label>Song title <input type="text" data-zg="songs-new" maxlength="200" placeholder="e.g. Blackbird"></label>
-    <button data-zg="songs-add">Add song</button>
-    <label>Paste a list (one title per line) <textarea data-zg="songs-paste" spellcheck="false"></textarea></label>
-    <button data-zg="songs-paste-add">Add these songs</button>
-    <ul data-zg="songs-list"></ul>
-    <h3>Archived</h3>
-    <ul data-zg="songs-archived"></ul>
-  </section>
-  <section data-zg="theory">
-    <h2>Theory and physics cards</h2>
-    <p>Silent cards for pocket bursts, work hours included. Turn topics on or off:</p>
-    <div data-zg="theory-topics"></div>
-  </section>
-  <section data-zg="goals">
-    <h2>Goals</h2>
-    <ul data-zg="goals-list"></ul>
-    <h3>New goal</h3>
-    <label>Kind <select data-zg="goal-kind"><option value="general">Deadline (e.g. write a new record)</option><option value="gig">Gig</option></select></label>
-    <label>What <input type="text" data-zg="goal-what" maxlength="500" placeholder="e.g. Write a new record"></label>
-    <label>Why <input type="text" data-zg="goal-why" maxlength="2000"></label>
-    <label>By (date) <input type="date" data-zg="goal-deadline"></label>
-    <fieldset><legend>Songs it is about (a gig's set)</legend><div data-zg="goal-songs"></div></fieldset>
-    <label>Timed tasks, one per line <textarea data-zg="goal-tasks" placeholder="10 min in Chord Chemistry"></textarea></label>
-    <label>Songwriting prompt: minutes per take (empty = none) <input type="number" data-zg="goal-write-minutes" min="1" max="60"></label>
-    <label>Songwriting takes a day <input type="number" data-zg="goal-write-takes" min="1" max="5" placeholder="1"></label>
-    <label>Your own songwriting prompt (empty = a new one each day) <input type="text" data-zg="goal-write-prompt" maxlength="200"></label>
-    <label>Improv takes a day (empty = none) <input type="number" data-zg="goal-improv-takes" min="1" max="10"></label>
-    <label>Improv minutes per take <input type="number" data-zg="goal-improv-minutes" min="1" max="30" placeholder="1"></label>
-    <label>Ramp improv up to (takes) <input type="number" data-zg="goal-improv-ramp-to" min="2" max="10"></label>
-    <label>…over the last (days) <input type="number" data-zg="goal-improv-ramp-days" min="1" max="60"></label>
-    <label>Guitar yoga minutes (empty = none) <input type="number" data-zg="goal-feel" min="1" max="60"></label>
-    <label>Recall minutes for the songs (empty = none) <input type="number" data-zg="goal-recall" min="1" max="240"></label>
-    <label><input type="checkbox" data-zg="goal-memo" checked> Gigs: a post-gig rundown voice memo on gig night (from 6pm)</label>
-    <label>Minutes a day in total (empty = the sum) <input type="number" data-zg="goal-minutes" min="0" max="1440"></label>
-    <button data-zg="goal-save">Save goal</button>
-  </section>
-  <section data-zg="recorder">
-    <h2>Recorder</h2>
-    <p data-zg="rec-status">Takes are saved on this device first, then backed up when you sync.</p>
-    <p data-zg="rec-timer"></p>
-    <label>Title <input type="text" data-zg="rec-title" maxlength="200" placeholder="e.g. Blues in A"></label>
-    <button data-zg="rec-start">Record</button>
-    <button data-zg="rec-stop" hidden>Stop</button>
-    <h3>Timed improv</h3>
-    <label>Prompt <input type="text" data-zg="improv-prompt" maxlength="200"></label>
-    <label>Takes <input type="number" data-zg="improv-takes" min="1" max="10"></label>
-    <label>Minutes per take <input type="number" data-zg="improv-minutes" min="1" max="30"></label>
-    <button data-zg="improv-start">Start improv</button>
-    <audio data-zg="take-player" controls></audio>
-    <h3>Takes</h3>
-    <ul data-zg="takes-list"></ul>
-    <h3>Archived takes</h3>
-    <ul data-zg="takes-archived"></ul>
-  </section>
-  <section data-zg="ear">
-    <h2>Ear training</h2>
-    <p data-zg="ear-level"></p>
-    <p data-zg="ear-prompt">Press Play to start.</p>
-    <button data-zg="ear-play">Play</button>
-    <div data-zg="ear-choices"></div>
-    <button data-zg="ear-tap" hidden>Tap</button>
-    <p data-zg="ear-feedback"></p>
-    <button data-zg="ear-resolve" hidden>Hear the answer</button>
-    <button data-zg="ear-next" hidden>Next</button>
-    <p><button data-zg="ear-unlock">Unlock the next level</button> <small>(skip ahead if this level is too easy)</small></p>
-  </section>
-  <section data-zg="metronome">
-    <h2>Metronome</h2>
-    <p data-zg="mx-position">stopped</p>
-    <label>Exercise <select data-zg="mx-exercise"></select></label>
-    <label>New exercise <input type="text" data-zg="mx-new" placeholder="e.g. Chromatic 1-2-3-4"></label>
-    <button data-zg="mx-add">Add exercise</button>
-    <p><button data-zg="mx-start">Start</button> <button data-zg="mx-tap">Tap</button> <small>(stopped: tap tempo · playing: tap along to measure timing)</small></p>
-    <label>BPM <input type="number" data-zg="mx-bpm" min="30" max="300" inputmode="numeric"></label>
-    <label>Beats per bar <input type="number" data-zg="mx-beatsPerBar" min="1" max="12"></label>
-    <label>Beat unit <select data-zg="mx-beatUnit"><option value="4">4 (quarter)</option><option value="8">8 (eighth: 6/8 accents 1 and 4)</option><option value="2">2 (half)</option></select></label>
-    <label>Subdivision (click) <select data-zg="mx-subdivision"><option value="1">none</option><option value="2">8ths</option><option value="3">triplets</option><option value="4">16ths</option></select></label>
-    <label>Groove <select data-zg="mx-groove"><option value="click">plain click</option><option value="rock">rock beat</option><option value="shuffle">shuffle</option><option value="half-time">half-time</option></select></label>
-    <label>Click sound <select data-zg="mx-sound"><option value="kit">drum kit (rim)</option><option value="beep">synth beep</option></select></label>
-    <label>Beep pitch, beat 1 (Hz) <input type="number" data-zg="mx-accentHz" min="200" max="4000"></label>
-    <label>Beep pitch, other beats (Hz) <input type="number" data-zg="mx-beatHz" min="200" max="4000"></label>
-    <label>Count-in bars <input type="number" data-zg="mx-countInBars" min="0" max="4"></label>
-    <label>Workout <select data-zg="mx-workout"><option value="steady">steady</option><option value="ramp">tempo ramp</option><option value="gap">gap click</option><option value="ladder">ladder rep</option></select></label>
-    <label>Ramp/ladder target BPM <input type="number" data-zg="mx-targetBpm" min="30" max="300"></label>
-    <label>Ramp/ladder step BPM <input type="number" data-zg="mx-stepBpm" min="1" max="50"></label>
-    <label>Ramp: step every N bars <input type="number" data-zg="mx-everyBars" min="1" max="64"></label>
-    <label>Gap: play bars <input type="number" data-zg="mx-playBars" min="1" max="16"></label>
-    <label>Gap: silent bars <input type="number" data-zg="mx-muteBars" min="1" max="16"></label>
-    <label>Ladder: bars per rep <input type="number" data-zg="mx-repBars" min="1" max="64"></label>
-    <fieldset><legend>Volume</legend>
-      <label>master <input type="range" data-zg="mx-master" min="0" max="1" step="0.05"></label>
-      <label>kick <input type="range" data-zg="mx-vol-kick" min="0" max="1" step="0.05"></label>
-      <label>snare <input type="range" data-zg="mx-vol-snare" min="0" max="1" step="0.05"></label>
-      <label>rim <input type="range" data-zg="mx-vol-rim" min="0" max="1" step="0.05"></label>
-      <label>hihat <input type="range" data-zg="mx-vol-hihat" min="0" max="1" step="0.05"></label>
-      <label>hihatOpen <input type="range" data-zg="mx-vol-hihatOpen" min="0" max="1" step="0.05"></label>
-      <label>ride <input type="range" data-zg="mx-vol-ride" min="0" max="1" step="0.05"></label>
-      <label>beep <input type="range" data-zg="mx-vol-beep" min="0" max="1" step="0.05"></label>
-    </fieldset>
-    <label><input type="checkbox" data-zg="mx-allowDuringQuietHours"> Allow during quiet hours</label>
-    <div data-zg="mx-result" hidden>
-      <p data-zg="mx-summary"></p>
-      <button data-zg="mx-clean">Clean</button><button data-zg="mx-sloppy">Sloppy</button><button data-zg="mx-skip">Don't log</button>
-    </div>
-    <p><small>Drum samples: Virtuosity Drums by Versilian Studios (CC0).</small></p>
-  </section>
-  <section>
-    <h2>Notifications</h2>
-    <label><input type="checkbox" data-zg="notify-all"> All notifications</label>
-    <label><input type="checkbox" data-zg="notify-morning-always"> Morning reminder even when nothing is due</label>
-    <div data-zg="notify-windows"></div>
-    <button data-zg="enable-push">Allow notifications on this device</button>
-  </section>
-  <section>
-    <h2>Settings</h2>
-    <button data-zg="use-zone">Use this device's time zone</button>
-    <textarea data-zg="settings" spellcheck="false"></textarea>
-    <button data-zg="save-settings">Save settings</button>
-  </section>
-  <section>
-    <h2>Account and sync</h2>
-    <p data-zg="account">Not connected (this device only)</p>
-    <div data-zg="connection">
-      <label>Supabase project URL <input type="url" data-zg="cfg-url"></label>
-      <label>Publishable key <input type="text" data-zg="cfg-key"></label>
-      <label>VAPID public key <input type="text" data-zg="cfg-vapid"></label>
-      <button data-zg="save-config">Save connection</button>
-    </div>
-    <label>Email <input type="email" data-zg="email"></label>
-    <button data-zg="sign-in">Email me a sign-in code</button>
-    <label>Code from the email <input type="text" data-zg="code" inputmode="numeric" autocomplete="one-time-code"></label>
-    <button data-zg="verify">Sign in</button>
-    <button data-zg="sign-out">Sign out</button>
-    <button data-zg="sync">Sync now</button>
-  </section>
-  <section>
-    <h2>Backup</h2>
-    <button data-zg="export">Export my data</button>
-    <label>Restore from a backup <input type="file" data-zg="import" accept="application/json"></label>
-  </section>
+      <div data-zg="screen-practice" hidden>
+        <section>
+          <h2>Now</h2>
+          <p data-zg="session"></p>
+          <div data-zg="card">
+            <p data-zg="question"></p>
+            <p data-zg="answer"></p>
+            <div data-zg="mc-choices"></div>
+            <p data-zg="card-feedback"></p>
+            <p data-zg="card-source"></p>
+            <button data-zg="reveal">Show answer</button>
+            <button data-zg="practice" hidden>Practise with the metronome</button>
+            <div data-zg="rate" hidden>
+              <button data-zg="r-again">Again</button><button data-zg="r-hard">Hard</button><button data-zg="r-good">Good</button><button data-zg="r-easy">Easy</button>
+            </div>
+          </div>
+          <ul data-zg="blocks"></ul>
+          <button data-zg="played">I played</button>
+        </section>
+        <section data-zg="metronome">
+          <h2>Metronome</h2>
+          <p data-zg="mx-position">stopped</p>
+          <label>Exercise <select data-zg="mx-exercise"></select></label>
+          <label>New exercise <input type="text" data-zg="mx-new" placeholder="e.g. Chromatic 1-2-3-4"></label>
+          <button data-zg="mx-add">Add exercise</button>
+          <p><button data-zg="mx-start">Start</button> <button data-zg="mx-tap">Tap</button> <small>(stopped: tap tempo · playing: tap along to measure timing)</small></p>
+          <label>BPM <input type="number" data-zg="mx-bpm" min="30" max="300" inputmode="numeric"></label>
+          <label>Beats per bar <input type="number" data-zg="mx-beatsPerBar" min="1" max="12"></label>
+          <label>Beat unit <select data-zg="mx-beatUnit"><option value="4">4 (quarter)</option><option value="8">8 (eighth: 6/8 accents 1 and 4)</option><option value="2">2 (half)</option></select></label>
+          <label>Subdivision (click) <select data-zg="mx-subdivision"><option value="1">none</option><option value="2">8ths</option><option value="3">triplets</option><option value="4">16ths</option></select></label>
+          <label>Groove <select data-zg="mx-groove"><option value="click">plain click</option><option value="rock">rock beat</option><option value="shuffle">shuffle</option><option value="half-time">half-time</option></select></label>
+          <label>Click sound <select data-zg="mx-sound"><option value="kit">drum kit (rim)</option><option value="beep">synth beep</option></select></label>
+          <label>Beep pitch, beat 1 (Hz) <input type="number" data-zg="mx-accentHz" min="200" max="4000"></label>
+          <label>Beep pitch, other beats (Hz) <input type="number" data-zg="mx-beatHz" min="200" max="4000"></label>
+          <label>Count-in bars <input type="number" data-zg="mx-countInBars" min="0" max="4"></label>
+          <label>Workout <select data-zg="mx-workout"><option value="steady">steady</option><option value="ramp">tempo ramp</option><option value="gap">gap click</option><option value="ladder">ladder rep</option></select></label>
+          <label>Ramp/ladder target BPM <input type="number" data-zg="mx-targetBpm" min="30" max="300"></label>
+          <label>Ramp/ladder step BPM <input type="number" data-zg="mx-stepBpm" min="1" max="50"></label>
+          <label>Ramp: step every N bars <input type="number" data-zg="mx-everyBars" min="1" max="64"></label>
+          <label>Gap: play bars <input type="number" data-zg="mx-playBars" min="1" max="16"></label>
+          <label>Gap: silent bars <input type="number" data-zg="mx-muteBars" min="1" max="16"></label>
+          <label>Ladder: bars per rep <input type="number" data-zg="mx-repBars" min="1" max="64"></label>
+          <fieldset><legend>Volume</legend>
+            <label>master <input type="range" data-zg="mx-master" min="0" max="1" step="0.05"></label>
+            <label>kick <input type="range" data-zg="mx-vol-kick" min="0" max="1" step="0.05"></label>
+            <label>snare <input type="range" data-zg="mx-vol-snare" min="0" max="1" step="0.05"></label>
+            <label>rim <input type="range" data-zg="mx-vol-rim" min="0" max="1" step="0.05"></label>
+            <label>hihat <input type="range" data-zg="mx-vol-hihat" min="0" max="1" step="0.05"></label>
+            <label>hihatOpen <input type="range" data-zg="mx-vol-hihatOpen" min="0" max="1" step="0.05"></label>
+            <label>ride <input type="range" data-zg="mx-vol-ride" min="0" max="1" step="0.05"></label>
+            <label>beep <input type="range" data-zg="mx-vol-beep" min="0" max="1" step="0.05"></label>
+          </fieldset>
+          <label><input type="checkbox" data-zg="mx-allowDuringQuietHours"> Allow during quiet hours</label>
+          <div data-zg="mx-result" hidden>
+            <p data-zg="mx-summary"></p>
+            <button data-zg="mx-clean">Clean</button><button data-zg="mx-sloppy">Sloppy</button><button data-zg="mx-skip">Don't log</button>
+          </div>
+          <p><small>Drum samples: Virtuosity Drums by Versilian Studios (CC0).</small></p>
+        </section>
+      </div>
+      <div data-zg="screen-songs" hidden>
+        <section data-zg="songs">
+          <h2>Songs I already know</h2>
+          <label>Song title <input type="text" data-zg="songs-new" maxlength="200" placeholder="e.g. Blackbird"></label>
+          <button data-zg="songs-add">Add song</button>
+          <label>Paste a list (one title per line) <textarea data-zg="songs-paste" spellcheck="false"></textarea></label>
+          <button data-zg="songs-paste-add">Add these songs</button>
+          <ul data-zg="songs-list"></ul>
+          <h3>Archived</h3>
+          <ul data-zg="songs-archived"></ul>
+        </section>
+      </div>
+      <div data-zg="screen-ear" hidden>
+        <section data-zg="ear">
+          <h2>Ear training</h2>
+          <p data-zg="ear-level"></p>
+          <p data-zg="ear-prompt">Press Play to start.</p>
+          <button data-zg="ear-play">Play</button>
+          <div data-zg="ear-choices"></div>
+          <button data-zg="ear-tap" hidden>Tap</button>
+          <p data-zg="ear-feedback"></p>
+          <button data-zg="ear-resolve" hidden>Hear the answer</button>
+          <button data-zg="ear-next" hidden>Next</button>
+          <p><button data-zg="ear-unlock">Unlock the next level</button> <small>(skip ahead if this level is too easy)</small></p>
+        </section>
+      </div>
+      <div data-zg="screen-record" hidden>
+        <section data-zg="recorder">
+          <h2>Recorder</h2>
+          <p data-zg="rec-status">Takes are saved on this device first, then backed up when you sync.</p>
+          <p data-zg="rec-timer"></p>
+          <label>Title <input type="text" data-zg="rec-title" maxlength="200" placeholder="e.g. Blues in A"></label>
+          <button data-zg="rec-start">Record</button>
+          <button data-zg="rec-stop" hidden>Stop</button>
+          <h3>Timed improv</h3>
+          <label>Prompt <input type="text" data-zg="improv-prompt" maxlength="200"></label>
+          <label>Takes <input type="number" data-zg="improv-takes" min="1" max="10"></label>
+          <label>Minutes per take <input type="number" data-zg="improv-minutes" min="1" max="30"></label>
+          <button data-zg="improv-start">Start improv</button>
+          <audio data-zg="take-player" controls></audio>
+          <h3>Takes</h3>
+          <ul data-zg="takes-list"></ul>
+          <h3>Archived takes</h3>
+          <ul data-zg="takes-archived"></ul>
+        </section>
+      </div>
+      <div data-zg="screen-goals" hidden>
+        <section data-zg="goals">
+          <h2>Goals</h2>
+          <ul data-zg="goals-list"></ul>
+          <h3>New goal</h3>
+          <label>Kind <select data-zg="goal-kind"><option value="general">Deadline (e.g. write a new record)</option><option value="gig">Gig</option></select></label>
+          <label>What <input type="text" data-zg="goal-what" maxlength="500" placeholder="e.g. Write a new record"></label>
+          <label>Why <input type="text" data-zg="goal-why" maxlength="2000"></label>
+          <label>By (date) <input type="date" data-zg="goal-deadline"></label>
+          <fieldset><legend>Songs it is about (a gig's set)</legend><div data-zg="goal-songs"></div></fieldset>
+          <label>Timed tasks, one per line <textarea data-zg="goal-tasks" placeholder="10 min in Chord Chemistry"></textarea></label>
+          <label>Songwriting prompt: minutes per take (empty = none) <input type="number" data-zg="goal-write-minutes" min="1" max="60"></label>
+          <label>Songwriting takes a day <input type="number" data-zg="goal-write-takes" min="1" max="5" placeholder="1"></label>
+          <label>Your own songwriting prompt (empty = a new one each day) <input type="text" data-zg="goal-write-prompt" maxlength="200"></label>
+          <label>Improv takes a day (empty = none) <input type="number" data-zg="goal-improv-takes" min="1" max="10"></label>
+          <label>Improv minutes per take <input type="number" data-zg="goal-improv-minutes" min="1" max="30" placeholder="1"></label>
+          <label>Ramp improv up to (takes) <input type="number" data-zg="goal-improv-ramp-to" min="2" max="10"></label>
+          <label>…over the last (days) <input type="number" data-zg="goal-improv-ramp-days" min="1" max="60"></label>
+          <label>Guitar yoga minutes (empty = none) <input type="number" data-zg="goal-feel" min="1" max="60"></label>
+          <label>Recall minutes for the songs (empty = none) <input type="number" data-zg="goal-recall" min="1" max="240"></label>
+          <label><input type="checkbox" data-zg="goal-memo" checked> Gigs: a post-gig rundown voice memo on gig night (from 6pm)</label>
+          <label>Minutes a day in total (empty = the sum) <input type="number" data-zg="goal-minutes" min="0" max="1440"></label>
+          <button data-zg="goal-save">Save goal</button>
+        </section>
+      </div>
+      <div data-zg="screen-cards" hidden>
+        <section data-zg="theory">
+          <h2>Theory and physics cards</h2>
+          <p>Silent cards for pocket bursts, work hours included. Turn topics on or off:</p>
+          <div data-zg="theory-topics"></div>
+        </section>
+      </div>
+      <div data-zg="screen-settings" hidden>
+        <section>
+          <h2>Notifications</h2>
+          <label><input type="checkbox" data-zg="notify-all"> All notifications</label>
+          <label><input type="checkbox" data-zg="notify-morning-always"> Morning reminder even when nothing is due</label>
+          <div data-zg="notify-windows"></div>
+          <button data-zg="enable-push">Allow notifications on this device</button>
+        </section>
+        <section>
+          <h2>Practice times</h2>
+          <p>Quiet hours (work): only silent cards, and the metronome stays off unless you allow it.</p>
+          <label>Quiet hours start <input type="time" data-zg="quiet-start"></label>
+          <label>Quiet hours end <input type="time" data-zg="quiet-end"></label>
+          <button data-zg="save-quiet">Save quiet hours</button>
+          <button data-zg="use-zone">Use this device's time zone</button>
+        </section>
+        <section>
+          <h2>Account and sync</h2>
+          <p data-zg="account">Not connected (this device only)</p>
+          <label>Email <input type="email" data-zg="email"></label>
+          <button data-zg="sign-in">Email me a sign-in code</button>
+          <label>Code from the email <input type="text" data-zg="code" inputmode="numeric" autocomplete="one-time-code"></label>
+          <button data-zg="verify">Sign in</button>
+          <button data-zg="sign-out">Sign out</button>
+          <button data-zg="sync">Sync now</button>
+        </section>
+        <section>
+          <h2>Backup</h2>
+          <button data-zg="export">Export my data</button>
+          <label>Restore from a backup <input type="file" data-zg="import" accept="application/json"></label>
+        </section>
+        <details data-zg="dev">
+          <summary>Setup and developer tools</summary>
+          <section>
+            <h2>Connection</h2>
+            <div data-zg="connection">
+              <label>Supabase project URL <input type="url" data-zg="cfg-url"></label>
+              <label>Publishable key <input type="text" data-zg="cfg-key"></label>
+              <label>VAPID public key <input type="text" data-zg="cfg-vapid"></label>
+              <button data-zg="save-config">Save connection</button>
+            </div>
+          </section>
+          <section>
+            <h2>All settings (raw)</h2>
+            <textarea data-zg="settings" spellcheck="false"></textarea>
+            <button data-zg="save-settings">Save settings</button>
+          </section>
+        </details>
+      </div>
+    </main>
+  </div>
   <script type="module" src="app.js"></script>
 </body>
 </html>

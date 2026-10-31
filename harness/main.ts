@@ -8,6 +8,9 @@
 import {
   changeSettings,
   createHost,
+  nudgesBetween,
+  practiceDay,
+  todayBlocks,
   planNudges,
   prompt,
   rateSong,
@@ -32,6 +35,8 @@ import { setupSongs } from './songs-ui.ts';
 import { setupEar } from './ear-ui.ts';
 import { setupRecorder } from './recorder-ui.ts';
 import { setupGoals } from './goals-ui.ts';
+import { setupShell } from './shell.ts';
+import type { Shell } from './shell.ts';
 import { setupTheory } from './theory-ui.ts';
 import { THEORY, contentOf, seedTheory } from '../src/modules/theory/practice.ts';
 import { improvFor, memoFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
@@ -89,6 +94,7 @@ let recorder!: ReturnType<typeof setupRecorder>;
 let goalsUi!: ReturnType<typeof setupGoals>;
 let theoryHost!: ModuleHost;
 let theoryUi!: ReturnType<typeof setupTheory>;
+let shell!: Shell;
 /** Takes storage, when signed in. */
 const cloud = () => (client && userId !== 'local' ? { storage: supabaseTakeStorage(client as unknown as StorageClientLike), userId } : null);
 let revealed = false;
@@ -139,10 +145,52 @@ async function syncNow() {
   render();
 }
 
-function render() {
+const WINDOW_LABEL: Record<string, string> = {
+  morning: 'Morning session',
+  'before-work': 'Before-work burst',
+  'during-work': 'Work-hours burst',
+  'after-work': 'After-work burst',
+};
+
+/** The Today screen: what is due now, today's goal blocks, the next reminder. */
+function renderToday() {
   const lib = replica.library;
   const now = Date.now();
   const s = sessionFor(lib, now);
+  const review = s.segments.find((x) => x.kind === 'review');
+  const due = review && review.kind === 'review' ? review.due.length : 0;
+  const fresh = review && review.kind === 'review' ? review.fresh.length : 0;
+  const where = `${WINDOW_LABEL[s.windowId ?? ''] ?? 'Practice'} (${s.mode}${s.quiet ? ', quiet hours' : ''})`;
+  $('today-now').textContent = s.empty ? `${where}: nothing due right now.` : `${where}: ${due} due, ${fresh} new.`;
+  const blocks = todayBlocks(lib, now);
+  $('today-blocks').replaceChildren(
+    ...blocks.map((seg) => {
+      const li = document.createElement('li');
+      li.dataset.zg = 'today-block';
+      li.textContent = `${seg.block.label} · ${seg.block.minutes} min${seg.done ? ' ✓' : ''}`;
+      return li;
+    }),
+  );
+  if (blocks.length === 0) $('today-blocks').textContent = 'No goal blocks today.';
+  const zone = lib.settings.dayStart.timeZone;
+  const next = nudgesBetween(lib, now, now + 7 * 24 * 60 * 60 * 1000)[0];
+  $('today-reminder').textContent = !lib.settings.notifications
+    ? 'Reminders are off (turn them on in Settings).'
+    : next
+      ? `Next reminder: ${WINDOW_LABEL[next.windowId] ?? next.windowId}, ${new Date(next.at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: zone })}.`
+      : 'No reminders in the next 7 days.';
+}
+
+function render() {
+  renderToday();
+  const lib = replica.library;
+  const now = Date.now();
+  const s = sessionFor(lib, now);
+  // Quiet hours fields follow the settings, except while being edited.
+  for (const [name, value] of [['quiet-start', lib.settings.quietHours.start], ['quiet-end', lib.settings.quietHours.end]] as const) {
+    const input = $(name) as HTMLInputElement;
+    if (document.activeElement !== input) input.value = value;
+  }
   $('session').textContent =
     `${s.date} · ${s.windowId ?? 'no window'} · ${s.mode}${s.quiet ? ' (quiet hours)' : ''} · ${s.minMinutes}–${s.minutes} min` +
     ` · ${replica.pendingCount} waiting to sync`;
@@ -171,7 +219,7 @@ function render() {
     $('answer').textContent = '';
     $('rate').hidden = $('reveal').hidden = true;
     $('practice').hidden = false;
-    $('practice').onclick = () => earUi.select(card.id);
+    $('practice').onclick = () => (earUi.select(card.id), shell.go('ear'));
   } else if (card && item && item.module === SONGS.id) {
     // A song: no answer to reveal. Play it, then rate how it went.
     $('question').textContent = `Play: ${songByCard(songsHost, card.id)?.title ?? card.id}`;
@@ -205,7 +253,10 @@ function render() {
         const rec = document.createElement('button');
         rec.dataset.zg = 'block-record';
         rec.textContent = 'Record';
-        rec.onclick = () => void recorder.improv(take, { goalId: b.goalId, blockId: b.blockId });
+        rec.onclick = () => {
+          shell.go('record'); // the recorder's timer and Stop live there
+          void recorder.improv(take, { goalId: b.goalId, blockId: b.blockId });
+        };
         li.append(' ', rec);
       }
       if (!seg.done) {
@@ -308,6 +359,8 @@ function wire() {
       say(`Not valid JSON: ${(e as Error).message}`);
     }
   };
+  $('save-quiet').onclick = () =>
+    record(changeSettings(replica.library, { quietHours: { start: ($('quiet-start') as HTMLInputElement).value, end: ($('quiet-end') as HTMLInputElement).value } }));
   $('use-zone').onclick = () =>
     record(changeSettings(replica.library, { dayStart: { ...replica.library.settings.dayStart, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } }));
   $('notify-all').onchange = () => record(toggleNotifications(replica.library, ($('notify-all') as HTMLInputElement).checked));
@@ -389,11 +442,11 @@ async function main() {
   theoryUi = setupTheory(theoryHost, say, afterChange);
   wire();
   $('card').dataset.started = String(Date.now());
-  render();
+  shell = setupShell(() => practiceDay(Date.now(), replica.library.settings.dayStart), () => render());
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
   if (client) await syncNow().catch((e) => say(`Offline: ${(e as Error).message}`));
   setInterval(render, 30_000);
-  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) } };
+  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) }, shell };
 }
 
 void main();

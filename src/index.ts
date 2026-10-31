@@ -26,7 +26,7 @@ export {
 } from './goals.ts';
 export type { Intake, PlannedBlock, CheckIn, GoalPlan } from './goals.ts';
 export { timeOnDay } from './day.ts';
-export { sessionFor, windowsFor, currentWindow, isQuiet, nudgesBetween, BURST_MINUTES, MODE_TAGS } from './session.ts';
+export { sessionFor, todayBlocks, windowsFor, currentWindow, isQuiet, nudgesBetween, BURST_MINUTES, MODE_TAGS } from './session.ts';
 export type { Mode, WindowSlot, Session, Segment, ReviewSegment, BlockSegment, Nudge } from './session.ts';
 export { goalFromForm, blocksFromForm, tasksFromText, archiveGoal, checkInGoal, FORM_LIMITS } from './goal-form.ts';
 export type { GoalForm } from './goal-form.ts';

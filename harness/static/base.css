@@ -1,3 +1,46 @@
 /* Protected, NOT part of the theme: the code shows and hides elements with
    the hidden attribute, and that must always win. Loaded after the theme. */
 [hidden] { display: none !important; }
+
+/* App shell STRUCTURE only (Blake, 2026-10-31): where the tab bar, side nav
+   and screens sit. No colours, fonts, borders or spacing: that is the
+   theme's job. Every rule is wrapped in :where() (zero specificity), so any
+   theme rule wins even though this file loads last. */
+
+/* Phone first: tabs in a bar fixed to the bottom; screens leave room for it. */
+:where([data-zg="nav"]) {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: Canvas; /* system colour so content never shows through; the theme replaces it */
+}
+:where([data-zg="nav"] > a) { flex: 1 1 0; min-width: 0; text-align: center; }
+:where([data-zg="screens"]) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+:where([data-zg="topbar"]) { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+
+/* Laptop: the tabs become a side column next to the screen. */
+@media (min-width: 800px) {
+  :where([data-zg="shell"]) {
+    display: grid;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    grid-template-areas: "top top" "nav status" "nav main";
+    column-gap: 1.5rem;
+    align-items: start;
+  }
+  :where([data-zg="topbar"]) { grid-area: top; }
+  :where([data-zg="status"]) { grid-area: status; }
+  :where([data-zg="nav"]) {
+    grid-area: nav;
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    padding-bottom: 0;
+    background: none;
+  }
+  :where([data-zg="nav"] > a) { flex: none; text-align: start; }
+  :where([data-zg="screens"]) { grid-area: main; padding-bottom: 0; }
+}

@@ -146,6 +146,18 @@ export function sessionFor(library: Library, now: number): Session {
   return finish({ date, windowId: window?.id ?? null, mode, quiet, minutes: budget, minMinutes: budget, segments });
 }
 
+/**
+ * Today's goal blocks for an overview (the Today screen): the morning plan's
+ * blocks fitted to the morning's minutes, without recall (that time is spent
+ * on due cards), plus any gig memo due now, each marked done or not.
+ */
+export function todayBlocks(library: Library, now: number): BlockSegment[] {
+  const date = practiceDay(now, library.settings.dayStart);
+  const done = doneToday(library, date);
+  const fitted = splitTime(planGoals(library, now).blocks, library.settings.morningMinutes).filter((b) => b.kind !== 'recall');
+  return [...fitted, ...gigMemos(library, now)].map((b) => ({ kind: 'block', block: b, done: done(b) }));
+}
+
 function finish(s: Omit<Session, 'empty'>): Session {
   const empty = s.segments.every((seg) =>
     seg.kind === 'review' ? seg.due.length === 0 && seg.fresh.length === 0 : seg.done,

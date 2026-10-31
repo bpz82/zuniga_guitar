@@ -16,7 +16,7 @@ Only CSS, images (png, svg, webp, ico), fonts (woff2, woff) and notes (md) may l
 ## Do not edit
 
 - Any HTML (`harness/static/*.html`): layout structure is fixed.
-- `harness/static/base.css`: keeps hidden elements hidden; it must win over the theme.
+- `harness/static/base.css`: keeps hidden elements hidden (it must win over the theme), and places the app shell (tab bar at the bottom on phones, side nav from 800px). Its shell rules are wrapped in `:where()`, zero specificity, so any theme rule overrides them; restyle or re-place the bar and nav freely from the theme.
 - Any `.ts` or `.js` file, `sw.js`, `manifest.webmanifest`, the sounds, or anything outside `theme/`.
 - Behavior and timing: nothing in the theme may react to the beat or the metronome. Beat-tied animation is behavior and stays in code.
 
@@ -31,15 +31,27 @@ Rules for the theme:
 - Never restyle `[hidden]` (a test fails); the code shows and hides elements with it.
 - No `content:` text that changes meaning, and no CSS that hides controls the code needs.
 
+## The app shell (2026-10-31)
+
+One screen shows at a time; the code hides the others with `hidden`. The page is:
+
+- `shell` (everything) → `topbar` (the `h1` and the `gear` link to Settings), `status`, `nav` (the tabs), `screens`.
+- `nav` holds links `tab-today`, `tab-practice`, `tab-songs`, `tab-ear`, `tab-record`, `tab-goals`, `tab-cards`. The active one (and the gear on Settings) carries `aria-current="page"`: style that for the selected tab, e.g. `[data-zg="nav"] [aria-current="page"]`.
+- `screens` holds `screen-today`, `screen-practice` (Now + metronome), `screen-songs`, `screen-ear`, `screen-record`, `screen-goals`, `screen-cards`, `screen-settings`.
+- Today: `today` (section), `today-now`, `today-start` (a link styled as the main button), `today-blocks` (rows `today-block`), `today-reminder`.
+- Settings: notifications, practice times (`quiet-start`, `quiet-end`, `save-quiet`, `use-zone`), account, backup, and `dev`, a closed `<details>` with setup tools (connection, raw settings).
+
+Not styled yet, for the graphics pass: the tab bar and nav (`base.css` only gives the bar a plain system background so content never shows through); tab labels wrap mid-word at 390px ("Practic/e") because the theme sets `overflow-wrap: anywhere` on `body`; the gear is a plain ⚙ character; and an empty `card-feedback` paragraph currently draws as a dark bar.
+
 ## The hooks
 
 Static hooks, each once in `index.html` (the full list is in `harness/hooks.ts`):
 
-`status`, `session`, `card`, `question`, `answer`, `reveal`, `practice`, `rate`, `blocks`, `played`, `mc-choices`, `card-feedback`, `card-source`, `theory`, `theory-topics`, `goals`, `goals-list`, `goal-kind`, `goal-what`, `goal-why`, `goal-deadline`, `goal-songs`, `goal-tasks`, `goal-write-minutes`, `goal-write-takes`, `goal-write-prompt`, `goal-improv-takes`, `goal-improv-minutes`, `goal-improv-ramp-to`, `goal-improv-ramp-days`, `goal-feel`, `goal-recall`, `goal-minutes`, `goal-memo`, `goal-save`, `recorder`, `rec-status`, `rec-timer`, `rec-title`, `rec-start`, `rec-stop`, `improv-prompt`, `improv-takes`, `improv-minutes`, `improv-start`, `take-player`, `takes-list`, `takes-archived`, `ear`, `ear-level`, `ear-prompt`, `ear-play`, `ear-choices`, `ear-tap`, `ear-feedback`, `ear-resolve`, `ear-next`, `ear-unlock`, `songs`, `songs-new`, `songs-add`, `songs-paste`, `songs-paste-add`, `songs-list`, `songs-archived`, `metronome`, `mx-position`, `mx-exercise`, `mx-new`, `mx-add`, `mx-start`, `mx-tap`, `mx-allowDuringQuietHours`, `mx-result`, `mx-summary`, `mx-clean`, `mx-sloppy`, `mx-skip`, `notify-all`, `notify-morning-always`, `notify-windows`, `enable-push`, `use-zone`, `settings`, `save-settings`, `account`, `connection`, `cfg-url`, `cfg-key`, `cfg-vapid`, `save-config`, `email`, `sign-in`, `code`, `verify`, `sign-out`, `sync`, `export`, `import`
+`shell`, `topbar`, `gear`, `nav`, `screens`, `dev`, `today`, `today-now`, `today-start`, `today-blocks`, `today-reminder`, `quiet-start`, `quiet-end`, `save-quiet`, `status`, `session`, `card`, `question`, `answer`, `reveal`, `practice`, `rate`, `blocks`, `played`, `mc-choices`, `card-feedback`, `card-source`, `theory`, `theory-topics`, `goals`, `goals-list`, `goal-kind`, `goal-what`, `goal-why`, `goal-deadline`, `goal-songs`, `goal-tasks`, `goal-write-minutes`, `goal-write-takes`, `goal-write-prompt`, `goal-improv-takes`, `goal-improv-minutes`, `goal-improv-ramp-to`, `goal-improv-ramp-days`, `goal-feel`, `goal-recall`, `goal-minutes`, `goal-memo`, `goal-save`, `recorder`, `rec-status`, `rec-timer`, `rec-title`, `rec-start`, `rec-stop`, `improv-prompt`, `improv-takes`, `improv-minutes`, `improv-start`, `take-player`, `takes-list`, `takes-archived`, `ear`, `ear-level`, `ear-prompt`, `ear-play`, `ear-choices`, `ear-tap`, `ear-feedback`, `ear-resolve`, `ear-next`, `ear-unlock`, `songs`, `songs-new`, `songs-add`, `songs-paste`, `songs-paste-add`, `songs-list`, `songs-archived`, `metronome`, `mx-position`, `mx-exercise`, `mx-new`, `mx-add`, `mx-start`, `mx-tap`, `mx-allowDuringQuietHours`, `mx-result`, `mx-summary`, `mx-clean`, `mx-sloppy`, `mx-skip`, `notify-all`, `notify-morning-always`, `notify-windows`, `enable-push`, `use-zone`, `settings`, `save-settings`, `account`, `connection`, `cfg-url`, `cfg-key`, `cfg-vapid`, `save-config`, `email`, `sign-in`, `code`, `verify`, `sign-out`, `sync`, `export`, `import`
 
-Generated groups: `mx-<setting>` for each metronome setting (`mx-bpm`, `mx-groove`, ...), `mx-vol-<voice>` for each volume slider, `r-again`, `r-hard`, `r-good`, `r-easy`.
+Generated groups: `tab-<screen>` for each tab and `screen-<screen>` for each screen (see above), `mx-<setting>` for each metronome setting (`mx-bpm`, `mx-groove`, ...), `mx-vol-<voice>` for each volume slider, `r-again`, `r-hard`, `r-good`, `r-easy`.
 
-Created by the code on rows it adds: `block`, `block-done`, `block-ladder`, `notify-window`, `song`, `song-rename`, `song-archive`, `song-restore`, `ear-choice` (one per answer button; its `data-choice` names the answer), `take`, `take-play`, `take-rename`, `take-archive`, `take-restore`, `goal-song`, `goal`, `goal-checkin`, `goal-checkin-save`, `goal-archive`, `block-record`, `mc-choice`, `theory-topic`.
+Created by the code on rows it adds: `block`, `block-done`, `block-ladder`, `notify-window`, `song`, `song-rename`, `song-archive`, `song-restore`, `ear-choice` (one per answer button; its `data-choice` names the answer), `take`, `take-play`, `take-rename`, `take-archive`, `take-restore`, `goal-song`, `goal`, `goal-checkin`, `goal-checkin-save`, `goal-archive`, `block-record`, `mc-choice`, `theory-topic`, `today-block`.
 
 Setup page (`setup-keys.html`): `key-pub`, `key-priv`, `key-cron`; warnings use `[data-zg-tone="warning"]`.
 

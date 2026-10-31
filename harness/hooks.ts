@@ -4,6 +4,7 @@
  * so the theme can restyle freely. Renaming or removing a hook in the HTML
  * fails test/hooks.test.ts. See docs/THEME.md.
  */
+import { SCREENS, TABS } from './routes.ts';
 
 export const MX_NUMBER_FIELDS = ['bpm', 'beatsPerBar', 'beatUnit', 'subdivision', 'accentHz', 'beatHz', 'master', 'countInBars', 'targetBpm', 'stepBpm', 'everyBars', 'playBars', 'muteBars', 'repBars'] as const;
 export const MX_TEXT_FIELDS = ['groove', 'sound', 'workout'] as const;
@@ -11,6 +12,12 @@ export const MX_VOICES = ['kick', 'snare', 'rim', 'hihat', 'hihatOpen', 'ride', 
 export const RATINGS = ['again', 'hard', 'good', 'easy'] as const;
 
 const STATIC = [
+  // app shell (2026-10-31): screens and tabs are generated below from routes.ts
+  'shell', 'topbar', 'gear', 'nav', 'screens', 'dev',
+  // today
+  'today', 'today-now', 'today-start', 'today-blocks', 'today-reminder',
+  // settings: quiet hours
+  'quiet-start', 'quiet-end', 'save-quiet',
   // practice now
   'status', 'session', 'card', 'question', 'answer', 'reveal', 'practice', 'rate', 'blocks', 'played',
   'mc-choices', 'card-feedback', 'card-source',
@@ -39,6 +46,8 @@ const STATIC = [
 export type MxField = (typeof MX_NUMBER_FIELDS)[number] | (typeof MX_TEXT_FIELDS)[number];
 export type Hook =
   | (typeof STATIC)[number]
+  | `tab-${(typeof TABS)[number]}`
+  | `screen-${(typeof SCREENS)[number]}`
   | `mx-${MxField}`
   | `mx-vol-${(typeof MX_VOICES)[number]}`
   | `r-${(typeof RATINGS)[number]}`;
@@ -46,6 +55,8 @@ export type Hook =
 /** Hooks that must each appear exactly once in index.html. */
 export const HOOKS: readonly Hook[] = [
   ...STATIC,
+  ...TABS.map((t) => `tab-${t}` as const),
+  ...SCREENS.map((s) => `screen-${s}` as const),
   ...MX_NUMBER_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_TEXT_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_VOICES.map((v) => `mx-vol-${v}` as const),
@@ -53,7 +64,7 @@ export const HOOKS: readonly Hook[] = [
 ];
 
 /** Hooks the code puts on elements it creates (lists, per-row buttons). */
-export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice', 'take', 'take-play', 'take-rename', 'take-archive', 'take-restore', 'goal-song', 'goal', 'goal-checkin', 'goal-checkin-save', 'goal-archive', 'block-record', 'mc-choice', 'theory-topic'] as const;
+export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice', 'take', 'take-play', 'take-rename', 'take-archive', 'take-restore', 'goal-song', 'goal', 'goal-checkin', 'goal-checkin-save', 'goal-archive', 'block-record', 'mc-choice', 'theory-topic', 'today-block'] as const;
 
 /** Finds a hooked element; throws if it is missing, so a broken page fails loudly. */
 export function hook<T extends HTMLElement = HTMLInputElement>(name: Hook, root: ParentNode = document): T {

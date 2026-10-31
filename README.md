@@ -41,3 +41,4 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 | Recorder and improv takes (Storage bucket + RLS) | Built, awaiting review |
 | Goals intake and songwriting prompts | Built, awaiting review |
 | Theory and physics flashcards; gig memo on gig night | Built, awaiting review |
+| App shell: Today, tabs and side nav, Settings behind the gear, hash routing | Built, awaiting review |
