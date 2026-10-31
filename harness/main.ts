@@ -29,6 +29,9 @@ import { indexedDbStore } from '../src/stores/indexeddb.ts';
 import { METRONOME, ladderParams } from '../src/modules/metronome/practice.ts';
 import { setupMetronome } from './metronome-ui.ts';
 import { setupSongs } from './songs-ui.ts';
+import { setupEar } from './ear-ui.ts';
+import { EAR, seedEar } from '../src/modules/ear/practice.ts';
+import { skillOf } from '../src/modules/ear/core.ts';
 import { hook, RATINGS } from './hooks.ts';
 import type { Hook } from './hooks.ts';
 
@@ -67,6 +70,8 @@ let deck!: ModuleHost;
 let metronome!: ReturnType<typeof setupMetronome>;
 let songsHost!: ModuleHost;
 let songsUi!: ReturnType<typeof setupSongs>;
+let earHost!: ModuleHost;
+let earUi!: ReturnType<typeof setupEar>;
 let revealed = false;
 
 function say(text: string) {
@@ -128,6 +133,13 @@ function render() {
     $('rate').hidden = $('reveal').hidden = true;
     $('practice').hidden = false;
     $('practice').onclick = () => metronome.select(card.id);
+  } else if (card && item && item.module === EAR.id) {
+    // An ear-training skill: practised in the ear panel, one fresh exemplar at a time.
+    $('question').textContent = `Ear training: ${skillOf(String(item.fields.family), String(item.fields.category))?.label ?? card.id}`;
+    $('answer').textContent = '';
+    $('rate').hidden = $('reveal').hidden = true;
+    $('practice').hidden = false;
+    $('practice').onclick = () => earUi.select(card.id);
   } else if (card && item && item.module === SONGS.id) {
     // A song: no answer to reveal. Play it, then rate how it went.
     $('question').textContent = `Play: ${songByCard(songsHost, card.id)?.title ?? card.id}`;
@@ -185,6 +197,7 @@ function render() {
   ($('notify-all') as HTMLInputElement).checked = lib.settings.notifications;
   ($('notify-morning-always') as HTMLInputElement).checked = lib.settings.alwaysRemindMorning;
   songsUi.render();
+  earUi.render();
   $('notify-windows').replaceChildren(
     ...lib.settings.windows.map((w) => {
       const label = document.createElement('label');
@@ -254,6 +267,7 @@ function wire() {
   $('notify-all').onchange = () => record(toggleNotifications(replica.library, ($('notify-all') as HTMLInputElement).checked));
   $('notify-morning-always').onchange = () => record(toggleAlwaysRemindMorning(replica.library, ($('notify-morning-always') as HTMLInputElement).checked));
   songsUi.wire();
+  earUi.wire();
   $('enable-push').onclick = () => void enableNotifications().catch((e) => say((e as Error).message));
   $('save-config').onclick = () => {
     config = { supabaseUrl: ($('cfg-url') as HTMLInputElement).value.trim(), publishableKey: ($('cfg-key') as HTMLInputElement).value.trim(), vapidPublicKey: ($('cfg-vapid') as HTMLInputElement).value.trim() };
@@ -308,13 +322,17 @@ async function main() {
   await metronome.init();
   songsHost = createHost(replica, SONGS);
   songsUi = setupSongs(songsHost, say, afterChange);
+  earHost = createHost(replica, EAR);
+  const earSeeded = await runModule(earHost, () => seedEar(earHost));
+  if (!earSeeded.ok) say(`Ear training failed: ${earSeeded.error}`);
+  earUi = setupEar(replica, earHost, say, afterChange);
   wire();
   $('card').dataset.started = String(Date.now());
   render();
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
   if (client) await syncNow().catch((e) => say(`Offline: ${(e as Error).message}`));
   setInterval(render, 30_000);
-  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost };
+  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, ear: { host: earHost, ui: earUi } };
 }
 
 void main();

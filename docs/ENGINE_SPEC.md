@@ -83,6 +83,8 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Songs skip learning steps (Blake, 2026-10-31):** song cards schedule in whole days from every rating (no 10-minute same-session repeat, no 1-minute relearning step); all other cards keep the steps. `NO_STEP_MODULES` in `src/scheduler.ts`.
 - **Module contract locked as v1 (Blake, 2026-10-31):** v0 unchanged. Changes need Blake's yes and a new version; a test freezes the surface. Songs are ordinary events, so the database and row-level security are unchanged.
 
+- **Ear training module (Blake, 2026-10-31):** built from `docs/ear-training-research.md`. Out-of-scope item "ear training" is now in scope in this form: seven exercise families (pitch direction, scale degree after a cadence, intervals, chord quality, chord function, meter, rhythm echo) on a six-level mastery ladder; every trial a fresh synthesized exemplar; immediate corrective feedback with scaffolding after two misses; FSRS schedules the skills (the research's half-life multipliers map onto ratings; its score is logged for later fitting). Cards are tagged pocket-sound and guitar. Contract v1 unchanged; database and row-level security unchanged. Details in `docs/API.md`.
+
 ## Knowingly NOT doing (v0.1)
 
 | Requirement | Why not |
@@ -108,3 +110,10 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Removing `setup-keys.html` | Needed only for setup. On the pre-customer checklist in `docs/SETUP.md`; removal waits for Blake's yes. |
 | Hard delete of a song | The log is append-only; Blake asked for archive. Archived songs are not served and can be restored with their history. |
 | Song details (chords, keys, tabs, links) | Blake, 2026-10-31: a song card holds only a title. |
+| Ear: the research's own half-life scheduler (R = 2^(-t/S) with cold-start multipliers) | FSRS already estimates stability and difficulty from answers, with fitted parameters; the research itself says to replace its multipliers with fitted ones. Its signals map onto FSRS ratings, and its score is logged per answer for later fitting. |
+| Ear: singing, sing-back and melodic imitation | Need the microphone and pitch tracking: ship with the recorder module. |
+| Ear: transcription, notation, fretboard entry, chord transcription, real-recording extraction | Need notation or fretboard input UI, or licensed recordings; deferred. Rhythm echo covers "tap the rhythm". |
+| Ear: confidence ratings | One more tap per answer; left out of the score (renormalized) until Blake wants it. |
+| Ear: research ladder levels 7 to 9 (minor and chromatic degrees, secondary dominants, swing and tuplets, modal mixture, modulation, 7th chords, polyphonic and real-recording work); inversions and bass-degree hearing; harmonic (simultaneous) intervals; tonic inference from a melody without a cadence | Next ear levels once 1 to 6 are in use. The ladder is data (`LADDER`), so levels slot in without rework. |
+| Ear: a shared randomizer service that leans toward least-used options | The module uses a small seeded generator; exemplar variety comes from random key, register, timbre and direction. Define the shared service when a second module needs it. |
+| Ear: enforcing the daily minutes | The research's 18 minutes is a suggestion, not a proven optimum. Shown on the panel; extra practice is always on offer. |

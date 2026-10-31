@@ -53,7 +53,7 @@ try {
   assert.equal(await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first), 1);
   assert.equal(await page.evaluate(() => window.zg.replica.pendingCount), pending);
   assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.keys()].filter((k) => k.startsWith('td-')).length), 102, 'seeding again added nothing');
-  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 103, 'plus the metronome\'s Free practice exercise');
+  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 107, 'plus the metronome\'s Free practice exercise and the 4 level-1 ear skills');
   step('the review survives a reload (IndexedDB), still queued to sync');
 
   assert.equal(await page.isChecked('[data-zg=\"notify-all\"]'), false);
@@ -153,6 +153,45 @@ try {
     const c = window.zg.replica.library.cards.get('mx-free-c');
     await window.zg.replica.record({ type: 'card-set', card: { ...c, retired: true } });
   });
+  // Ear training (level 1) through the panel. Answering takes the new skills out of the morning queue.
+  const ear = (fn, arg) => page.evaluate(fn, arg);
+  await page.clock.runFor(30_000); // the page's own 30-second refresh picks up the new time
+  assert.match(await page.textContent('[data-zg="ear-level"]'), /^Level 1: .* today 0 of 18 min/);
+  assert.equal(await page.textContent('[data-zg="question"]'), 'Ear training: Up', 'the Now card serves a new ear skill');
+  await page.click('[data-zg="practice"]');
+  const answerRight = async () => {
+    await page.click('[data-zg="ear-play"]');
+    await page.waitForFunction(() => window.zg.ear.ui.current().firstEnd !== null);
+    const answer = await ear(() => window.zg.ear.ui.current().trial.answer);
+    await page.click(`[data-zg="ear-choice"][data-choice="${answer}"]`);
+    await page.waitForFunction(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✓'));
+  };
+  await answerRight();
+  for (const id of ['ear-direction-down-c', 'ear-direction-same-c']) {
+    await ear((id) => window.zg.ear.ui.select(id), id);
+    await answerRight();
+  }
+  const logged = await ear(() => window.zg.replica.library.reviews.get('ear-direction-up-c').map((r) => [r.details.correct, r.details.family, typeof r.details.latencyMs]));
+  assert.deepEqual(logged, [[true, 'direction', 'number']]);
+  assert.ok(await page.isVisible('[data-zg="ear-next"]'));
+  assert.equal(await page.locator('[data-zg="ear-choice"]').count(), 0, 'choices close once answered');
+  step('ear: played and answered in the panel, logged through the module contract');
+
+  await ear(() => window.zg.ear.ui.select('ear-rhythm-r1-c'));
+  assert.ok(await page.isVisible('[data-zg="ear-tap"]'));
+  await page.click('[data-zg="ear-play"]');
+  await page.dispatchEvent('[data-zg="ear-tap"]', 'pointerdown');
+  assert.equal(await ear(() => window.zg.ear.ui.current().taps.length), 1, 'a tap is timed on the audio clock');
+  await ear(() => {
+    const c = window.zg.ear.ui.current();
+    c.taps = c.trial.rhythm.onsets.map((o) => (o * 60) / c.trial.rhythm.bpm + 0.03); // a steady 30 ms touch lag
+  });
+  await page.clock.runFor(16_000); // the bar ends; grading runs by itself
+  await page.waitForFunction(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✓'));
+  const tapped = await ear(() => window.zg.replica.library.reviews.get('ear-rhythm-r1-c')[0].details);
+  assert.deepEqual([tapped.correct, tapped.missed, tapped.extra, tapped.lagMs], [true, 0, 0, 30]);
+  step('ear: rhythm echo is tapped back and graded after the bar, touch lag removed');
+
   await page.fill('[data-zg="songs-new"]', '  Blackbird ');
   await page.click('[data-zg="songs-add"]');
   await page.waitForFunction(() => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === 1);
@@ -188,6 +227,30 @@ try {
   await page.click('[data-zg="songs-list"] [data-zg="song"] >> nth=1 >> [data-zg="song-rename"]');
   await page.waitForFunction(() => document.querySelector('[data-zg="songs-list"]').textContent.includes('Little Wing (live)'));
   step('songs: archive (not served, history kept), restore, rename');
+
+  await ear(() => window.zg.ear.ui.select('ear-direction-same-c'));
+  await page.click('[data-zg="ear-play"]');
+  await page.waitForFunction(() => window.zg.ear.ui.current().firstEnd !== null);
+  const wrong = await ear(() => window.zg.ear.ui.current().trial.choices.find((c) => c.id !== 'same').id);
+  await page.click(`[data-zg="ear-choice"][data-choice="${wrong}"]`);
+  await page.waitForFunction(() => document.querySelector('[data-zg="ear-feedback"]').textContent.startsWith('✗ The answer: Same'));
+  assert.ok(await page.isVisible('[data-zg="ear-resolve"]'));
+  await page.click('[data-zg="ear-resolve"]');
+  await page.click('[data-zg="ear-next"]');
+  assert.notEqual(await ear(() => window.zg.ear.ui.current().cardId), 'ear-direction-same-c', 'never the same skill twice in a row');
+  step('ear: a wrong answer is corrected at once (the answer shown and replayed), then the next skill');
+
+  await page.click('[data-zg="ear-unlock"]');
+  await page.waitForFunction(() => document.querySelector('[data-zg="ear-level"]').textContent.startsWith('Level 2'));
+  assert.ok(await ear(() => window.zg.replica.library.cards.has('ear-degree-5-c')));
+  await page.clock.setSystemTime(new Date('2026-11-03T18:00:00Z')); // quiet hours (17:00-19:00 set above)
+  assert.ok(await page.isHidden('[data-zg="ear-next"]'), 'Next appears only after answering');
+  const playsBefore = await ear(() => window.zg.ear.ui.current().plays);
+  await page.click('[data-zg="ear-play"]');
+  await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Quiet hours: ear training needs sound.'));
+  assert.equal(await ear(() => window.zg.ear.ui.current().plays), playsBefore, 'nothing played');
+  await page.clock.setSystemTime(new Date('2026-11-03T07:30:00Z'));
+  step('ear: unlock the next level by hand; nothing plays in quiet hours');
 
   assert.ok(await page.isChecked('[data-zg="notify-morning-always"]'), 'morning reminder always on by default');
   await page.uncheck('[data-zg="notify-morning-always"]');

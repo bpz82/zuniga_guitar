@@ -13,6 +13,10 @@ Everything here is shipped inside the app. Each entry says where it came from, i
 | Original files | `Samples/kickmic/kick/kickmic_kick_snoff_vl3_rr1.flac`, `Samples/mid/snare/mid_snare_center_vl28.flac`, `Samples/mid/snare/mid_snare_crossstick_vl12.flac`, `Samples/oh/hh/oh_hh_closed_vl3_rr1.flac`, `Samples/oh/hh/oh_hh_open_vl3_rr1.flac`, `Samples/oh/ride/oh_ride_ride_vl2_rr1.flac` |
 | Changes | Mixed to mono; silence before each hit removed; tails shortened (0.3 to 1.6 s) with a fade-out; peak-normalized to -1 dBFS; encoded as 96 kbps mono MP3 at 44.1 kHz. Reproduce with `scripts/build-drum-samples.sh`. |
 
+## Ear-training sounds
+
+None. Every ear-training sound (tones, chords, clicks) is synthesized in the browser with Web Audio (`src/modules/ear/audio.ts`). No samples, no third-party audio.
+
 ## ts-fsrs (scheduling algorithm)
 
 MIT License, Copyright (c) 2026 Open Spaced Repetition. Source, version and license: `vendor/ts-fsrs/VENDORED.md` and `vendor/ts-fsrs/LICENSE`.

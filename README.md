@@ -37,3 +37,4 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 | Metronome module | Built, awaiting review |
 | Songs I Already Know (and morning reminder always on) | Approved 2026-10-31 |
 | Songs skip learning steps; module contract locked as v1 | Built, awaiting review |
+| Ear training module | Built, awaiting review |

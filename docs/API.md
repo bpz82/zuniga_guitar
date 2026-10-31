@@ -226,6 +226,31 @@ await runModule(host, () => rateSong(host, cardId, 'good', msTaken));
 
 Song cards have **no learning or relearning steps** (Blake, 2026-10-31): every rating schedules in whole days, so a song is never repeated in the same session. From a first rating: Again tomorrow, Hard about 2 days, Good about 3, Easy about 8 (fuzz applies). A forgotten song comes back the next morning and still counts as a lapse.
 
+## Ear training
+
+Built from the research review in [`ear-training-research.md`](ear-training-research.md) (Blake, 2026-10-31). Tonic-relative hearing is the spine; intervals are a secondary, interleaved drill; chord quality, then chord function; rhythm and meter in parallel from level 1.
+
+- **A card is a skill, never one sound.** Each skill on the ladder (`degree 6`, `interval m3`, `meter triple`...) is one item and one `ear` card tagged `pocket-sound` and `guitar`: served in the morning and in sound bursts, never in quiet hours. Every trial is a fresh exemplar: new key, register, timbre, direction.
+- **Ladder** (`LADDER` in `src/modules/ear/core.ts`): 1 pitch direction and steady eighths; 2 tonic and degrees 1, 3, 5, duple and triple meter; 3 all diatonic degrees, m2–P5 intervals, major and minor; 4 sixths, sevenths, tritone, octave, rests and sixteenths; 5 diminished and augmented, 6/8; 6 chord function I–vii° in a progression. Research levels 7–9 are not built.
+- **Mastery** adds the next level by itself: at least 20 answers on the level, 85%+ of the latest 20, every skill at least 3 answers and 70%+ of its last 5, over 3+ sessions at least 12 hours apart (`MASTERY`). "Unlock the next level" skips ahead by hand. Levels are added, never removed.
+- **Grading → FSRS:** wrong → Again; right after a replay, or only with scaffolding → Hard; right first time → Good; right first time, at or under the usual speed, and right last time too → Easy. Each review logs `family`, `category`, `correct`, `latencyMs`, `replays`, `scaffold`, `answered` (or, for rhythm, `taps`, `missed`, `extra`, `timingMs`, `lagMs`) and the research's score `P` without confidence, renormalized (`score`).
+- **Feedback:** immediate. A wrong answer shows the answer and plays it resolved (degrees walk to do; intervals melodic then together; chords arpeggiated then blocked). Two wrong in a row on a skill: scaffold mode (two choices, the answer and its most confusable partner; simpler stimulus).
+- **Intervals** are heard after a cadence on most trials once a skill has 3 answers.
+- **Rhythm echo:** count-in, the rhythm, count-in, then the learner taps the bar. A steady touch lag is removed (up to a quarter beat); each onset must be within an eighth of a beat; no extra taps.
+- **Daily minutes:** the research suggests about 18 (`DAILY_MINUTES`). Shown, never enforced. With nothing due, `pickEarCard` offers extra practice on the skill answered longest ago, so the minutes are always available.
+
+| Function (`src/modules/ear/practice.ts`) | What it does |
+|---|---|
+| `seedEar(host)` | Adds level 1; repairs a half-added level. Safe on every launch. |
+| `pickEarCard(host, now, soundAllowed, last?)` | Next card: due or new first, else extra practice; never `last` straight away. Null when sound is not allowed. |
+| `trialFor(host, cardId, seed)` | A fresh exemplar: `prompt`, `choices`, `answer`, `events` (what to play), `feedback`, `explain`, `rhythm?`, `scaffold`. |
+| `answerTrial(host, cardId, trial, { choice, latencyMs, replays }, durationMs)` | Grades and logs a multiple-choice answer; may add the next level. |
+| `answerRhythm(host, cardId, trial, tapsSec, replays, durationMs)` | Same for tapped rhythm (`tapsSec` from the start of the learner's bar). |
+| `progress(host)` | Level, label, answers, sessions, recent accuracy, weakest skill, mastered, next level. |
+| `unlockNext(host)`, `minutesSince(host, since)` | Skip ahead; minutes practised since a time. |
+
+`EarPlayer` (`src/modules/ear/audio.ts`) synthesizes the sounds with Web Audio (no samples): `unlock()` from a tap, `play(events)` returns start and end on the audio clock, `now()` for tap timing.
+
 ## Server side (Supabase)
 
 - `supabase/migrations/20261030000000_init.sql`: tables `events` (append-only), `push_subscriptions`, `nudges`; row-level security per user; `save_push_subscription` and `replace_nudges` functions. Tested by `npm run test:sql`.
@@ -234,7 +259,7 @@ Song cards have **no learning or relearning steps** (Blake, 2026-10-31): every r
 
 ## Test harness
 
-`harness/` is a bare page (no design) that exercises everything: sessions, the test deck, songs, "I played", settings, notification toggles, sign-in by emailed code, sync, backup. `npm run build` writes it to `public/` for Vercel, with the public Supabase connection built in from `ZG_SUPABASE_URL`, `ZG_SUPABASE_PUBLISHABLE_KEY` and `ZG_VAPID_PUBLIC_KEY` (secret keys are refused). `npm run test:browser` checks it in headless Chromium.
+`harness/` is a bare page (no design) that exercises everything: sessions, the test deck, songs, ear training, "I played", settings, notification toggles, sign-in by emailed code, sync, backup. `npm run build` writes it to `public/` for Vercel, with the public Supabase connection built in from `ZG_SUPABASE_URL`, `ZG_SUPABASE_PUBLISHABLE_KEY` and `ZG_VAPID_PUBLIC_KEY` (secret keys are refused). `npm run test:browser` checks it in headless Chromium.
 
 ## Metronome module
 
