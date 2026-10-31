@@ -1,23 +1,32 @@
-/* Design tokens: the one place for colors, spacing and type.
-   Graphics lead: edit freely. See docs/THEME.md. */
+/* Zuniga Guitar — studio material and layout tokens. Original Zuniga Mission display family. */
 :root {
-  /* color */
-  --zg-color-bg: #ffffff;
-  --zg-color-text: #111111;
-  --zg-color-muted: #555555;
-  --zg-color-border: #cccccc;
-  --zg-color-accent: #222222;
-  --zg-color-warning: #bb0000;
-
-  /* spacing */
-  --zg-space-1: 0.2rem;
-  --zg-space-2: 0.5rem;
-  --zg-space-3: 1rem;
-  --zg-page-width: 40rem;
-
-  /* type */
-  --zg-font-body: system-ui, sans-serif;
-  --zg-font-mono: ui-monospace, monospace;
+  --zg-color-bg: #211b17;
+  --zg-color-text: #f2e8d4;
+  --zg-color-muted: #bdb09b;
+  --zg-color-border: #786b58;
+  --zg-color-accent: #dfa64b;
+  --zg-color-warning: #f1a47e;
+  --zg-color-wood: #3c2a20;
+  --zg-color-wood-dark: #241b16;
+  --zg-color-panel: #b4ada0;
+  --zg-color-panel-light: #d3cbbd;
+  --zg-color-panel-dark: #827d73;
+  --zg-color-ink: #262523;
+  --zg-color-cream: #f0e3c6;
+  --zg-color-knob: #191a1a;
+  --zg-color-amber: #ffb441;
+  --zg-space-1: .25rem;
+  --zg-space-2: .5rem;
+  --zg-space-3: .75rem;
+  --zg-space-4: 1rem;
+  --zg-space-5: 1.5rem;
+  --zg-space-6: 2rem;
+  --zg-page-width: 62rem;
+  --zg-font-display: 'Zuniga Mission', 'Arial Narrow', sans-serif;
+  --zg-font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --zg-font-mono: ui-monospace, 'SFMono-Regular', monospace;
   --zg-font-size: 1rem;
-  --zg-line-height: 1.4;
+  --zg-line-height: 1.45;
+  --zg-radius: 6px;
+  --zg-target: 48px;
 }

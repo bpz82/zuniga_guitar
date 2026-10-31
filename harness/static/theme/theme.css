@@ -1,20 +1,67 @@
-/* All visual styling. Uses tokens.css only; select elements by tag or by
-   [data-zg="..."] (never rename those attributes). See docs/THEME.md. */
-body {
-  font-family: var(--zg-font-body);
-  font-size: var(--zg-font-size);
-  line-height: var(--zg-line-height);
-  color: var(--zg-color-text);
-  background: var(--zg-color-bg);
-  max-width: var(--zg-page-width);
-  margin: 0 auto;
-  padding: var(--zg-space-3);
-}
-section { border-top: 1px solid var(--zg-color-border); padding: var(--zg-space-2) 0; }
-label { display: block; }
-button { margin: var(--zg-space-1); }
-textarea { width: 100%; height: 12rem; font-family: var(--zg-font-mono); }
-input[type=text], input[type=url], input[type=email] { width: 100%; }
-small { color: var(--zg-color-muted); }
-[data-zg-tone="warning"] { color: var(--zg-color-warning); }
-[data-zg^="key-"] { height: 3.2rem; }
+/* Zuniga Guitar — look-only CSS. Selectors are tags and existing data-zg hooks. */
+@font-face {font-family:'Zuniga Mission';src:url('./fonts/ZunigaMission-Regular.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap;}
+* { box-sizing:border-box; }
+html { color-scheme:dark; }
+body {max-width:var(--zg-page-width);margin:0 auto;padding:clamp(12px,3vw,28px);font:var(--zg-font-size)/var(--zg-line-height) var(--zg-font-body);color:var(--zg-color-text);background:repeating-linear-gradient(92deg,transparent 0 4px,#ffffff03 5px 6px),radial-gradient(ellipse at 50% -10%,#564031 0%,transparent 60%),var(--zg-color-bg);overflow-wrap:anywhere;}
+h1,h2,h3,legend,button,select,input,label {font-family:var(--zg-font-display);}
+h1 {margin:0 0 var(--zg-space-4);padding:14px 16px;color:var(--zg-color-cream);font-size:clamp(1.6rem,5vw,2.35rem);font-weight:800;letter-spacing:.075em;text-transform:uppercase;text-shadow:0 2px 2px #0008;border-left:4px solid var(--zg-color-accent);}
+h2 {font-size:clamp(1.23rem,3.6vw,1.65rem);letter-spacing:.095em;text-transform:uppercase;color:var(--zg-color-ink);margin:0 0 16px;padding:9px 12px;border-bottom:1px solid #53483e80;text-shadow:0 1px #ffffff70;}
+h3 {margin:12px 0;}
+p {margin:10px 0 14px;}
+small {color:var(--zg-color-muted);font-size:.875rem;line-height:1.5;}
+section {position:relative;isolation:isolate;margin:16px 0;padding:12px;min-width:0;border:5px solid var(--zg-color-wood);border-radius:11px;background:linear-gradient(95deg,#ffffff16,transparent 17%,#00000017 100%),repeating-linear-gradient(0deg,#00000006 0 1px,#ffffff05 1px 3px),linear-gradient(135deg,var(--zg-color-panel-light),var(--zg-color-panel) 49%,var(--zg-color-panel-dark));box-shadow:0 0 0 1px #170f0b,0 5px 0 #150f0c,0 11px 22px #0007,inset 0 0 0 1px #ece3d055;color:var(--zg-color-ink);}
+section h2 {background:linear-gradient(180deg,#e4ded2,#b7afa3);border:1px solid #877e70;border-radius:3px;box-shadow:inset 0 1px #fff9,0 2px 3px #0002;}
+label {display:block;min-width:0;margin:12px 0;font-size:.92rem;font-weight:750;letter-spacing:.025em;color:var(--zg-color-ink);}
+button {appearance:none;-webkit-appearance:none;min-height:var(--zg-target);padding:10px 15px;margin:4px 5px 5px 0;border:1px solid #111312;border-radius:5px;background:linear-gradient(180deg,#3a3c3b 0%,#1b1c1c 49%,#0e0f0f 100%);box-shadow:inset 0 2px 1px #ffffff3d,inset 0 -2px 2px #0008,0 3px 0 #685e50,0 5px 7px #0003;color:var(--zg-color-cream);font-weight:800;font-size:1rem;letter-spacing:.05em;cursor:pointer;touch-action:manipulation;}
+button:active {transform:translateY(2px);box-shadow:inset 0 2px 5px #000a,0 1px 1px #0004;}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible {outline:3px solid var(--zg-color-amber);outline-offset:3px;}
+button:disabled {opacity:.48;cursor:not-allowed;}
+input,select,textarea {display:block;width:100%;min-width:0;min-height:var(--zg-target);margin-top:6px;padding:9px 12px;border:1px solid #70695e;border-radius:4px;background:linear-gradient(180deg,#e9e3d6,#cfc7b9);color:var(--zg-color-ink);font-size:1rem;box-shadow:inset 0 2px 4px #0002,0 1px 0 #fff7;}
+textarea {min-height:12rem;resize:vertical;font: .9rem/1.45 var(--zg-font-mono);}
+select {padding-right:16px;cursor:pointer;}
+input {accent-color:#b87624;}
+input:focus,select:focus,textarea:focus {background:#fff8e8;}
+fieldset {border:1px solid #6d665b;border-radius:6px;margin:18px 0;padding:9px 12px;background:repeating-linear-gradient(45deg,#4d4b49 0 8px,#5a554d 8px 10px,#383b3a 10px 17px,#7b6b59 17px 19px);box-shadow:inset 0 2px 8px #0006;}
+legend {color:var(--zg-color-ink);font-size:1rem;letter-spacing:.08em;text-transform:uppercase;font-weight:800;padding:5px 12px;background:linear-gradient(#ddd5c7,#ada596);border:1px solid #746f64;border-radius:4px;}
+fieldset label {color:var(--zg-color-cream);text-shadow:0 1px 2px #000;}
+input[data-zg="mx-master"],input[data-zg="mx-vol-kick"],input[data-zg="mx-vol-snare"],input[data-zg="mx-vol-rim"],input[data-zg="mx-vol-hihat"],input[data-zg="mx-vol-hihatOpen"],input[data-zg="mx-vol-ride"],input[data-zg="mx-vol-beep"] {appearance:none;-webkit-appearance:none;display:block;width:100%;height:46px;min-height:46px;padding:0 2px;margin:6px 0 12px;border:0;box-shadow:none;background:transparent;cursor:pointer;accent-color:var(--zg-color-accent);}
+input[data-zg="mx-master"]::-webkit-slider-runnable-track,input[data-zg="mx-vol-kick"]::-webkit-slider-runnable-track,input[data-zg="mx-vol-snare"]::-webkit-slider-runnable-track,input[data-zg="mx-vol-rim"]::-webkit-slider-runnable-track,input[data-zg="mx-vol-hihat"]::-webkit-slider-runnable-track,input[data-zg="mx-vol-hihatOpen"]::-webkit-slider-runnable-track,input[data-zg="mx-vol-ride"]::-webkit-slider-runnable-track,input[data-zg="mx-vol-beep"]::-webkit-slider-runnable-track {height:9px;border:1px solid #080909;border-radius:10px;background:linear-gradient(#101111,#464442);box-shadow:inset 0 2px 3px #000c,0 1px #fff4;}
+input[data-zg="mx-master"]::-webkit-slider-thumb,input[data-zg="mx-vol-kick"]::-webkit-slider-thumb,input[data-zg="mx-vol-snare"]::-webkit-slider-thumb,input[data-zg="mx-vol-rim"]::-webkit-slider-thumb,input[data-zg="mx-vol-hihat"]::-webkit-slider-thumb,input[data-zg="mx-vol-hihatOpen"]::-webkit-slider-thumb,input[data-zg="mx-vol-ride"]::-webkit-slider-thumb,input[data-zg="mx-vol-beep"]::-webkit-slider-thumb {appearance:none;-webkit-appearance:none;width:30px;height:30px;margin-top:-12px;border:3px solid #111;border-radius:50%;background:radial-gradient(circle at 36% 28%,#777 0%,#292a2a 29%,#090a0a 72%);box-shadow:inset 0 0 0 2px #5a544a,0 2px 4px #000b;}
+input[data-zg="mx-master"]::-moz-range-track,input[data-zg="mx-vol-kick"]::-moz-range-track,input[data-zg="mx-vol-snare"]::-moz-range-track,input[data-zg="mx-vol-rim"]::-moz-range-track,input[data-zg="mx-vol-hihat"]::-moz-range-track,input[data-zg="mx-vol-hihatOpen"]::-moz-range-track,input[data-zg="mx-vol-ride"]::-moz-range-track,input[data-zg="mx-vol-beep"]::-moz-range-track {height:9px;border:1px solid #080909;border-radius:10px;background:linear-gradient(#101111,#464442);}
+input[data-zg="mx-master"]::-moz-range-thumb,input[data-zg="mx-vol-kick"]::-moz-range-thumb,input[data-zg="mx-vol-snare"]::-moz-range-thumb,input[data-zg="mx-vol-rim"]::-moz-range-thumb,input[data-zg="mx-vol-hihat"]::-moz-range-thumb,input[data-zg="mx-vol-hihatOpen"]::-moz-range-thumb,input[data-zg="mx-vol-ride"]::-moz-range-thumb,input[data-zg="mx-vol-beep"]::-moz-range-thumb {width:26px;height:26px;border:3px solid #111;border-radius:50%;background:radial-gradient(circle at 36% 28%,#777,#292a2a 34%,#090a0a 75%);}
+input[data-zg="mx-allowDuringQuietHours"],input[data-zg="notify-all"] {display:inline-block;width:22px;height:22px;min-height:22px;vertical-align:middle;margin:0 7px 0 0;box-shadow:none;}
+input[data-zg="import"] {padding:8px;}
+[data-zg="status"] {padding:10px 14px;border:1px solid #80613a;background:linear-gradient(90deg,#42311f,#2b261f);color:#ffd28c;border-radius:5px;font-family:var(--zg-font-mono);font-size:.87rem;}
+[data-zg="card"] {margin:10px 0;padding:14px;border:1px solid #81715c;border-radius:6px;background:linear-gradient(145deg,#e8dec9,#c9bca6);box-shadow:inset 0 1px #fff8,0 2px 5px #0002;}
+[data-zg="question"] {font-size:1.15rem;font-weight:800;}
+[data-zg="answer"] {color:#4c3928;}
+[data-zg="blocks"] {padding-left:24px;}
+[data-zg="block"] {padding:10px 4px;border-bottom:1px solid #7a7164;}
+[data-zg="block-done"] {color:#426344;}
+[data-zg="block-ladder"] {font-family:var(--zg-font-mono);}
+[data-zg="r-good"],[data-zg="r-easy"],[data-zg="played"],[data-zg="save-settings"],[data-zg="save-config"] {background:linear-gradient(#dcb66f,#98672e);border-color:#61441f;color:#251d13;text-shadow:0 1px #ffedca;}
+[data-zg="r-again"],[data-zg="r-hard"] {background:linear-gradient(#5e5147,#332a24);}
+[data-zg="metronome"] {border-color:#65402a;background:repeating-linear-gradient(93deg,#ffffff12 0 1px,transparent 1px 7px),linear-gradient(135deg,#dfd8c9,#b9b0a0 56%,#928b7f);}
+[data-zg="metronome"] h2 {margin-bottom:9px;}
+[data-zg="mx-position"] {min-height:50px;display:flex;align-items:center;gap:10px;padding:10px 13px;margin:6px 0 15px;background:#232423;border:1px solid #0c0e0c;border-radius:4px;box-shadow:inset 0 2px 7px #0009,0 1px #f9e8cb;color:#f5c77e;font-family:var(--zg-font-mono);font-size:.9rem;letter-spacing:.025em;}
+[data-zg="mx-position"]::before {content:'';display:inline-block;flex:none;width:11px;height:11px;border-radius:100%;background:radial-gradient(circle at 30% 25%,#fff7a8,#e69b35 48%,#81511e 100%);box-shadow:0 0 0 3px #66543a,0 0 13px #ed922788;}
+[data-zg="mx-start"] {min-width:138px;min-height:58px;padding:12px 22px;background:linear-gradient(180deg,#fac66c,#ca802b 60%,#8c4b17);color:#241708;text-shadow:0 1px #ffe8b4;font-size:1.16rem;border-color:#683d18;}
+[data-zg="mx-tap"] {min-width:108px;min-height:58px;font-size:1.12rem;}
+[data-zg="mx-bpm"] {font-size:1.35rem;font-weight:900;letter-spacing:.08em;}
+[data-zg="mx-result"] {margin:12px 0;padding:12px;border:1px solid #786643;border-radius:5px;background:#ead8b5;}
+[data-zg="mx-summary"] {font-weight:800;}
+[data-zg="mx-clean"] {background:linear-gradient(#7c906e,#435842);}
+[data-zg="mx-sloppy"] {background:linear-gradient(#92795b,#67503b);}
+[data-zg="mx-skip"] {background:linear-gradient(#63615c,#353533);}
+[data-zg="notify-window"] {margin:10px 0;padding:9px;border:1px solid #8b8071;border-radius:4px;}
+[data-zg="connection"] {margin:10px 0;padding:8px 12px;border:1px solid #8b8071;border-radius:5px;}
+[data-zg-tone="warning"] {color:#81351b;font-weight:800;}
+[data-zg="key-pub"],[data-zg="key-priv"],[data-zg="key-cron"] {min-height:3.2rem;}
+@media(min-width:700px) {body {padding:28px;} section {padding:19px 24px;margin:22px 0;} [data-zg="metronome"] fieldset {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;} [data-zg="metronome"] fieldset legend {grid-column:1/-1;} }
+@media(max-width:380px) {section {padding:9px;border-width:4px;} button {padding:10px 11px;} h1 {padding:10px;}}
+@media(prefers-reduced-motion:reduce) {button:active {transform:none;}}
+
+/* Legible editing fields; Zuniga Mission is a limited display alphabet. */
+input,textarea,select {font-family:var(--zg-font-body);font-weight:600;}
+button {font-family:var(--zg-font-display);font-weight:400;}
+[data-zg="mx-position"] {font-family:var(--zg-font-mono);}
