@@ -191,7 +191,7 @@ test('gradeChoice: details for the log, score stays 0 to 1', () => {
 
 const task = { bpm: 80, onsets: [0, 1, 1.5, 2, 3], answerAt: 0, beats: 4 };
 const beat = 60 / 80;
-const at = (beats: number[], lagMs = 0) => beats.map((b) => b * beat + lagMs / 1000);
+const at = (beats: readonly number[], lagMs = 0) => beats.map((b) => b * beat + lagMs / 1000);
 
 test('rhythm check: exact taps pass; a steady touch lag is removed', () => {
   assert.deepEqual(checkRhythm(task, at(task.onsets)), { correct: true, matched: 5, missed: 0, extra: 0, timingMs: 0, lagMs: 0 });
