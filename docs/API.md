@@ -209,3 +209,50 @@ A module that touches another module's data, uses an undeclared template, sends 
 ## Test harness
 
 `harness/` is a bare page (no design) that exercises everything: sessions, the test deck, "I played", settings, notification toggles, sign-in by emailed code, sync, backup. `npm run build` writes it to `public/` for Vercel, with the public Supabase connection built in from `ZG_SUPABASE_URL`, `ZG_SUPABASE_PUBLISHABLE_KEY` and `ZG_VAPID_PUBLIC_KEY` (secret keys are refused). `npm run test:browser` checks it in headless Chromium.
+
+## Metronome module
+
+Files: `src/modules/metronome/` (`core.ts` pure timing and patterns, `scheduler.ts` lookahead scheduler, `practice.ts` engine integration, `player.ts` Web Audio), `src/services/metronome-clock.ts` (shared clock). Samples: `harness/static/sounds/` (see `THIRD_PARTY.md`).
+
+```ts
+import { MetronomePlayer } from './src/modules/metronome/player.ts';
+import { DEFAULT_CONFIG, validateConfig } from './src/modules/metronome/core.ts';
+import { METRONOME, ensureFreePractice, logSession, loadPrefs, savePrefs, ladderFor, ladderConfig } from './src/modules/metronome/practice.ts';
+
+const host = createHost(replica, METRONOME);
+const player = new MetronomePlayer('./sounds/');
+button.onclick = async () => {                 // must be a tap on iOS
+  await player.unlock();                       // audio on, kit loaded
+  player.start(loadPrefs(host), onLadderRepEnd);
+};
+player.update(newConfig);                      // live: tempo next click, other changes next bar
+player.stop();
+await logSession(host, { cardId, workout, startTempo, tempo, bars, durationMs, clean, timingErrorMs? });
+```
+
+| Setting | Range / values | Default |
+|---|---|---|
+| `bpm` | 30 to 300 (whole numbers) | 80 |
+| `beatsPerBar`, `beatUnit` | 1 to 12; 2, 4 or 8 (6/8, 9/8, 12/8 accent each group of three) | 4, 4 |
+| `subdivision` (plain click) | 1, 2 (8ths), 3 (triplets), 4 (16ths) | 1 |
+| `groove` | `click`, `rock`, `shuffle`, `half-time` (grooves use the kit) | `click` |
+| `sound` (click and count-in) | `kit` (rim click) or `beep` | `kit` |
+| `accentHz`, `beatHz` | 200 to 4000 | 1500, 1000 |
+| `master`, `volumes.<voice>` | 0 to 1; voices kick, snare, rim, hihat, hihatOpen, ride, beep | 0.7; 0.5 to 0.9 |
+| `countInBars` | 0 to 4 | 1 |
+| `workout` | `steady`, `ramp` (bpm to `targetBpm` by `stepBpm` every `everyBars`), `gap` (`playBars` on, `muteBars` silent), `ladder` (one rep of `repBars`) | `steady` |
+| `allowDuringQuietHours` | Off: no metronome sound during the user's quiet hours | false |
+
+- `validateConfig(x)` is strict (for edits); `savePrefs` saves only valid, changed settings. `loadPrefs` falls back to defaults field by field, so stored settings can never break the metronome.
+- Exercises: `exercises(host)`, `addExercise(host, id, name)`, `ensureFreePractice(host)`. They are `tempo-exercise` cards tagged `guitar`, so they appear in the morning session like other guitar cards.
+- Progress: `tempoHistory(reviews)`, `bestCleanTempo(reviews)` (reviews from `host.reviews(cardId)`).
+- Tempo ladder: `ladderParams(block)`, `ladderFor(host, params)` gives `{ tempo, cleanStreak, atTarget }`; `ladderConfig(base, params, state)` sets up the next rep.
+- Tapping: `tapTempo(msTimes)`; `tapTiming(audioTimes, beats)` gives `{ meanAbsMs, meanOffsetMs }` (positive = behind the beat).
+
+### Metronome clock (shared service)
+
+`player.clock` implements `MetronomeClock`: `now()`, `beatAt(t)`, `nextBeat(t)`, `onBeat(fn)`, `onStop(fn)`, with times in seconds on the audio clock. Modules sync to it; a listener that throws is cut off without affecting the metronome.
+
+### iOS
+
+Start from a tap (`unlock()`). The player asks for the "playback" audio session where supported, so the silent switch does not mute it (this may pause other audio apps while it plays), and keeps the screen awake while playing.

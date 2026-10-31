@@ -48,17 +48,13 @@ export interface Card {
  * builder can place any block by time without knowing what it is. Deferred
  * kinds are reserved now so their modules slot in without reworking goals.
  */
-export type ActiveBlockKind = 'recall' | 'feel-session' | 'timed-task';
-/** Reserved: behavior ships with the recorder and metronome modules. */
-export type DeferredBlockKind = 'tempo-ladder' | 'creative-prompt' | 'improv-takes' | 'gig-memo';
+export type ActiveBlockKind = 'recall' | 'feel-session' | 'timed-task' | 'tempo-ladder';
+/** Reserved: behavior ships with the recorder module. */
+export type DeferredBlockKind = 'creative-prompt' | 'improv-takes' | 'gig-memo';
 export type BlockKind = ActiveBlockKind | DeferredBlockKind;
-export const ACTIVE_BLOCK_KINDS: readonly ActiveBlockKind[] = ['recall', 'feel-session', 'timed-task'];
-export const DEFERRED_BLOCK_KINDS: readonly DeferredBlockKind[] = [
-  'tempo-ladder',
-  'creative-prompt',
-  'improv-takes',
-  'gig-memo',
-];
+/** tempo-ladder: run by the metronome module; params { cardId, startBpm, targetBpm, stepBpm, cleanReps, repBars }. */
+export const ACTIVE_BLOCK_KINDS: readonly ActiveBlockKind[] = ['recall', 'feel-session', 'timed-task', 'tempo-ladder'];
+export const DEFERRED_BLOCK_KINDS: readonly DeferredBlockKind[] = ['creative-prompt', 'improv-takes', 'gig-memo'];
 
 export interface GoalBlock {
   readonly id: string;

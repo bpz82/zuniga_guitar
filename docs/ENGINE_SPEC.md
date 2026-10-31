@@ -73,6 +73,12 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Shipping to customers (Blake, 2026-10-30):** every schedule and notification setting is user-editable at any time; engine defaults are neutral (Blake's schedule is his own settings event, `fixtures/blake.ts`); onboarding sets a new user's schedule; master and per-window notification toggles (master off until the user opts in); per-user data isolation everywhere (one local database per user, row-level security on every table, per-user handling on the server).
 - **Reminders design (checkpoint 5, for review):** each user's app plans its next 7 days of reminders and uploads them; the server only sends what is due and never runs the engine or reads practice data. A reminder seen more than 15 minutes late is skipped, never sent late.
 
+- **Metronome module (Blake, 2026-10-31):** real recorded drum kit (Virtuosity Drums, CC0 1.0, see `THIRD_PARTY.md`) plus synth beeps with adjustable pitch; Web Audio lookahead scheduler, 30 to 300 BPM; tap tempo; time signatures; subdivisions (8ths, triplets, 16ths); accent on 1; grooves (plain click, rock, shuffle, half-time); per-voice volume; count-in; workouts (steady, tempo ramp, gap click, ladder rep); sessions logged as reviews of the module's own exercise cards (tempo, bars, clean or sloppy, tap-along timing error). Out-of-scope items "smart metronome and drum machine" and "metronome workouts" are now in scope in this minimal form.
+- **Tempo ladder goal block is live:** `tempo-ladder` is a runnable block kind with strictly validated params `{ cardId, startBpm, targetBpm, stepBpm, cleanReps, repBars }`. Up a step after `cleanReps` clean reps in a row, down a step after a sloppy one, within start to target. State is replayed from the log.
+- **Shared metronome clock service defined** (`src/services/metronome-clock.ts`); the metronome implements it. Recorder and improv takes will sync to it.
+- **Contract v0 addition:** `host.reviews(cardId)`, reviews of the module's own cards only.
+- **Proposed, not applied (awaiting Blake):** always send the morning reminder, even when no cards are due, because the morning hour is practice either way.
+
 ## Knowingly NOT doing (v0.1)
 
 | Requirement | Why not |
@@ -84,7 +90,6 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Sibling burying | Only matters once songs have several sibling cards. Built with Songs I Already Know. The item-to-cards link stays in the model. |
 | Pocket results feeding guitar priority | Needs guitar song cards to prove. Built with Songs I Already Know. |
 | Post-gig voice memo, recorded creative prompts, improv takes | Need the recorder. Ship with the recorder module; block types are reserved now. |
-| Tempo ladders | Need the metronome clock. Ship with the metronome module; block type reserved now. |
 | Shared-service interfaces (randomizer, recorder, metronome) | Defined with the first module that uses each one, not predicted now. |
 | Locking the module contract early | Stays v0 until Songs I Already Know proves it; locked then. The isolation rule is enforced from v0. |
 | Conversational intake interview | Would need an AI service (no paid services). A form asks the same five questions. |
@@ -92,4 +97,7 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Self-service account deletion button | Deleting a user in Supabase Auth already removes all their data (tested). A button needs a server function and a confirm flow; add before public launch. |
 | Moving a signed-out device's practice into a new account | Local-only practice stays in its own local database. Export then Restore moves it. |
 | Product UI | Built separately against `docs/API.md`; the harness is deliberately bare. |
+| Metronome pattern/groove editor | UI work; the four presets cover the request. Patterns are already data (`hitsFor`), so an editor can be added without engine changes. |
+| Timing error from the microphone | Needs the recorder module (mic access). Until then timing error comes from tapping along, which includes touch-screen delay. |
+| Recorder, improv takes, creative prompts, gig memo | Still deferred: they need the recorder, not the metronome. They will sync to the metronome clock service. |
 | Removing `setup-keys.html` | Needed only for setup. On the pre-customer checklist in `docs/SETUP.md`; removal waits for Blake's yes. |

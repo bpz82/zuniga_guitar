@@ -22,6 +22,8 @@ import {
 } from '../src/index.ts';
 import type { EventBody, ModuleHost, Rating, SupabaseLike, Validation, WindowId } from '../src/index.ts';
 import { indexedDbStore } from '../src/stores/indexeddb.ts';
+import { METRONOME, ladderParams } from '../src/modules/metronome/practice.ts';
+import { setupMetronome } from './metronome-ui.ts';
 
 interface Config {
   supabaseUrl?: string;
@@ -55,6 +57,7 @@ let client: Client | null = null;
 let userId = 'local';
 let replica!: Replica;
 let deck!: ModuleHost;
+let metronome!: ReturnType<typeof setupMetronome>;
 let revealed = false;
 
 function say(text: string) {
@@ -108,7 +111,15 @@ function render() {
   const next = review && review.kind === 'review' ? (review.due[0]?.memory.cardId ?? review.fresh[0]) : undefined;
   const card = next ? lib.cards.get(next) : undefined;
   const item = card ? lib.items.get(card.itemId) : undefined;
-  if (card && item) {
+  $('practice').hidden = true;
+  if (card && item && card.template === 'tempo-exercise') {
+    // A metronome exercise: practised with the metronome, logged when it stops.
+    $('question').textContent = `Metronome exercise: ${String(item.fields.name ?? card.id)}`;
+    $('answer').textContent = '';
+    $('rate').hidden = $('reveal').hidden = true;
+    $('practice').hidden = false;
+    $('practice').onclick = () => metronome.select(card.id);
+  } else if (card && item) {
     const q = card.itemId.startsWith('td-') ? prompt(card, item) : { question: `${card.template}: ${JSON.stringify(item.fields)}`, answer: '' };
     $('question').textContent = q.question;
     $('answer').textContent = revealed ? q.answer : '';
@@ -139,6 +150,13 @@ function render() {
                 : { type: 'task-done', goalId: b.goalId, blockId: b.blockId, durationMs: b.minutes * 60_000 },
           });
         li.append(' ', btn);
+        const ladder = ladderParams(b);
+        if (ladder) {
+          const go = document.createElement('button');
+          go.textContent = 'Start ladder';
+          go.onclick = () => metronome.startLadder({ params: ladder, goalId: b.goalId, blockId: b.blockId });
+          li.append(' ', go);
+        }
       }
       return [li];
     }),
@@ -257,13 +275,15 @@ async function main() {
   replica = await Replica.open(await indexedDbStore(userId), deviceId);
   deck = createHost(replica, TEST_DECK);
   const seeded = await runModule(deck, () => seedTestDeck(deck));
+  metronome = setupMetronome(replica, createHost(replica, METRONOME), say, afterChange);
+  await metronome.init();
   wire();
   $('card').dataset.started = String(Date.now());
   render();
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
   if (client) await syncNow().catch((e) => say(`Offline: ${(e as Error).message}`));
   setInterval(render, 30_000);
-  (window as unknown as { zg: unknown }).zg = { replica, deck };
+  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome };
 }
 
 void main();

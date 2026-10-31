@@ -135,14 +135,31 @@ function card(v: unknown, p: string) {
   };
 }
 
+/** A tempo ladder's settings: exact keys, tempos 30 to 300, climbing. */
+function ladderParams(v: unknown, p: string) {
+  const o = obj(v, p, ['cardId', 'startBpm', 'targetBpm', 'stepBpm', 'cleanReps', 'repBars']);
+  const out = {
+    cardId: id(o.cardId, `${p}.cardId`),
+    startBpm: int(o.startBpm, `${p}.startBpm`, 30, 300),
+    targetBpm: int(o.targetBpm, `${p}.targetBpm`, 30, 300),
+    stepBpm: int(o.stepBpm, `${p}.stepBpm`, 1, 50),
+    cleanReps: int(o.cleanReps, `${p}.cleanReps`, 1, 20),
+    repBars: int(o.repBars, `${p}.repBars`, 1, 64),
+  };
+  if (out.targetBpm <= out.startBpm) fail(`${p}.targetBpm`, 'must be above startBpm');
+  return out;
+}
+
 function block(v: unknown, p: string) {
   const o = obj(v, p, ['id', 'kind', 'label', 'minutes'], ['params']);
+  const kind = oneOf(o.kind, `${p}.kind`, BLOCK_KINDS);
+  if (kind === 'tempo-ladder' && o.params === undefined) fail(`${p}.params`, 'missing (a tempo ladder needs its settings)');
   return {
     id: id(o.id, `${p}.id`),
-    kind: oneOf(o.kind, `${p}.kind`, BLOCK_KINDS),
+    kind,
     label: str(o.label, `${p}.label`, 200, 1),
     minutes: int(o.minutes, `${p}.minutes`, 1, 600),
-    ...(o.params === undefined ? {} : { params: details(o.params, `${p}.params`) }),
+    ...(o.params === undefined ? {} : { params: kind === 'tempo-ladder' ? ladderParams(o.params, `${p}.params`) : details(o.params, `${p}.params`) }),
   };
 }
 

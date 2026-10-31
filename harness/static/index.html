@@ -20,12 +20,53 @@
       <p id="question"></p>
       <p id="answer"></p>
       <button id="reveal">Show answer</button>
+      <button id="practice" hidden>Practise with the metronome</button>
       <div id="rate" hidden>
         <button id="r-again">Again</button><button id="r-hard">Hard</button><button id="r-good">Good</button><button id="r-easy">Easy</button>
       </div>
     </div>
     <ul id="blocks"></ul>
     <button id="played">I played</button>
+  </section>
+  <section id="metronome">
+    <h2>Metronome</h2>
+    <p id="mx-position">stopped</p>
+    <label>Exercise <select id="mx-exercise"></select></label>
+    <label>New exercise <input type="text" id="mx-new" placeholder="e.g. Chromatic 1-2-3-4"></label>
+    <button id="mx-add">Add exercise</button>
+    <p><button id="mx-start">Start</button> <button id="mx-tap">Tap</button> <small>(stopped: tap tempo · playing: tap along to measure timing)</small></p>
+    <label>BPM <input type="number" id="mx-bpm" min="30" max="300" inputmode="numeric"></label>
+    <label>Beats per bar <input type="number" id="mx-beatsPerBar" min="1" max="12"></label>
+    <label>Beat unit <select id="mx-beatUnit"><option value="4">4 (quarter)</option><option value="8">8 (eighth: 6/8 accents 1 and 4)</option><option value="2">2 (half)</option></select></label>
+    <label>Subdivision (click) <select id="mx-subdivision"><option value="1">none</option><option value="2">8ths</option><option value="3">triplets</option><option value="4">16ths</option></select></label>
+    <label>Groove <select id="mx-groove"><option value="click">plain click</option><option value="rock">rock beat</option><option value="shuffle">shuffle</option><option value="half-time">half-time</option></select></label>
+    <label>Click sound <select id="mx-sound"><option value="kit">drum kit (rim)</option><option value="beep">synth beep</option></select></label>
+    <label>Beep pitch, beat 1 (Hz) <input type="number" id="mx-accentHz" min="200" max="4000"></label>
+    <label>Beep pitch, other beats (Hz) <input type="number" id="mx-beatHz" min="200" max="4000"></label>
+    <label>Count-in bars <input type="number" id="mx-countInBars" min="0" max="4"></label>
+    <label>Workout <select id="mx-workout"><option value="steady">steady</option><option value="ramp">tempo ramp</option><option value="gap">gap click</option><option value="ladder">ladder rep</option></select></label>
+    <label>Ramp/ladder target BPM <input type="number" id="mx-targetBpm" min="30" max="300"></label>
+    <label>Ramp/ladder step BPM <input type="number" id="mx-stepBpm" min="1" max="50"></label>
+    <label>Ramp: step every N bars <input type="number" id="mx-everyBars" min="1" max="64"></label>
+    <label>Gap: play bars <input type="number" id="mx-playBars" min="1" max="16"></label>
+    <label>Gap: silent bars <input type="number" id="mx-muteBars" min="1" max="16"></label>
+    <label>Ladder: bars per rep <input type="number" id="mx-repBars" min="1" max="64"></label>
+    <fieldset><legend>Volume</legend>
+      <label>master <input type="range" id="mx-master" min="0" max="1" step="0.05"></label>
+      <label>kick <input type="range" id="mx-vol-kick" min="0" max="1" step="0.05"></label>
+      <label>snare <input type="range" id="mx-vol-snare" min="0" max="1" step="0.05"></label>
+      <label>rim <input type="range" id="mx-vol-rim" min="0" max="1" step="0.05"></label>
+      <label>hihat <input type="range" id="mx-vol-hihat" min="0" max="1" step="0.05"></label>
+      <label>hihatOpen <input type="range" id="mx-vol-hihatOpen" min="0" max="1" step="0.05"></label>
+      <label>ride <input type="range" id="mx-vol-ride" min="0" max="1" step="0.05"></label>
+      <label>beep <input type="range" id="mx-vol-beep" min="0" max="1" step="0.05"></label>
+    </fieldset>
+    <label><input type="checkbox" id="mx-allowDuringQuietHours"> Allow during quiet hours</label>
+    <div id="mx-result" hidden>
+      <p id="mx-summary"></p>
+      <button id="mx-clean">Clean</button><button id="mx-sloppy">Sloppy</button><button id="mx-skip">Don't log</button>
+    </div>
+    <p><small>Drum samples: Virtuosity Drums by Versilian Studios (CC0).</small></p>
   </section>
   <section>
     <h2>Notifications</h2>

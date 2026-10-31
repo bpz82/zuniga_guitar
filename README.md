@@ -21,7 +21,7 @@ npm run build          # app into public/ (Vercel runs this; public connection c
 npm run bundle:function  # one-file reminder function for the Supabase dashboard editor
 ```
 
-Setting up Supabase, Vercel and push reminders: [`docs/SETUP.md`](docs/SETUP.md).
+Setting up Supabase, Vercel and push reminders: [`docs/SETUP.md`](docs/SETUP.md). Third-party material and licenses: [`THIRD_PARTY.md`](THIRD_PARTY.md).
 
 FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORED.md`](vendor/ts-fsrs/VENDORED.md).
 
@@ -33,4 +33,5 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 | 2. Scheduler | Approved 2026-10-30 |
 | 3. Goals layer (and 3am day boundary) | Approved 2026-10-30 |
 | 4. Session builder | Approved 2026-10-30 |
-| 5. App shell (storage, sync, module contract, test deck, Web Push, harness) | Built, awaiting review |
+| 5. App shell (storage, sync, module contract, test deck, Web Push, harness) | Approved 2026-10-30; live on Blake's iPhone |
+| Metronome module | Built, awaiting review |

@@ -11,7 +11,7 @@
 import { sessionFor } from './session.ts';
 import type { Replica } from './replica.ts';
 import type { DueCard } from './scheduler.ts';
-import type { Card, CardTag, Details, Item, Rating } from './model.ts';
+import type { Card, CardTag, Details, EventOf, Item, Rating } from './model.ts';
 
 export const CONTRACT_VERSION = 0;
 /** A runaway module is stopped after this many writes in an hour. */
@@ -41,6 +41,8 @@ export interface ModuleHost {
   /** This module's items and cards only. */
   items(): Item[];
   cards(): Card[];
+  /** Reviews of one of this module's own cards, oldest first. */
+  reviews(cardId: string): EventOf<'review'>[];
   /** This module's cards in the current session, in practice order. */
   session(now: number): { due: DueCard[]; fresh: string[] };
   addItem(id: string, fields: Details): Promise<void>;
@@ -105,6 +107,11 @@ export function createHost(replica: Replica, manifest: ModuleManifest, options: 
     cards() {
       gate();
       return [...replica.library.cards.values()].filter((c) => ownItem(c.itemId));
+    },
+    reviews(cardId) {
+      gate();
+      if (!ownCard(cardId)) violation(`card ${cardId} is not this module's`);
+      return [...(replica.library.reviews.get(cardId) ?? [])];
     },
     session(at: number) {
       gate();
