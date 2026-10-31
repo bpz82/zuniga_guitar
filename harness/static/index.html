@@ -5,101 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Zuniga Guitar test harness</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="theme/icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#222222">
-  <style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:0 auto;padding:1rem}section{border-top:1px solid #ccc;padding:.5rem 0}textarea{width:100%;height:12rem;font-family:monospace}input[type=text],input[type=url],input[type=email]{width:100%}label{display:block}button{margin:.2rem}</style>
+  <link rel="stylesheet" href="theme/tokens.css">
+  <link rel="stylesheet" href="theme/theme.css">
+  <link rel="stylesheet" href="base.css">
 </head>
 <body>
   <h1>Zuniga Guitar: test harness</h1>
-  <p id="status">Loading…</p>
+  <p data-zg="status">Loading…</p>
   <section>
     <h2>Now</h2>
-    <p id="session"></p>
-    <div id="card">
-      <p id="question"></p>
-      <p id="answer"></p>
-      <button id="reveal">Show answer</button>
-      <button id="practice" hidden>Practise with the metronome</button>
-      <div id="rate" hidden>
-        <button id="r-again">Again</button><button id="r-hard">Hard</button><button id="r-good">Good</button><button id="r-easy">Easy</button>
+    <p data-zg="session"></p>
+    <div data-zg="card">
+      <p data-zg="question"></p>
+      <p data-zg="answer"></p>
+      <button data-zg="reveal">Show answer</button>
+      <button data-zg="practice" hidden>Practise with the metronome</button>
+      <div data-zg="rate" hidden>
+        <button data-zg="r-again">Again</button><button data-zg="r-hard">Hard</button><button data-zg="r-good">Good</button><button data-zg="r-easy">Easy</button>
       </div>
     </div>
-    <ul id="blocks"></ul>
-    <button id="played">I played</button>
+    <ul data-zg="blocks"></ul>
+    <button data-zg="played">I played</button>
   </section>
-  <section id="metronome">
+  <section data-zg="metronome">
     <h2>Metronome</h2>
-    <p id="mx-position">stopped</p>
-    <label>Exercise <select id="mx-exercise"></select></label>
-    <label>New exercise <input type="text" id="mx-new" placeholder="e.g. Chromatic 1-2-3-4"></label>
-    <button id="mx-add">Add exercise</button>
-    <p><button id="mx-start">Start</button> <button id="mx-tap">Tap</button> <small>(stopped: tap tempo · playing: tap along to measure timing)</small></p>
-    <label>BPM <input type="number" id="mx-bpm" min="30" max="300" inputmode="numeric"></label>
-    <label>Beats per bar <input type="number" id="mx-beatsPerBar" min="1" max="12"></label>
-    <label>Beat unit <select id="mx-beatUnit"><option value="4">4 (quarter)</option><option value="8">8 (eighth: 6/8 accents 1 and 4)</option><option value="2">2 (half)</option></select></label>
-    <label>Subdivision (click) <select id="mx-subdivision"><option value="1">none</option><option value="2">8ths</option><option value="3">triplets</option><option value="4">16ths</option></select></label>
-    <label>Groove <select id="mx-groove"><option value="click">plain click</option><option value="rock">rock beat</option><option value="shuffle">shuffle</option><option value="half-time">half-time</option></select></label>
-    <label>Click sound <select id="mx-sound"><option value="kit">drum kit (rim)</option><option value="beep">synth beep</option></select></label>
-    <label>Beep pitch, beat 1 (Hz) <input type="number" id="mx-accentHz" min="200" max="4000"></label>
-    <label>Beep pitch, other beats (Hz) <input type="number" id="mx-beatHz" min="200" max="4000"></label>
-    <label>Count-in bars <input type="number" id="mx-countInBars" min="0" max="4"></label>
-    <label>Workout <select id="mx-workout"><option value="steady">steady</option><option value="ramp">tempo ramp</option><option value="gap">gap click</option><option value="ladder">ladder rep</option></select></label>
-    <label>Ramp/ladder target BPM <input type="number" id="mx-targetBpm" min="30" max="300"></label>
-    <label>Ramp/ladder step BPM <input type="number" id="mx-stepBpm" min="1" max="50"></label>
-    <label>Ramp: step every N bars <input type="number" id="mx-everyBars" min="1" max="64"></label>
-    <label>Gap: play bars <input type="number" id="mx-playBars" min="1" max="16"></label>
-    <label>Gap: silent bars <input type="number" id="mx-muteBars" min="1" max="16"></label>
-    <label>Ladder: bars per rep <input type="number" id="mx-repBars" min="1" max="64"></label>
+    <p data-zg="mx-position">stopped</p>
+    <label>Exercise <select data-zg="mx-exercise"></select></label>
+    <label>New exercise <input type="text" data-zg="mx-new" placeholder="e.g. Chromatic 1-2-3-4"></label>
+    <button data-zg="mx-add">Add exercise</button>
+    <p><button data-zg="mx-start">Start</button> <button data-zg="mx-tap">Tap</button> <small>(stopped: tap tempo · playing: tap along to measure timing)</small></p>
+    <label>BPM <input type="number" data-zg="mx-bpm" min="30" max="300" inputmode="numeric"></label>
+    <label>Beats per bar <input type="number" data-zg="mx-beatsPerBar" min="1" max="12"></label>
+    <label>Beat unit <select data-zg="mx-beatUnit"><option value="4">4 (quarter)</option><option value="8">8 (eighth: 6/8 accents 1 and 4)</option><option value="2">2 (half)</option></select></label>
+    <label>Subdivision (click) <select data-zg="mx-subdivision"><option value="1">none</option><option value="2">8ths</option><option value="3">triplets</option><option value="4">16ths</option></select></label>
+    <label>Groove <select data-zg="mx-groove"><option value="click">plain click</option><option value="rock">rock beat</option><option value="shuffle">shuffle</option><option value="half-time">half-time</option></select></label>
+    <label>Click sound <select data-zg="mx-sound"><option value="kit">drum kit (rim)</option><option value="beep">synth beep</option></select></label>
+    <label>Beep pitch, beat 1 (Hz) <input type="number" data-zg="mx-accentHz" min="200" max="4000"></label>
+    <label>Beep pitch, other beats (Hz) <input type="number" data-zg="mx-beatHz" min="200" max="4000"></label>
+    <label>Count-in bars <input type="number" data-zg="mx-countInBars" min="0" max="4"></label>
+    <label>Workout <select data-zg="mx-workout"><option value="steady">steady</option><option value="ramp">tempo ramp</option><option value="gap">gap click</option><option value="ladder">ladder rep</option></select></label>
+    <label>Ramp/ladder target BPM <input type="number" data-zg="mx-targetBpm" min="30" max="300"></label>
+    <label>Ramp/ladder step BPM <input type="number" data-zg="mx-stepBpm" min="1" max="50"></label>
+    <label>Ramp: step every N bars <input type="number" data-zg="mx-everyBars" min="1" max="64"></label>
+    <label>Gap: play bars <input type="number" data-zg="mx-playBars" min="1" max="16"></label>
+    <label>Gap: silent bars <input type="number" data-zg="mx-muteBars" min="1" max="16"></label>
+    <label>Ladder: bars per rep <input type="number" data-zg="mx-repBars" min="1" max="64"></label>
     <fieldset><legend>Volume</legend>
-      <label>master <input type="range" id="mx-master" min="0" max="1" step="0.05"></label>
-      <label>kick <input type="range" id="mx-vol-kick" min="0" max="1" step="0.05"></label>
-      <label>snare <input type="range" id="mx-vol-snare" min="0" max="1" step="0.05"></label>
-      <label>rim <input type="range" id="mx-vol-rim" min="0" max="1" step="0.05"></label>
-      <label>hihat <input type="range" id="mx-vol-hihat" min="0" max="1" step="0.05"></label>
-      <label>hihatOpen <input type="range" id="mx-vol-hihatOpen" min="0" max="1" step="0.05"></label>
-      <label>ride <input type="range" id="mx-vol-ride" min="0" max="1" step="0.05"></label>
-      <label>beep <input type="range" id="mx-vol-beep" min="0" max="1" step="0.05"></label>
+      <label>master <input type="range" data-zg="mx-master" min="0" max="1" step="0.05"></label>
+      <label>kick <input type="range" data-zg="mx-vol-kick" min="0" max="1" step="0.05"></label>
+      <label>snare <input type="range" data-zg="mx-vol-snare" min="0" max="1" step="0.05"></label>
+      <label>rim <input type="range" data-zg="mx-vol-rim" min="0" max="1" step="0.05"></label>
+      <label>hihat <input type="range" data-zg="mx-vol-hihat" min="0" max="1" step="0.05"></label>
+      <label>hihatOpen <input type="range" data-zg="mx-vol-hihatOpen" min="0" max="1" step="0.05"></label>
+      <label>ride <input type="range" data-zg="mx-vol-ride" min="0" max="1" step="0.05"></label>
+      <label>beep <input type="range" data-zg="mx-vol-beep" min="0" max="1" step="0.05"></label>
     </fieldset>
-    <label><input type="checkbox" id="mx-allowDuringQuietHours"> Allow during quiet hours</label>
-    <div id="mx-result" hidden>
-      <p id="mx-summary"></p>
-      <button id="mx-clean">Clean</button><button id="mx-sloppy">Sloppy</button><button id="mx-skip">Don't log</button>
+    <label><input type="checkbox" data-zg="mx-allowDuringQuietHours"> Allow during quiet hours</label>
+    <div data-zg="mx-result" hidden>
+      <p data-zg="mx-summary"></p>
+      <button data-zg="mx-clean">Clean</button><button data-zg="mx-sloppy">Sloppy</button><button data-zg="mx-skip">Don't log</button>
     </div>
     <p><small>Drum samples: Virtuosity Drums by Versilian Studios (CC0).</small></p>
   </section>
   <section>
     <h2>Notifications</h2>
-    <label><input type="checkbox" id="notify-all"> All notifications</label>
-    <div id="notify-windows"></div>
-    <button id="enable-push">Allow notifications on this device</button>
+    <label><input type="checkbox" data-zg="notify-all"> All notifications</label>
+    <div data-zg="notify-windows"></div>
+    <button data-zg="enable-push">Allow notifications on this device</button>
   </section>
   <section>
     <h2>Settings</h2>
-    <button id="use-zone">Use this device's time zone</button>
-    <textarea id="settings" spellcheck="false"></textarea>
-    <button id="save-settings">Save settings</button>
+    <button data-zg="use-zone">Use this device's time zone</button>
+    <textarea data-zg="settings" spellcheck="false"></textarea>
+    <button data-zg="save-settings">Save settings</button>
   </section>
   <section>
     <h2>Account and sync</h2>
-    <p id="account">Not connected (this device only)</p>
-    <div id="connection">
-      <label>Supabase project URL <input type="url" id="cfg-url"></label>
-      <label>Publishable key <input type="text" id="cfg-key"></label>
-      <label>VAPID public key <input type="text" id="cfg-vapid"></label>
-      <button id="save-config">Save connection</button>
+    <p data-zg="account">Not connected (this device only)</p>
+    <div data-zg="connection">
+      <label>Supabase project URL <input type="url" data-zg="cfg-url"></label>
+      <label>Publishable key <input type="text" data-zg="cfg-key"></label>
+      <label>VAPID public key <input type="text" data-zg="cfg-vapid"></label>
+      <button data-zg="save-config">Save connection</button>
     </div>
-    <label>Email <input type="email" id="email"></label>
-    <button id="sign-in">Email me a sign-in code</button>
-    <label>Code from the email <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code"></label>
-    <button id="verify">Sign in</button>
-    <button id="sign-out">Sign out</button>
-    <button id="sync">Sync now</button>
+    <label>Email <input type="email" data-zg="email"></label>
+    <button data-zg="sign-in">Email me a sign-in code</button>
+    <label>Code from the email <input type="text" data-zg="code" inputmode="numeric" autocomplete="one-time-code"></label>
+    <button data-zg="verify">Sign in</button>
+    <button data-zg="sign-out">Sign out</button>
+    <button data-zg="sync">Sync now</button>
   </section>
   <section>
     <h2>Backup</h2>
-    <button id="export">Export my data</button>
-    <label>Restore from a backup <input type="file" id="import" accept="application/json"></label>
+    <button data-zg="export">Export my data</button>
+    <label>Restore from a backup <input type="file" data-zg="import" accept="application/json"></label>
   </section>
   <script type="module" src="app.js"></script>
 </body>

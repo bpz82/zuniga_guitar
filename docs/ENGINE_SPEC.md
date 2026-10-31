@@ -77,6 +77,7 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 - **Tempo ladder goal block is live:** `tempo-ladder` is a runnable block kind with strictly validated params `{ cardId, startBpm, targetBpm, stepBpm, cleanReps, repBars }`. Up a step after `cleanReps` clean reps in a row, down a step after a sloppy one, within start to target. State is replayed from the log.
 - **Shared metronome clock service defined** (`src/services/metronome-clock.ts`); the metronome implements it. Recorder and improv takes will sync to it.
 - **Contract v0 addition:** `host.reviews(cardId)`, reviews of the module's own cards only.
+- **Design guardrails (Blake, 2026-10-31):** all visual styling in `harness/static/theme/` (CSS, icons, fonts, one design-tokens file); every element the code uses has a fixed `data-zg` hook; behavior and timing stay out of the theme. Editable files: `docs/THEME.md`.
 - **Proposed, not applied (awaiting Blake):** always send the morning reminder, even when no cards are due, because the morning hour is practice either way.
 
 ## Knowingly NOT doing (v0.1)
@@ -97,6 +98,7 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Self-service account deletion button | Deleting a user in Supabase Auth already removes all their data (tested). A button needs a server function and a confirm flow; add before public launch. |
 | Moving a signed-out device's practice into a new account | Local-only practice stays in its own local database. Export then Restore moves it. |
 | Product UI | Built separately against `docs/API.md`; the harness is deliberately bare. |
+| Graphics pass changing layout structure, behavior, timing or beat-tied animation | The graphics lead (ChatGPT) edits only look files in `harness/static/theme/` (CSS, design tokens, icons, fonts; see `docs/THEME.md`). Structure is fixed by `data-zg` hooks guarded by `test/hooks.test.ts`; behavior, timing and anything tied to the beat stay in code. |
 | Metronome pattern/groove editor | UI work; the four presets cover the request. Patterns are already data (`hitsFor`), so an editor can be added without engine changes. |
 | Timing error from the microphone | Needs the recorder module (mic access). Until then timing error comes from tapping along, which includes touch-screen delay. |
 | Recorder, improv takes, creative prompts, gig memo | Still deferred: they need the recorder, not the metronome. They will sync to the metronome clock service. |

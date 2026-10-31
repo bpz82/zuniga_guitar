@@ -4,7 +4,7 @@
 // All three are public by design. A secret key is refused, so it can never
 // be baked into the app by mistake.
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync } from 'node:fs';
 
 const run = (cmd, args) => {
   const r = spawnSync(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32' });
@@ -41,6 +41,9 @@ if (config.supabaseUrl && !/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(config.su
   console.error('Refusing to build: ZG_SUPABASE_URL should look like https://<ref>.supabase.co');
   process.exit(1);
 }
+
+// public/ is generated (gitignored): start clean so no stale files ship.
+rmSync('public', { recursive: true, force: true });
 
 run('esbuild', [
   'harness/main.ts',

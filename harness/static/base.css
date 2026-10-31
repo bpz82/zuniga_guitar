@@ -1,0 +1,3 @@
+/* Protected, NOT part of the theme: the code shows and hides elements with
+   the hidden attribute, and that must always win. Loaded after the theme. */
+[hidden] { display: none !important; }

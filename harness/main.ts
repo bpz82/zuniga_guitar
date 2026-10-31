@@ -24,6 +24,8 @@ import type { EventBody, ModuleHost, Rating, SupabaseLike, Validation, WindowId 
 import { indexedDbStore } from '../src/stores/indexeddb.ts';
 import { METRONOME, ladderParams } from '../src/modules/metronome/practice.ts';
 import { setupMetronome } from './metronome-ui.ts';
+import { hook, RATINGS } from './hooks.ts';
+import type { Hook } from './hooks.ts';
 
 interface Config {
   supabaseUrl?: string;
@@ -39,7 +41,7 @@ type Client = SupabaseLike & {
   };
 };
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
 const read = <T>(key: string, fallback: T): T => {
   try {
     return JSON.parse(localStorage.getItem(key) ?? 'null') ?? fallback;
@@ -136,10 +138,12 @@ function render() {
     ...s.segments.flatMap((seg) => {
       if (seg.kind !== 'block') return [];
       const li = document.createElement('li');
+      li.dataset.zg = 'block';
       const b = seg.block;
       li.textContent = `${b.label} · ${b.minutes} min ${seg.done ? '✓' : ''}`;
       if (!seg.done) {
         const btn = document.createElement('button');
+        btn.dataset.zg = 'block-done';
         btn.textContent = 'Done';
         btn.onclick = () =>
           record({
@@ -153,6 +157,7 @@ function render() {
         const ladder = ladderParams(b);
         if (ladder) {
           const go = document.createElement('button');
+          go.dataset.zg = 'block-ladder';
           go.textContent = 'Start ladder';
           go.onclick = () => metronome.startLadder({ params: ladder, goalId: b.goalId, blockId: b.blockId });
           li.append(' ', go);
@@ -167,6 +172,7 @@ function render() {
   $('notify-windows').replaceChildren(
     ...lib.settings.windows.map((w) => {
       const label = document.createElement('label');
+      label.dataset.zg = 'notify-window';
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.checked = w.notify !== false;
@@ -199,7 +205,7 @@ async function enableNotifications() {
 
 function wire() {
   $('reveal').onclick = () => ((revealed = true), render());
-  for (const rating of ['again', 'hard', 'good', 'easy'] as Rating[]) {
+  for (const rating of RATINGS as readonly Rating[]) {
     $(`r-${rating}`).onclick = async () => {
       const cardId = $('card').dataset.card!;
       const started = Number($('card').dataset.started ?? Date.now());

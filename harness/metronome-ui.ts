@@ -20,10 +20,12 @@ import {
   savePrefs,
 } from '../src/modules/metronome/practice.ts';
 import type { LadderParams, SessionResult } from '../src/modules/metronome/practice.ts';
+import { hook, MX_NUMBER_FIELDS, MX_TEXT_FIELDS } from './hooks.ts';
+import type { Hook } from './hooks.ts';
 
-const $ = <T extends HTMLElement = HTMLInputElement>(id: string) => document.getElementById(id) as T;
-const NUMBER_FIELDS = ['bpm', 'beatsPerBar', 'beatUnit', 'subdivision', 'accentHz', 'beatHz', 'master', 'countInBars', 'targetBpm', 'stepBpm', 'everyBars', 'playBars', 'muteBars', 'repBars'] as const;
-const TEXT_FIELDS = ['groove', 'sound', 'workout'] as const;
+const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
+const NUMBER_FIELDS = MX_NUMBER_FIELDS;
+const TEXT_FIELDS = MX_TEXT_FIELDS;
 
 export interface LadderRun {
   readonly params: LadderParams;
@@ -45,14 +47,14 @@ export function setupMetronome(replica: Replica, host: ModuleHost, say: (s: stri
     for (const k of NUMBER_FIELDS) c[k] = Number($(`mx-${k}`).value);
     for (const k of TEXT_FIELDS) c[k] = $<HTMLSelectElement>(`mx-${k}`).value;
     c.allowDuringQuietHours = $('mx-allowDuringQuietHours').checked;
-    c.volumes = Object.fromEntries(VOICES.map((v) => [v, Number($(`mx-vol-${v}`).value)]));
+    c.volumes = Object.fromEntries(VOICES.map((v) => [v, Number($(`mx-vol-${v}` as Hook).value)]));
     return c;
   };
   const writeForm = (c: MetronomeConfig) => {
     for (const k of NUMBER_FIELDS) $(`mx-${k}`).value = String(c[k]);
     for (const k of TEXT_FIELDS) $<HTMLSelectElement>(`mx-${k}`).value = c[k];
     $('mx-allowDuringQuietHours').checked = c.allowDuringQuietHours;
-    for (const v of VOICES) $(`mx-vol-${v}`).value = String(c.volumes[v]);
+    for (const v of VOICES) $(`mx-vol-${v}` as Hook).value = String(c.volumes[v]);
   };
 
   const renderExercises = () => {
@@ -166,7 +168,8 @@ export function setupMetronome(replica: Replica, host: ModuleHost, say: (s: stri
   };
 
   // Live changes while playing.
-  for (const el of document.querySelectorAll('#metronome input, #metronome select')) {
+  const fields: Hook[] = [...NUMBER_FIELDS.map((k) => `mx-${k}` as const), ...TEXT_FIELDS.map((k) => `mx-${k}` as const), ...VOICES.map((v) => `mx-vol-${v}` as Hook), 'mx-allowDuringQuietHours'];
+  for (const el of fields.map((f) => $(f))) {
     el.addEventListener('change', () => {
       if (!player.playing) return;
       const c = validateConfig(readForm());

@@ -1,0 +1,23 @@
+/* Design tokens: the one place for colors, spacing and type.
+   Graphics lead: edit freely. See docs/THEME.md. */
+:root {
+  /* color */
+  --zg-color-bg: #ffffff;
+  --zg-color-text: #111111;
+  --zg-color-muted: #555555;
+  --zg-color-border: #cccccc;
+  --zg-color-accent: #222222;
+  --zg-color-warning: #bb0000;
+
+  /* spacing */
+  --zg-space-1: 0.2rem;
+  --zg-space-2: 0.5rem;
+  --zg-space-3: 1rem;
+  --zg-page-width: 40rem;
+
+  /* type */
+  --zg-font-body: system-ui, sans-serif;
+  --zg-font-mono: ui-monospace, monospace;
+  --zg-font-size: 1rem;
+  --zg-line-height: 1.4;
+}

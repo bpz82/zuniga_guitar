@@ -21,7 +21,7 @@ npm run build          # app into public/ (Vercel runs this; public connection c
 npm run bundle:function  # one-file reminder function for the Supabase dashboard editor
 ```
 
-Setting up Supabase, Vercel and push reminders: [`docs/SETUP.md`](docs/SETUP.md). Third-party material and licenses: [`THIRD_PARTY.md`](THIRD_PARTY.md).
+Setting up Supabase, Vercel and push reminders: [`docs/SETUP.md`](docs/SETUP.md). Third-party material and licenses: [`THIRD_PARTY.md`](THIRD_PARTY.md). What the graphics lead may edit: [`docs/THEME.md`](docs/THEME.md).
 
 FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORED.md`](vendor/ts-fsrs/VENDORED.md).
 
