@@ -30,6 +30,12 @@ import { METRONOME, ladderParams } from '../src/modules/metronome/practice.ts';
 import { setupMetronome } from './metronome-ui.ts';
 import { setupSongs } from './songs-ui.ts';
 import { setupEar } from './ear-ui.ts';
+import { setupRecorder } from './recorder-ui.ts';
+import { RECORDER, uploadPending } from '../src/modules/recorder/takes.ts';
+import { indexedDbBlobStore } from '../src/modules/recorder/blobs.ts';
+import type { BlobStore } from '../src/modules/recorder/blobs.ts';
+import { supabaseTakeStorage } from '../src/modules/recorder/storage.ts';
+import type { StorageClientLike } from '../src/modules/recorder/storage.ts';
 import { EAR, seedEar } from '../src/modules/ear/practice.ts';
 import { skillOf } from '../src/modules/ear/core.ts';
 import { hook, RATINGS } from './hooks.ts';
@@ -72,6 +78,11 @@ let songsHost!: ModuleHost;
 let songsUi!: ReturnType<typeof setupSongs>;
 let earHost!: ModuleHost;
 let earUi!: ReturnType<typeof setupEar>;
+let recHost!: ModuleHost;
+let recBlobs!: BlobStore;
+let recorder!: ReturnType<typeof setupRecorder>;
+/** Takes storage, when signed in. */
+const cloud = () => (client && userId !== 'local' ? { storage: supabaseTakeStorage(client as unknown as StorageClientLike), userId } : null);
 let revealed = false;
 
 function say(text: string) {
@@ -109,7 +120,14 @@ async function syncNow() {
   if (!client) return say('Not connected');
   const report = await replica.sync(supabaseRemote(client));
   await uploadNudges(client, planNudges(replica.library, Date.now()));
-  say(`Synced: sent ${report.pushed}, received ${report.pulled}${report.rejected.length ? `, ${report.rejected.length} bad rows set aside` : ''}`);
+  const c = cloud();
+  const up = c ? await uploadPending(recHost, recBlobs, c.storage, c.userId) : null;
+  // Marking takes uploaded wrote new events: send them too.
+  if (up && up.uploaded > 0) await replica.sync(supabaseRemote(client));
+  say(
+    `Synced: sent ${report.pushed}, received ${report.pulled}${report.rejected.length ? `, ${report.rejected.length} bad rows set aside` : ''}` +
+      (up ? `; takes uploaded ${up.uploaded}${up.failed.length ? `, ${up.failed.length} waiting (${up.failed[0]!.error})` : ''}` : ''),
+  );
   render();
 }
 
@@ -198,6 +216,7 @@ function render() {
   ($('notify-morning-always') as HTMLInputElement).checked = lib.settings.alwaysRemindMorning;
   songsUi.render();
   earUi.render();
+  recorder.render();
   $('notify-windows').replaceChildren(
     ...lib.settings.windows.map((w) => {
       const label = document.createElement('label');
@@ -268,6 +287,7 @@ function wire() {
   $('notify-morning-always').onchange = () => record(toggleAlwaysRemindMorning(replica.library, ($('notify-morning-always') as HTMLInputElement).checked));
   songsUi.wire();
   earUi.wire();
+  recorder.wire();
   $('enable-push').onclick = () => void enableNotifications().catch((e) => say((e as Error).message));
   $('save-config').onclick = () => {
     config = { supabaseUrl: ($('cfg-url') as HTMLInputElement).value.trim(), publishableKey: ($('cfg-key') as HTMLInputElement).value.trim(), vapidPublicKey: ($('cfg-vapid') as HTMLInputElement).value.trim() };
@@ -326,13 +346,16 @@ async function main() {
   const earSeeded = await runModule(earHost, () => seedEar(earHost));
   if (!earSeeded.ok) say(`Ear training failed: ${earSeeded.error}`);
   earUi = setupEar(replica, earHost, say, afterChange);
+  recHost = createHost(replica, RECORDER);
+  recBlobs = await indexedDbBlobStore(userId);
+  recorder = setupRecorder(recHost, () => recBlobs, cloud, say, afterChange);
   wire();
   $('card').dataset.started = String(Date.now());
   render();
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
   if (client) await syncNow().catch((e) => say(`Offline: ${(e as Error).message}`));
   setInterval(render, 30_000);
-  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, ear: { host: earHost, ui: earUi } };
+  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder } };
 }
 
 void main();

@@ -85,6 +85,8 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 
 - **Ear training module (Blake, 2026-10-31):** built from `docs/ear-training-research.md`. Out-of-scope item "ear training" is now in scope in this form: seven exercise families (pitch direction, scale degree after a cadence, intervals, chord quality, chord function, meter, rhythm echo) on a six-level mastery ladder; every trial a fresh synthesized exemplar; immediate corrective feedback with scaffolding after two misses; FSRS schedules the skills (the research's half-life multipliers map onto ratings; its score is logged for later fitting). Cards are tagged pocket-sound and guitar. Contract v1 unchanged; database and row-level security unchanged. Details in `docs/API.md`.
 
+- **Recorder and improv takes (Blake, 2026-10-31):** takes recorded in the browser on phone and laptop; timed improv prompts (N takes, a window each, saved separately; default 3 x 5 minutes); takes back up to a private per-user Supabase Storage bucket (`takes`, RLS: add and read own folder only, no overwrite or delete), queue offline and upload on sync; list, play, rename, archive, restore; no hard delete. Out-of-scope item "Lage improv recorder" is in scope in this form. Recordings use Supabase Storage as decided (not R2).
+
 ## Knowingly NOT doing (v0.1)
 
 | Requirement | Why not |
@@ -117,3 +119,8 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Ear: research ladder levels 7 to 9 (minor and chromatic degrees, secondary dominants, swing and tuplets, modal mixture, modulation, 7th chords, polyphonic and real-recording work); inversions and bass-degree hearing; harmonic (simultaneous) intervals; tonic inference from a melody without a cadence | Next ear levels once 1 to 6 are in use. The ladder is data (`LADDER`), so levels slot in without rework. |
 | Ear: a shared randomizer service that leans toward least-used options | The module uses a small seeded generator; exemplar variety comes from random key, register, timbre and direction. Define the shared service when a second module needs it. |
 | Ear: enforcing the daily minutes | The research's 18 minutes is a suggestion, not a proven optimum. Shown on the panel; extra practice is always on offer. |
+| Recorder: syncing takes to the metronome clock (recording with a click, aligned) | The clock service exists, but recording while the metronome plays needs headphones and latency compensation to line up. Free and improv takes first. |
+| Recorder: deleting takes (locally or in storage) | Blake: archive, never hard delete. The storage rules allow no delete at all. |
+| Recorder: removing a user's takes when their account is deleted | Supabase Storage does not cascade with Auth users. On the pre-customer checklist (`docs/SETUP.md`); needs a service-role function. |
+| Recorder: trimming, waveforms, mixing, sharing links | Not asked for. Takes play as recorded. |
+| Recorder: blocking recording in quiet hours | The recorder makes no sound; playing back is the user's choice. The metronome keeps its own quiet-hours rule. |

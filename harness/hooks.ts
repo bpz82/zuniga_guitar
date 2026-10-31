@@ -13,6 +13,9 @@ export const RATINGS = ['again', 'hard', 'good', 'easy'] as const;
 const STATIC = [
   // practice now
   'status', 'session', 'card', 'question', 'answer', 'reveal', 'practice', 'rate', 'blocks', 'played',
+  // recorder and takes
+  'recorder', 'rec-status', 'rec-timer', 'rec-title', 'rec-start', 'rec-stop', 'improv-prompt', 'improv-takes', 'improv-minutes', 'improv-start',
+  'take-player', 'takes-list', 'takes-archived',
   // ear training
   'ear', 'ear-level', 'ear-prompt', 'ear-play', 'ear-choices', 'ear-tap', 'ear-feedback', 'ear-resolve', 'ear-next', 'ear-unlock',
   // songs I already know
@@ -43,7 +46,7 @@ export const HOOKS: readonly Hook[] = [
 ];
 
 /** Hooks the code puts on elements it creates (lists, per-row buttons). */
-export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice'] as const;
+export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice', 'take', 'take-play', 'take-rename', 'take-archive', 'take-restore'] as const;
 
 /** Finds a hooked element; throws if it is missing, so a broken page fails loudly. */
 export function hook<T extends HTMLElement = HTMLInputElement>(name: Hook, root: ParentNode = document): T {

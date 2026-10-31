@@ -40,6 +40,24 @@
     <h3>Archived</h3>
     <ul data-zg="songs-archived"></ul>
   </section>
+  <section data-zg="recorder">
+    <h2>Recorder</h2>
+    <p data-zg="rec-status">Takes are saved on this device first, then backed up when you sync.</p>
+    <p data-zg="rec-timer"></p>
+    <label>Title <input type="text" data-zg="rec-title" maxlength="200" placeholder="e.g. Blues in A"></label>
+    <button data-zg="rec-start">Record</button>
+    <button data-zg="rec-stop" hidden>Stop</button>
+    <h3>Timed improv</h3>
+    <label>Prompt <input type="text" data-zg="improv-prompt" maxlength="200"></label>
+    <label>Takes <input type="number" data-zg="improv-takes" min="1" max="10"></label>
+    <label>Minutes per take <input type="number" data-zg="improv-minutes" min="1" max="30"></label>
+    <button data-zg="improv-start">Start improv</button>
+    <audio data-zg="take-player" controls></audio>
+    <h3>Takes</h3>
+    <ul data-zg="takes-list"></ul>
+    <h3>Archived takes</h3>
+    <ul data-zg="takes-archived"></ul>
+  </section>
   <section data-zg="ear">
     <h2>Ear training</h2>
     <p data-zg="ear-level"></p>

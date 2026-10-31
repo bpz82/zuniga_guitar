@@ -17,6 +17,10 @@ Everything here is shipped inside the app. Each entry says where it came from, i
 
 None. Every ear-training sound (tones, chords, clicks) is synthesized in the browser with Web Audio (`src/modules/ear/audio.ts`). No samples, no third-party audio.
 
+## Recorder
+
+None. Recording uses the browser's own MediaRecorder; nothing third-party is shipped.
+
 ## ts-fsrs (scheduling algorithm)
 
 MIT License, Copyright (c) 2026 Open Spaced Repetition. Source, version and license: `vendor/ts-fsrs/VENDORED.md` and `vendor/ts-fsrs/LICENSE`.

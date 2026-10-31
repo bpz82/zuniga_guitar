@@ -226,6 +226,24 @@ await runModule(host, () => rateSong(host, cardId, 'good', msTaken));
 
 Song cards have **no learning or relearning steps** (Blake, 2026-10-31): every rating schedules in whole days, so a song is never repeated in the same session. From a first rating: Again tomorrow, Hard about 2 days, Good about 3, Easy about 8 (fuzz applies). A forgotten song comes back the next morning and still counts as a lapse.
 
+## Recorder and improv takes
+
+Takes are recorded in the browser (MediaRecorder: WebM/Opus on Chrome, Firefox and laptops; MP4/AAC on iPhone), with echo cancelling, noise suppression and auto gain off (this is music, not a call).
+
+- **A take is one module item** (`recorder`, contract v1, no cards): `title`, `recordedAt`, `durationMs`, `type`, `bytes`, `uploaded`, `archived`, and for prompted takes `prompt`, `runId`, `index`, `of` (and `goalId`, `blockId` from a goal block). Rename, archive and restore are new item-set events; there is no delete anywhere.
+- **Audio** is saved on the device first (IndexedDB `zg-takes-<user>`, add-only), then the take is logged, so a logged take always has its audio on the device that recorded it. Sync uploads queued takes, oldest first, to the private `takes` bucket at `<user id>/take-<id>.<ext>`, then marks them uploaded. Offline or failed uploads stay queued; an upload that already got through is recognised (409) and not repeated. Other devices list every take and download one on first play (then keep it).
+- **Limits:** a take is 1 second to 30 minutes; the bucket takes audio types only, 50 MB per file.
+- **Timed improv:** a prompt, a number of takes (1 to 10) and minutes per take (1 to 30); default "Improvise a song", 3 takes of 5 minutes (Blake's example). Each take stops by itself when its window runs out (or earlier with Stop) and is saved separately as "prompt · take 2 of 3".
+
+| `src/modules/recorder/` | |
+|---|---|
+| `core.ts` | `pickFormat`, `checkTake`, `storagePath`, `checkImprov`, `takeTitle`, `runState`, limits. |
+| `takes.ts` | `saveTake(host, blobs, key, meta, audio)`, `takes(host)`, `renameTake`, `archiveTake`, `restoreTake`, `uploadPending(host, blobs, storage, userId)`, `audioOf(host, blobs, takeId, cloud)`, `runTakes(host, runId)`. |
+| `blobs.ts` | `BlobStore`: `indexedDbBlobStore(userId)`, `memoryBlobStore()`. |
+| `storage.ts` | `supabaseTakeStorage(client)`: `upload` (never overwrites) and `download`. |
+
+Server: `supabase/migrations/20261031180000_takes_storage.sql`. A signed-in user may add files to their own folder (fixed name shape, audio extensions) and read their own folder; nobody may overwrite, rename or delete. Tested in `npm run test:sql`.
+
 ## Ear training
 
 Built from the research review in [`ear-training-research.md`](ear-training-research.md) (Blake, 2026-10-31). Tonic-relative hearing is the spine; intervals are a secondary, interleaved drill; chord quality, then chord function; rhythm and meter in parallel from level 1.

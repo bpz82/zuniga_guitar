@@ -20,8 +20,9 @@ const server = createServer(async (req, res) => {
 }).listen(0);
 const url = `http://localhost:${server.address().port}/`;
 
-const browser = await chromium.launch();
-const context = await browser.newContext();
+// A fake microphone (a test tone), so the recorder really records.
+const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+const context = await browser.newContext({ permissions: ['microphone'] });
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
@@ -251,6 +252,61 @@ try {
   assert.equal(await ear(() => window.zg.ear.ui.current().plays), playsBefore, 'nothing played');
   await page.clock.setSystemTime(new Date('2026-11-03T07:30:00Z'));
   step('ear: unlock the next level by hand; nothing plays in quiet hours');
+
+  // The page clock is fake, so the page's own polling never advances while
+  // real async work (microphone, MediaRecorder) finishes: poll from here instead.
+  const until = async (fn, arg) => {
+    for (let i = 0; i < 300; i++) {
+      if (await page.evaluate(fn, arg)) return;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error(`timed out waiting for ${fn}`);
+  };
+  // Recorder: a free take, then a timed improv run of 2 takes x 1 minute, saved separately.
+  const takesNow = () => page.evaluate(() => [...window.zg.replica.library.items.values()].filter((i) => i.module === 'recorder').map((i) => i.fields));
+  await page.fill('[data-zg="rec-title"]', 'Blues in A');
+  await page.click('[data-zg="rec-start"]');
+  await until(() => !document.querySelector('[data-zg="rec-stop"]').hidden);
+  await page.clock.runFor(2_000);
+  await page.click('[data-zg="rec-stop"]');
+  await until(() => document.querySelectorAll('[data-zg="takes-list"] [data-zg="take"]').length === 1);
+  const [free] = await takesNow();
+  assert.deepEqual([free.title, free.uploaded, free.archived, free.durationMs >= 2_000], ['Blues in A', false, false, true]);
+  assert.match(free.type, /^audio\/(webm|mp4|ogg)$/);
+  assert.ok(free.bytes > 0, 'real audio was captured');
+  assert.match(await page.textContent('[data-zg="rec-status"]'), /Saved "Blues in A" .* sign in to back it up/);
+  step('recorder: records a take from the microphone, saved on this device, queued for upload');
+
+  await page.fill('[data-zg="improv-prompt"]', 'Blues in E');
+  await page.fill('[data-zg="improv-takes"]', '2');
+  await page.fill('[data-zg="improv-minutes"]', '1');
+  await page.click('[data-zg="improv-start"]');
+  await until(() => document.querySelector('[data-zg="rec-timer"]').textContent.endsWith('/ 1:00'));
+  await page.clock.runFor(61_000); // the 1-minute window runs out: the take stops and saves by itself
+  await until(() => document.querySelector('[data-zg="improv-start"]').textContent === 'Start take 2 of 2');
+  await page.click('[data-zg="improv-start"]');
+  await until(() => !document.querySelector('[data-zg="rec-stop"]').hidden);
+  await page.clock.runFor(1_500);
+  await page.click('[data-zg="rec-stop"]');
+  await until(() => document.querySelector('[data-zg="rec-status"]').textContent.startsWith('Improv finished: 2 takes'));
+  const run = (await takesNow()).filter((f) => f.runId).sort((a, b) => a.index - b.index);
+  assert.deepEqual(run.map((f) => [f.title, f.index, f.of, f.prompt]), [['Blues in E · take 1 of 2', 1, 2, 'Blues in E'], ['Blues in E · take 2 of 2', 2, 2, 'Blues in E']]);
+  assert.equal(run[0].runId, run[1].runId);
+  assert.ok(run[0].durationMs <= 60_000 && run[0].durationMs >= 59_000, 'the first take stopped at its window');
+  step('recorder: timed improv run, each take stopped at its window and saved separately');
+
+  page.once('dialog', (d) => d.accept('Blues in A (keeper)'));
+  await page.click('[data-zg="takes-list"] [data-zg="take"] >> text=Blues in A · >> [data-zg="take-rename"]');
+  await until(() => document.querySelector('[data-zg="takes-list"]').textContent.includes('Blues in A (keeper)'));
+  await page.click('[data-zg="takes-list"] [data-zg="take"] >> text=Blues in A (keeper) >> [data-zg="take-archive"]');
+  await until(() => document.querySelectorAll('[data-zg="takes-archived"] [data-zg="take"]').length === 1);
+  await page.click('[data-zg="takes-archived"] [data-zg="take-restore"]');
+  await until(() => document.querySelectorAll('[data-zg="takes-list"] [data-zg="take"]').length === 3);
+  await page.click('[data-zg="takes-list"] [data-zg="take"] >> nth=0 >> [data-zg="take-play"]');
+  await until(() => document.querySelector('[data-zg="take-player"]').src.startsWith('blob:'));
+  const versions = await page.evaluate(() => window.zg.replica.log.filter((e) => e.type === 'item-set' && e.item.module === 'recorder').length);
+  assert.equal(versions, 6, '3 takes + rename + archive + restore: every version kept');
+  step('recorder: list, play, rename, archive and restore takes (no delete)');
 
   assert.ok(await page.isChecked('[data-zg="notify-morning-always"]'), 'morning reminder always on by default');
   await page.uncheck('[data-zg="notify-morning-always"]');

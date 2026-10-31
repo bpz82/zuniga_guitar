@@ -116,8 +116,47 @@ select user_id, endpoint, p256dh, auth from public.push_subscriptions;
 delete from public.push_subscriptions where endpoint = 'https://web.push.apple.com/no-such-device';
 reset role;
 
+-- ------------------------------------------------------------ takes (Storage)
+\set aliceTake '\'aaaaaaaa-0000-0000-0000-000000000001/take-k1.webm\''
+select pg_temp.expect((select not public and file_size_limit = 52428800 from storage.buckets where id = 'takes'), 'takes bucket is private, 50 MB per file');
+select pg_temp.expect((select allowed_mime_types @> array['audio/webm', 'audio/mp4'] and not allowed_mime_types && array['text/html', 'image/svg+xml'] from storage.buckets where id = 'takes'), 'audio types only');
+insert into storage.buckets (id, name) values ('other', 'other');
+
+select pg_temp.as_user(:alice);
+insert into storage.objects (bucket_id, name) values ('takes', :aliceTake);
+insert into storage.objects (bucket_id, name) values ('takes', 'aaaaaaaa-0000-0000-0000-000000000001/take-k2.m4a');
+select pg_temp.expect((select count(*) from storage.objects) = 2, 'alice sees her 2 takes');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'bbbbbbbb-0000-0000-0000-000000000002/take-x.webm')$$, 'alice cannot write into bob''s folder');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'take-x.webm')$$, 'no file outside a user folder');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'aaaaaaaa-0000-0000-0000-000000000001/sub/take-x.webm')$$, 'no nested folders');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'aaaaaaaa-0000-0000-0000-000000000001/take-x.html')$$, 'audio extensions only');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'aaaaaaaa-0000-0000-0000-000000000001/notes.webm')$$, 'take names only');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('other', 'aaaaaaaa-0000-0000-0000-000000000001/take-x.webm')$$, 'these policies open no other bucket');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'aaaaaaaa-0000-0000-0000-000000000001/take-k1.webm')$$, 'no overwriting a take (same name)');
+update storage.objects set name = 'aaaaaaaa-0000-0000-0000-000000000001/take-renamed.webm' where name = :aliceTake;
+delete from storage.objects where name = :aliceTake;
+update storage.buckets set public = true where id = 'takes';
+select pg_temp.expect_error($$insert into storage.buckets (id, name, public) values ('mine', 'mine', true)$$, 'users cannot create buckets');
+reset role;
+select pg_temp.expect((select count(*) from storage.objects where name = :aliceTake) = 1, 'alice can neither rename nor delete a take');
+select pg_temp.expect((select not public from storage.buckets where id = 'takes'), 'users cannot make the bucket public');
+
+select pg_temp.as_user(:bob);
+select pg_temp.expect((select count(*) from storage.objects) = 0, 'bob cannot see alice''s takes');
+delete from storage.objects;
+reset role;
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'takes') = 2, 'bob cannot delete alice''s takes');
+
+set role anon;
+select pg_temp.expect((select count(*) from storage.objects) = 0, 'signed out: no takes visible');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'aaaaaaaa-0000-0000-0000-000000000001/take-anon.webm')$$, 'signed out: cannot upload');
+reset role;
+
 -- --------------------------------------------------------- account deletion
 delete from auth.users where id = :alice;
 select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 0, 'deleting the account deletes the log');
 select pg_temp.expect((select count(*) from public.nudges where user_id = :alice) = 0, 'and reminders');
 select pg_temp.expect((select count(*) from public.events where user_id = :bob) = 1, 'bob untouched');
+-- Storage files do not cascade with the account (Supabase behaviour): the
+-- pre-customer checklist covers removing the folder on account deletion.
+select pg_temp.expect((select count(*) from storage.objects where name like 'aaaaaaaa-0000-0000-0000-000000000001/%') = 2, 'takes outlive the account: cleanup needed (docs/SETUP.md)');
