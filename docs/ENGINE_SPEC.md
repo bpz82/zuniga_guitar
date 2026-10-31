@@ -93,6 +93,7 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Cloudflare R2 | Outside the locked stack. Supabase Storage covers recordings later. |
 | Sibling burying | A song has exactly one card (title only, Blake 2026-10-31), so there are no siblings to bury. Deferred until an item has more than one card. The item-to-cards link stays in the model (`cardsOfItem`). |
 | Pocket results feeding guitar priority | Songs are guitar-only (title, play, rate), so no song has a pocket card whose result could move it up. Deferred until a module makes pocket cards linked to guitar cards. |
+| Locking the module contract early (superseded Oct 31 2026: contract locked as v1, see amendments) | Songs I Already Know needed no contract change. Proposed: lock v0 as v1 unchanged. Awaiting Blake's yes. The isolation rule is enforced from v0. |
 | Post-gig voice memo, recorded creative prompts, improv takes | Need the recorder. Ship with the recorder module; block types are reserved now. |
 | Shared-service interfaces (randomizer, recorder, metronome) | Defined with the first module that uses each one, not predicted now. |
 | Conversational intake interview | Would need an AI service (no paid services). A form asks the same five questions. |

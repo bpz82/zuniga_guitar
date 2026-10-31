@@ -35,5 +35,5 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 | 4. Session builder | Approved 2026-10-30 |
 | 5. App shell (storage, sync, module contract, test deck, Web Push, harness) | Approved 2026-10-30; live on Blake's iPhone |
 | Metronome module | Built, awaiting review |
-| Songs I Already Know (and morning reminder always on) | Pushed 2026-10-31 |
+| Songs I Already Know (and morning reminder always on) | Approved 2026-10-31 |
 | Songs skip learning steps; module contract locked as v1 | Built, awaiting review |
