@@ -65,3 +65,61 @@ input[data-zg="import"] {padding:8px;}
 input,textarea,select {font-family:var(--zg-font-body);font-weight:600;}
 button {font-family:var(--zg-font-display);font-weight:400;}
 [data-zg="mx-position"] {font-family:var(--zg-font-mono);}
+
+/* PASS 2 — modular instrument controls. All selectors target pre-existing data-zg hooks. */
+[data-zg="songs"],[data-zg="ear"],[data-zg="recorder"],[data-zg="goals"],[data-zg="theory"] { min-width:0; overflow-wrap:anywhere; }
+[data-zg="songs"] h2,[data-zg="ear"] h2,[data-zg="recorder"] h2,[data-zg="goals"] h2,[data-zg="theory"] h2 {letter-spacing:.085em;}
+/* Instrument channels: shallow inset trays with crosswoven speaker fabric. */
+[data-zg="songs-list"],[data-zg="songs-archived"],[data-zg="takes-list"],[data-zg="takes-archived"],[data-zg="goals-list"],[data-zg="theory-topics"] {list-style:none;margin:12px 0 17px;padding:8px;min-width:0;border:1px solid #494339;border-radius:5px;background:repeating-linear-gradient(90deg,#fff1 0 1px,transparent 1px 5px),repeating-linear-gradient(0deg,#18181714 0 2px,#eee4d114 2px 4px),linear-gradient(145deg,#8b8171,#aca292);box-shadow:inset 0 3px 7px #15120f55,0 1px #fff6;}
+[data-zg="song"],[data-zg="take"],[data-zg="goal"],[data-zg="goal-song"],[data-zg="theory-topic"] {min-width:0;max-width:100%;margin:7px 0;padding:11px 10px;border:1px solid #786d5c;border-radius:5px;background:linear-gradient(155deg,#efe5d1,#c6b9a4);box-shadow:inset 0 1px #fff9,0 2px 4px #201b1733;color:var(--zg-color-ink);overflow-wrap:anywhere;}
+[data-zg="song"] button,[data-zg="take"] button,[data-zg="goal"] button,[data-zg="theory-topic"] button {max-width:100%;white-space:normal;}
+/* SONGS: recording-library intake, soft clipboard wells. */
+[data-zg="songs-new"],[data-zg="songs-paste"],[data-zg="rec-title"] {width:100%;max-width:100%;}
+[data-zg="songs-paste"] {min-height:112px;font:1rem/1.55 var(--zg-font-body);}
+[data-zg="songs-add"],[data-zg="songs-paste-add"] {min-height:52px;background:linear-gradient(#ebc784,#b57b39);border-color:#704921;color:#281b10;text-shadow:0 1px #fff3;}
+[data-zg="song-rename"],[data-zg="song-archive"],[data-zg="song-restore"] {min-width:92px;}
+[data-zg="songs-archived"],[data-zg="takes-archived"] {filter:saturate(.78);}
+/* EAR TRAINING: prominent readout, tactile answer bank, differentiated feedback. */
+[data-zg="ear-level"] {display:inline-block;max-width:100%;padding:8px 12px;margin:5px 0 12px;border:1px solid #6e5840;border-radius:4px;background:#2b2825;color:#ffcc77;font:700 .9rem/1.4 var(--zg-font-mono);box-shadow:inset 0 2px 5px #0007;}
+[data-zg="ear-prompt"] {padding:17px 15px;min-height:70px;margin:8px 0 12px;border-radius:5px;border:1px solid #857861;background:linear-gradient(160deg,#efe6d4,#cfc0a8);font-size:clamp(1.05rem,3.8vw,1.28rem);font-weight:750;line-height:1.45;}
+[data-zg="ear-play"],[data-zg="ear-tap"] {min-height:58px;min-width:126px;font-size:1.13rem;background:linear-gradient(#f2c46f,#b57b33);border-color:#6a451f;color:#281b0b;}
+[data-zg="ear-choices"],[data-zg="mc-choices"] {display:grid;grid-template-columns:minmax(0,1fr);gap:9px;min-width:0;margin:14px 0;}
+[data-zg="ear-choice"],[data-zg="mc-choice"] {display:block;width:100%;min-width:0;min-height:56px;margin:0;padding:12px 14px;text-align:left;white-space:normal;line-height:1.35;font-size:1rem;overflow-wrap:anywhere;}
+[data-zg="ear-feedback"],[data-zg="card-feedback"] {min-height:38px;margin:12px 0;padding:9px 12px;border-left:4px solid #cc8c39;border-radius:3px;background:#3b3127;color:#fff0d1;font-weight:650;line-height:1.45;}
+[data-zg="ear-resolve"],[data-zg="ear-next"],[data-zg="ear-unlock"] {min-height:52px;white-space:normal;}
+[data-zg="ear-next"] {background:linear-gradient(#ecc784,#b17c3b);color:#291d0d;border-color:#65451f;}
+[data-zg="ear-unlock"] {border:1px solid #7e6749;background:linear-gradient(#4e4539,#27231f);}
+[data-zg="card-source"] {display:block;margin:12px 0 5px;padding:9px 11px;color:#544532;font:.85rem/1.5 var(--zg-font-body);border-top:1px solid #a89b82;overflow-wrap:anywhere;}
+/* RECORDER: black glass transport/readout, accessible take playback. */
+[data-zg="rec-status"],[data-zg="rec-timer"] {padding:12px;margin:8px 0;border:1px solid #101110;border-radius:5px;background:linear-gradient(#242624,#0e0f0f);color:#ffd18b;box-shadow:inset 0 2px 8px #0009,0 1px #fff5;font-family:var(--zg-font-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+[data-zg="rec-timer"] {font-size:clamp(1.75rem,8vw,2.7rem);letter-spacing:.075em;text-align:center;}
+[data-zg="rec-start"],[data-zg="improv-start"],[data-zg="block-record"] {min-height:56px;background:linear-gradient(#e9bc77,#ad7131);color:#2a1c0d;border-color:#74471c;}
+[data-zg="rec-stop"] {min-height:56px;background:linear-gradient(#7f4b3c,#48261d);border-color:#361a15;color:#fff0df;}
+[data-zg="improv-prompt"],[data-zg="improv-takes"],[data-zg="improv-minutes"] {min-width:0;max-width:100%;}
+[data-zg="improv-prompt"] {min-height:106px;}
+[data-zg="take-player"] {display:block;width:100%;max-width:100%;min-height:54px;margin:12px 0;border:2px solid #423526;border-radius:7px;background:#242321;color-scheme:dark;}
+[data-zg="take-play"],[data-zg="take-rename"],[data-zg="take-archive"],[data-zg="take-restore"] {min-height:48px;}
+/* GOALS: compact form fields and tactile check-in ledger. */
+[data-zg="goal-kind"],[data-zg="goal-what"],[data-zg="goal-why"],[data-zg="goal-deadline"],[data-zg="goal-songs"],[data-zg="goal-tasks"],[data-zg="goal-write-minutes"],[data-zg="goal-write-takes"],[data-zg="goal-write-prompt"],[data-zg="goal-improv-takes"],[data-zg="goal-improv-minutes"],[data-zg="goal-improv-ramp-to"],[data-zg="goal-improv-ramp-days"],[data-zg="goal-feel"],[data-zg="goal-recall"],[data-zg="goal-minutes"],[data-zg="goal-memo"] {max-width:100%;min-width:0;}
+[data-zg="goal-why"],[data-zg="goal-tasks"],[data-zg="goal-memo"],[data-zg="goal-write-prompt"] {line-height:1.5;}
+[data-zg="goal-save"],[data-zg="goal-checkin-save"] {min-height:54px;background:linear-gradient(#f1c980,#b17e41);color:#291e11;border-color:#68481f;}
+[data-zg="goal-checkin"] {min-width:0;margin:9px 0;padding:13px;border:1px solid #6e614e;border-radius:5px;background:linear-gradient(#d5c9b4,#b7a991);box-shadow:inset 0 1px #fff8;}
+[data-zg="goal-song"] {padding:9px;}
+[data-zg="goal-archive"] {background:linear-gradient(#57514a,#312c28);}
+/* Theory topic selector and question bank. */
+[data-zg="theory-topics"] {display:flex;flex-direction:column;gap:8px;}
+[data-zg="theory-topic"] {display:block;width:100%;margin:0;}
+[data-zg="theory-topic"] button {width:100%;text-align:left;}
+/* Quiet-hours preference uses the same physical toggle dimensions. */
+[data-zg="notify-morning-always"] {display:inline-block;vertical-align:middle;width:24px;min-width:24px;height:24px;min-height:24px;margin:0 9px 0 0;box-shadow:none;accent-color:#9a6328;}
+/* Narrow screens must not create secondary horizontal scrollers. */
+@media (max-width:600px) {
+ [data-zg="songs"],[data-zg="ear"],[data-zg="recorder"],[data-zg="goals"],[data-zg="theory"] {padding:11px;}
+ [data-zg="songs"] button,[data-zg="ear"] button,[data-zg="recorder"] button,[data-zg="goals"] button,[data-zg="theory"] button {max-width:100%;}
+ [data-zg="ear-play"],[data-zg="ear-tap"],[data-zg="ear-resolve"],[data-zg="ear-next"],[data-zg="ear-unlock"],[data-zg="songs-add"],[data-zg="songs-paste-add"],[data-zg="rec-start"],[data-zg="rec-stop"],[data-zg="improv-start"],[data-zg="goal-save"] {width:100%;margin:5px 0;}
+ [data-zg="ear-choices"],[data-zg="mc-choices"] {grid-template-columns:minmax(0,1fr);}
+ [data-zg="song"],[data-zg="take"],[data-zg="goal"],[data-zg="goal-checkin"] {padding:10px 8px;}
+}
+@media (min-width:700px) {
+ [data-zg="ear-choices"],[data-zg="mc-choices"] {grid-template-columns:repeat(2,minmax(0,1fr));}
+}
