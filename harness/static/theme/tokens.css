@@ -1,20 +1,20 @@
 /* Zuniga Guitar — studio material and layout tokens. Original Zuniga Mission display family. */
 :root {
-  --zg-color-bg: #211b17;
-  --zg-color-text: #f2e8d4;
-  --zg-color-muted: #bdb09b;
-  --zg-color-border: #786b58;
-  --zg-color-accent: #dfa64b;
+  --zg-color-bg: #2e1e15;
+  --zg-color-text: #d5d5c5;
+  --zg-color-muted: #c5c0ac;
+  --zg-color-border: #62442e;
+  --zg-color-accent: #d99a38;
   --zg-color-warning: #f1a47e;
-  --zg-color-wood: #3c2a20;
-  --zg-color-wood-dark: #241b16;
-  --zg-color-panel: #b4ada0;
-  --zg-color-panel-light: #d3cbbd;
-  --zg-color-panel-dark: #827d73;
-  --zg-color-ink: #262523;
-  --zg-color-cream: #f0e3c6;
-  --zg-color-knob: #191a1a;
-  --zg-color-amber: #ffb441;
+  --zg-color-wood: #62442e;
+  --zg-color-wood-dark: #2e1e15;
+  --zg-color-panel: #9a9b94;
+  --zg-color-panel-light: #b0b0ab;
+  --zg-color-panel-dark: #86857f;
+  --zg-color-ink: #141110;
+  --zg-color-cream: #d5d5c5;
+  --zg-color-knob: #141110;
+  --zg-color-amber: #ecab49;
   --zg-space-1: .25rem;
   --zg-space-2: .5rem;
   --zg-space-3: .75rem;
@@ -29,4 +29,8 @@
   --zg-line-height: 1.45;
   --zg-radius: 6px;
   --zg-target: 48px;
+  --zg-color-charcoal: #39322a;
+  --zg-color-wood-mid: #705945;
+  --zg-color-grain: #513b29;
+  --zg-color-silver-highlight: #c2c1b9;
 }

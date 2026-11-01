@@ -240,3 +240,200 @@ button {font-family:var(--zg-font-display);font-weight:400;}
   [data-zg="nav"] > a {font-size:.85rem;}
   [data-zg="more-sheet"] {border-radius:10px;box-shadow:inset 0 1px #f5dfba3d;}
 }
+
+
+/* PASS 4 — PRISM studio cabinet: unpolished wood, brushed metal and pilot lamps.
+   Finishes only. App shell layout, hook states and metronome timing remain code-owned. */
+html {background:#2e1e15;}
+body {
+  color:var(--zg-color-text);
+  background-color:var(--zg-color-bg);
+  /* Each 134px repeat is a floorboard; tight irregular hairlines suggest exposed grain. */
+  background-image:
+    repeating-linear-gradient(0deg,transparent 0 127px,#120d0a 128px,#120d0a 131px,#99765a48 132px,transparent 134px),
+    repeating-linear-gradient(91deg,transparent 0 3px,#130d0a0d 4px,#c8ac8a16 5px,transparent 7px,transparent 19px,#1c130f26 21px,transparent 25px),
+    repeating-linear-gradient(88deg,transparent 0 14px,#2e1e1526 15px,transparent 17px,#b1977121 19px,transparent 22px,transparent 53px),
+    repeating-linear-gradient(0deg,#705945 0px,#62442e 29px,#513b29 61px,#705945 92px,#62442e 127px,#2e1e15 132px,#705945 134px);
+  background-size:auto,auto,auto,auto;
+  background-attachment:scroll;
+}
+[data-zg="shell"] {color:var(--zg-color-text);}
+[data-zg="topbar"] {
+  background:linear-gradient(145deg,#39322a,#211b17);
+  border:1px solid #705945;
+  border-radius:5px;
+  box-shadow:inset 0 1px #c8b59935,0 5px 12px #140e0b66;
+}
+h1 {color:var(--zg-color-cream);border-left-color:#a77335;text-shadow:0 1px 2px #0e0b09;}
+/* Industrial engraved nameplate integrated into each brushed-metal section. */
+section {
+  color:var(--zg-color-ink);
+  border:2px solid #513b29;
+  border-radius:7px;
+  background:
+    linear-gradient(113deg,#f4f1e229 0%,transparent 21%,#14111014 67%,#16120e26 100%),
+    repeating-linear-gradient(0deg,#fff2 0px,#fff2 1px,#00000004 2px,#00000004 3px),
+    linear-gradient(130deg,#b0b0ab 0%,#a8a9a2 30%,#9a9b94 62%,#86857f 100%);
+  box-shadow:inset 0 1px #f4f2e59c,inset 0 -2px #38312a38,0 0 0 1px #17100b,4px 7px 15px #160e0a85;
+}
+section h2 {
+  color:#211c17;
+  font-family:var(--zg-font-display);
+  font-weight:400;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  border:0;
+  border-bottom:1px solid #5d5d564d;
+  border-radius:0;
+  margin:0 0 14px;
+  padding:6px 2px 9px;
+  background:transparent;
+  text-shadow:0 1px 0 #f0efe15c;
+  box-shadow:none;
+}
+h3 {color:#29231f;}
+/* Metal-front controls stay tactile but never candy-glossy. */
+button {
+  border:1px solid #100e0c;
+  border-radius:5px;
+  background:linear-gradient(155deg,#484036,#39322a 44%,#211c18);
+  color:#e1dfcc;
+  box-shadow:inset 1px 1px 0 #f6e7c326,inset -1px -2px 0 #100e0c66,0 2px 3px #110c0980;
+  text-shadow:0 1px 1px #080706;
+}
+button:active {box-shadow:inset 0 2px 5px #090806ac,0 1px 1px #110c09;}
+input,select,textarea {
+  background:linear-gradient(175deg,#d1cfc1,#aaa89e);
+  border:1px solid #6a655b;
+  color:#141110;
+  box-shadow:inset 0 2px 4px #211b172c,0 1px #f4f0df61;
+}
+input:focus,select:focus,textarea:focus {background:#dedbcb;}
+fieldset {
+  border:1px solid #52483d;
+  background:repeating-linear-gradient(90deg,#3a322a 0 3px,#493b2e 3px 5px,#2d2823 5px 8px);
+  box-shadow:inset 0 2px 8px #100d09a3,0 1px #d0c8af57;
+}
+legend {background:linear-gradient(160deg,#b9b9b2,#8b8b83);border-color:#6d6b63;color:#171412;box-shadow:inset 0 1px #f8f6eb77;}
+[data-zg="card"],[data-zg="song"],[data-zg="take"],[data-zg="goal"],[data-zg="goal-song"],[data-zg="theory-topic"],[data-zg="ear-prompt"],[data-zg="goal-checkin"],[data-zg="mx-result"] {
+  background:linear-gradient(137deg,#bcbcb5,#a1a29a 55%,#8c8b83);
+  border:1px solid #72716a;
+  border-radius:5px;
+  box-shadow:inset 0 1px #efeee285,2px 3px 6px #24180f48;
+  color:#171412;
+}
+[data-zg="songs-list"],[data-zg="songs-archived"],[data-zg="takes-list"],[data-zg="takes-archived"],[data-zg="goals-list"],[data-zg="theory-topics"] {
+  border-color:#53463a;
+  background:repeating-linear-gradient(90deg,#3e3128 0 3px,#342b24 3px 6px,#4a382b 6px 8px);
+  box-shadow:inset 0 2px 8px #100d09a8,0 1px #eee3cf42;
+}
+[data-zg="rec-status"],[data-zg="rec-timer"],[data-zg="mx-position"],[data-zg="ear-level"] {
+  background:linear-gradient(165deg,#27221d,#141110);
+  border-color:#0d0b09;
+  color:#f3c479;
+  box-shadow:inset 0 2px 7px #0009,0 1px #efdfc759;
+}
+[data-zg="mx-position"]::before {background:radial-gradient(circle at 36% 32%,#fff5be,#e7a23e 42%,#87440c 75%);box-shadow:0 0 0 2px #62503b,0 0 9px #e9a03e9c;}
+/* Amber is reserved for confirmation, activation and transport functions. */
+[data-zg="mx-start"],[data-zg="ear-play"],[data-zg="ear-tap"],[data-zg="rec-start"],[data-zg="improv-start"],[data-zg="block-record"],[data-zg="songs-add"],[data-zg="songs-paste-add"],[data-zg="goal-save"],[data-zg="goal-checkin-save"],[data-zg="ear-next"] {
+  background:linear-gradient(150deg,#dfab60,#b37c35 62%,#875a2c);
+  border-color:#513219;
+  color:#17110b;
+  text-shadow:0 1px #f5d6a15c;
+  box-shadow:inset 0 1px #ffe5ac75,0 2px 4px #170d0780;
+}
+[data-zg="mx-tap"],[data-zg="ear-choice"],[data-zg="mc-choice"] {background:linear-gradient(155deg,#45403a,#28231f);color:#d5d5c5;}
+[data-zg="nav"] {
+  border:1px solid #241810;
+  border-top:2px solid #94745a;
+  border-radius:5px 5px 0 0;
+  background:
+    repeating-linear-gradient(92deg,transparent 0 10px,#ffffff04 10px 11px,#0000000d 12px 14px),
+    linear-gradient(175deg,#513b29,#39322a 26%,#241c17 88%);
+  box-shadow:inset 0 1px #cfb08b42,0 -5px 17px #120c09a8;
+}
+[data-zg="nav"] > a,[data-zg="nav"] > [data-zg="nav-more"] {
+  color:#d5d5c5;
+  text-shadow:0 1px 1px #090706;
+  background:transparent;
+  border-color:transparent;
+  box-shadow:none;
+}
+[data-zg="nav"] > [data-zg="nav-more"] {
+  appearance:none;-webkit-appearance:none;
+  width:100%;max-width:100%;height:auto;
+  padding:8px 2px 5px;margin:0;border:1px solid transparent;
+  background:transparent;box-shadow:none;transform:none;vertical-align:middle;
+}
+[data-zg="nav"] > a[aria-current="page"],
+[data-zg="nav"] > [data-zg="nav-more"][data-current],
+[data-zg="nav"] > [data-zg="nav-more"][aria-expanded="true"] {
+  color:#ffd08a;
+  border-color:#e6a75020;
+  background:linear-gradient(180deg,#ac722c27,transparent 72%);
+  text-shadow:0 0 7px #d5903780;
+}
+[data-zg="nav"] > a[aria-current="page"] svg,
+[data-zg="nav"] > [data-zg="nav-more"][data-current] svg {filter:drop-shadow(0 0 3px #e9a34488);}
+[data-zg="tab-record"] {color:#e9e4d3 !important;}
+[data-zg="tab-record"] svg {
+  background:radial-gradient(circle at 38% 25%,#fce5a1,#df9531 45%,#7d3c16 79%,#24150d 100%);
+  border:2px solid #92633b;
+  color:#221508;
+  border-radius:50%;
+  box-shadow:inset 0 1px #fff1baad,0 0 0 2px #291c14,0 0 9px #e69a337d;
+}
+[data-zg="tab-record"][aria-current="page"] svg {
+  background:radial-gradient(circle at 37% 26%,#fff2b6,#f0af43 48%,#a95b19 86%);
+  box-shadow:inset 0 1px #fff4c4,0 0 0 2px #291c14,0 0 13px #eca443bc;
+}
+[data-zg^="nav-badge-"] {
+  background:linear-gradient(145deg,#f1c06a,#c38936);
+  border:1px solid #3c2816;
+  color:#1f160e;
+  box-shadow:0 1px 3px #0008;
+}
+[data-zg="more-sheet"] {
+  background:linear-gradient(145deg,#4b3829,#39322a 45%,#241b17);
+  border:1px solid #94745a;
+  border-radius:12px 12px 4px 4px;
+  box-shadow:0 -9px 25px #090705ad,inset 0 1px #ddbe9452;
+  color:#d5d5c5;
+  margin-bottom:2px; /* structural clearance required by test */
+}
+[data-zg="more-sheet"] a,[data-zg="more-settings"] {color:#d5d5c5;}
+[data-zg="more-sheet"] a[aria-current="page"],
+[data-zg="more-sheet"] [data-zg="more-settings"][aria-current="page"] {color:#ffd08a;background:#a46b2a36;}
+/* Fix inherited browser-blue anchors without changing navigation semantics. */
+[data-zg="today-start"] {
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:52px;max-width:100%;padding:12px 21px;
+  border:1px solid #6b451e;border-radius:5px;
+  background:linear-gradient(145deg,#e6b772,#ab742f);
+  box-shadow:inset 0 1px #fff0bd9e,0 3px 6px #21150e83;
+  color:#1a130c;text-decoration:none;text-shadow:0 1px #f9deaa7a;
+  font:400 1.06rem/1.2 var(--zg-font-display);
+  letter-spacing:.035em;
+}
+[data-zg="today-start"]:visited {color:#1a130c;}
+[data-zg="today-start"]:focus-visible,[data-zg="gear"]:focus-visible {outline:3px solid var(--zg-color-amber);outline-offset:3px;}
+[data-zg="gear"] {
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:44px;min-height:44px;padding:6px;
+  border:1px solid #746451;border-radius:5px;
+  background:linear-gradient(155deg,#52483a,#29231d);
+  box-shadow:inset 0 1px #dcc4a53d,0 2px 3px #100c09a3;
+  color:#d5d5c5;text-decoration:none;text-shadow:0 1px #0d0a08;
+  font-family:var(--zg-font-body);font-size:1.4rem;
+}
+[data-zg="gear"]:visited {color:#d5d5c5;}
+[data-zg="gear"][aria-current="page"] {color:#ffd08a;border-color:#b7884d;box-shadow:0 0 9px #d8994555;}
+[data-zg="today-now"],[data-zg="today-reminder"],[data-zg="today-block"] {
+  border-color:#77756c;
+  color:#171412;
+}
+[data-zg="today-blocks"] {color:#171412;}
+@media(min-width:800px) {
+  [data-zg="nav"] {border-radius:5px;box-shadow:inset 0 1px #cfb08b42,3px 6px 15px #120c0999;}
+  [data-zg="more-sheet"] {border-radius:5px;}
+}
