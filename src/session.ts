@@ -158,6 +158,20 @@ export function todayBlocks(library: Library, now: number): BlockSegment[] {
   return [...fitted, ...gigMemos(library, now)].map((b) => ({ kind: 'block', block: b, done: done(b) }));
 }
 
+/**
+ * Cards due today per owning module (for badges): due review cards for the
+ * whole practice day plus learning steps due now, whatever the window.
+ */
+export function dueToday(library: Library, now: number): ReadonlyMap<string, number> {
+  const out = new Map<string, number>();
+  for (const d of goalQueue(library, now).due) {
+    const card = library.cards.get(d.memory.cardId);
+    const module = card ? (library.items.get(card.itemId)?.module ?? '') : '';
+    out.set(module, (out.get(module) ?? 0) + 1);
+  }
+  return out;
+}
+
 function finish(s: Omit<Session, 'empty'>): Session {
   const empty = s.segments.every((seg) =>
     seg.kind === 'review' ? seg.due.length === 0 && seg.fresh.length === 0 : seg.done,

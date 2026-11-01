@@ -114,3 +114,58 @@ test('base.css: the protected hidden rule, then structure only, all at zero spec
     }
   }
 });
+
+// ------------------------------------------ social-style tab bar (2026-11-01) --
+
+test('nav: the five phone slots in order, then the More sheet with Ear training, Goals, Cards, Settings', async () => {
+  const { BAR, MORE } = await import('../harness/routes.ts');
+  const nav = html.slice(html.indexOf('<nav data-zg="nav"'), html.indexOf('</nav>'));
+  const at = (hook: string) => nav.indexOf(`data-zg="${hook}"`);
+  const slots = BAR.map((b) => (b === 'more' ? 'nav-more' : `tab-${b}`));
+  for (let i = 1; i < slots.length; i++) assert.ok(at(slots[i - 1]!) >= 0 && at(slots[i - 1]!) < at(slots[i]!), `${slots[i - 1]} before ${slots[i]}`);
+  const sheet = nav.slice(at('more-sheet'), nav.lastIndexOf('</div>'));
+  assert.ok(at('more-sheet') > at('nav-more'), 'the sheet follows the More button');
+  const items = MORE.map((m) => (m === 'settings' ? 'more-settings' : `tab-${m}`));
+  for (let i = 0; i < items.length; i++) {
+    assert.ok(sheet.includes(`data-zg="${items[i]}"`), `${items[i]} is in the sheet`);
+    if (i > 0) assert.ok(sheet.indexOf(`data-zg="${items[i - 1]}"`) < sheet.indexOf(`data-zg="${items[i]}"`));
+  }
+  for (const s of slots.filter((x) => x !== 'nav-more')) assert.ok(!sheet.includes(`data-zg="${s}"`), `${s} is in the bar, not the sheet`);
+  assert.match(html, /<a href="#\/settings" data-zg="more-settings"/);
+});
+
+test('nav: the More button is a disclosure for the sheet, closed at load', () => {
+  const button = /<button ([^>]*)data-zg="nav-more"([^>]*)>/.exec(html);
+  assert.ok(button, 'More is a button');
+  const attrs = button![0];
+  assert.match(attrs, /type="button"/);
+  assert.match(attrs, /aria-expanded="false"/);
+  const controls = /aria-controls="([^"]+)"/.exec(attrs)?.[1];
+  assert.ok(controls && new RegExp(`<div id="${controls}" data-zg="more-sheet">`).test(html), 'aria-controls names the sheet');
+  assert.ok(!/data-zg="more-sheet"[^>]*data-open/.test(html), 'the sheet starts closed');
+});
+
+test('nav: every item is an inline SVG icon (currentColor, hidden from screen readers) plus a short label', () => {
+  const nav = html.slice(html.indexOf('<nav data-zg="nav"'), html.indexOf('</nav>'));
+  const items = [...nav.matchAll(/<(a|button) [^>]*data-zg="(tab-[a-z]+|nav-more|more-settings)"[^>]*>([\s\S]*?)<\/\1>/g)];
+  assert.equal(items.length, 9, 'Today, Practice, Record, Songs, More, Ear training, Goals, Cards, Settings');
+  for (const [, , hook, inner] of items) {
+    const svg = /^<svg ([^>]*)>/.exec(inner!);
+    assert.ok(svg, `${hook} starts with its icon`);
+    assert.match(svg![1]!, /stroke="currentColor"/, `${hook} icon follows the text colour`);
+    assert.match(svg![1]!, /aria-hidden="true"/, hook!);
+    assert.match(svg![1]!, /focusable="false"/, hook!);
+    assert.ok(!/fill="#|stroke="#|fill="rgb|stroke="rgb/.test(inner!), `${hook}: no hard-coded colours`);
+    const label = /<\/svg><span>([^<]+)<\/span>/.exec(inner!)?.[1];
+    assert.ok(label && label.length <= 12, `${hook} has a short label (${label})`);
+  }
+  assert.match(nav, /data-zg="tab-record"><svg width="32" height="32"/, 'Record is the larger centre icon');
+});
+
+test('nav: due-count badges sit inside Practice and Cards, hidden until something is due', async () => {
+  const { BADGED } = await import('../harness/routes.ts');
+  for (const b of BADGED) {
+    const link = new RegExp(`data-zg="tab-${b}">[\\s\\S]*?</a>`).exec(html)?.[0] ?? '';
+    assert.match(link, new RegExp(`<span data-zg="nav-badge-${b}" aria-hidden="true" hidden></span></a>$`), b);
+  }
+});

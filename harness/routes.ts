@@ -61,3 +61,26 @@ export function startScreen(hash: string, remembered: Remembered | null, today: 
   const screen: Screen = remembered && remembered.day === today ? remembered.tab : DEFAULT_SCREEN;
   return { screen, replace: true };
 }
+
+// ------------------------------------------------ navigation (2026-11-01) --
+
+/**
+ * The phone's bottom bar, left to right, social-app style: Record is the
+ * larger centre action; More opens a sheet with the rest. From 800px the
+ * side nav shows everything (the More button is not needed there).
+ */
+export const BAR = ['today', 'practice', 'record', 'songs', 'more'] as const;
+/** In the More sheet on phones, in the side nav on laptops. */
+export const MORE = ['ear', 'goals', 'cards', 'settings'] as const;
+export type MoreScreen = (typeof MORE)[number];
+export const inMore = (screen: Screen): screen is MoreScreen => (MORE as readonly string[]).includes(screen);
+
+/** Tabs that show a due-count badge. */
+export const BADGED = ['practice', 'cards'] as const;
+export const MAX_BADGE = 99;
+
+/** A badge's text: nothing when none are due, "99+" past the cap. */
+export function badgeText(count: number): string | null {
+  if (!Number.isFinite(count) || count < 1) return null;
+  return count > MAX_BADGE ? `${MAX_BADGE}+` : String(Math.floor(count));
+}

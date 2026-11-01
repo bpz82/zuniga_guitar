@@ -1,7 +1,7 @@
 /** Theory and physics flashcards: the deck's content rules, and the module through contract v1. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHost, dayBegins, memoryStore, Replica, runModule, sessionFor, SONGS } from '../src/index.ts';
+import { createHost, dayBegins, dueToday, memoryStore, Replica, runModule, sessionFor, SONGS } from '../src/index.ts';
 import type { ReviewSegment, Session } from '../src/index.ts';
 import { BOOK_TITLE, CHAPTERS, citation, DECK, TOPICS } from '../src/modules/theory/deck.ts';
 import type { McCard } from '../src/modules/theory/deck.ts';
@@ -171,4 +171,19 @@ test('isolation: other modules cannot answer or toggle theory cards; a theory cr
   const crash = await runModule(host, () => host.reportRep('song-x-c', 'good', 1));
   assert.equal(crash.ok, false);
   assert.ok(!host.enabled && songs.enabled);
+});
+
+test('dueToday counts due cards per module, whatever the window (the Cards badge)', async () => {
+  const { replica, host } = await setup();
+  assert.equal(dueToday(replica.library, t).get('theory') ?? 0, 0, 'new cards are not due');
+  const wrong = (DECK.find((c) => c.id === 'comp-ratio') as McCard).wrong[0];
+  if (!(await answerMc(host, cardIdOf('comp-ratio'), wrong, 1000)).ok) throw new Error('answer refused');
+  ok(await rateQa(host, cardIdOf('db-twice'), 'good', 1000));
+  ok(await rateQa(host, cardIdOf('tape-hiss'), 'easy', 1000));
+  // Two minutes later the missed card's 1-minute step is due; the Good one's 10-minute step is not; Easy is days away.
+  assert.equal(dueToday(replica.library, t + 2 * 60_000).get('theory'), 1);
+  // Its review day: the next morning (guitar session, no theory cards served), still counted.
+  const morning = ny('2026-11-03', '04:05');
+  assert.ok((dueToday(replica.library, morning).get('theory') ?? 0) >= 2);
+  assert.ok(!served(sessionFor(replica.library, morning)).some((id) => id.startsWith('th-')));
 });

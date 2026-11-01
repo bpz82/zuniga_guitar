@@ -39,6 +39,8 @@ const show = async (screen) => {
   await page.click(screen === 'settings' ? '[data-zg="gear"]' : `[data-zg="tab-${screen}"]`);
   await until((s) => !document.querySelector(`[data-zg="screen-${s}"]`).hidden, screen);
 };
+/** Waits until a screen is really shown (its hash set and the hashchange handled). */
+const arrive = (screen) => until((s) => location.hash === `#/${s}` && !document.querySelector(`[data-zg="screen-${s}"]`).hidden, screen);
 const visibleScreens = () => page.evaluate(() => [...document.querySelectorAll('[data-zg^="screen-"]')].filter((e) => !e.hidden).map((e) => e.dataset.zg));
 const until = async (fn, arg) => {
   for (let i = 0; i < 300; i++) {
@@ -60,6 +62,10 @@ try {
   assert.equal(await page.getAttribute('[data-zg="tab-today"]', 'aria-current'), 'page');
   assert.match(await page.textContent('[data-zg="today-now"]'), /^After-work burst \(sound\): \d+ due, \d+ new\.$/);
   assert.equal(await page.textContent('[data-zg="today-reminder"]'), 'Reminders are off (turn them on in Settings).');
+  for (const b of ['practice', 'cards']) {
+    assert.ok(await page.isHidden(`[data-zg="nav-badge-${b}"]`), `no ${b} badge with nothing due`);
+    assert.equal(await page.getAttribute(`[data-zg="tab-${b}"]`, 'aria-label'), null);
+  }
   await page.click('[data-zg="today-start"]');
   await until(() => location.hash === '#/practice' && !document.querySelector('[data-zg="screen-practice"]').hidden);
   assert.deepEqual(await visibleScreens(), ['screen-practice']);
@@ -143,6 +149,84 @@ try {
   await page.setViewportSize({ width: 1280, height: 720 });
   assert.deepEqual((({ position, direction }) => ({ position, direction }))(await layout()), { position: 'sticky', direction: 'column' }, 'laptop: a side nav');
   step('shell: bottom tab bar on a phone, side nav on a laptop');
+
+  // Social-style tab bar on a phone (2026-11-01).
+  await page.setViewportSize({ width: 390, height: 844 });
+  const visible = async (hooks) => Promise.all(hooks.map((h) => page.isVisible(`[data-zg="${h}"]`)));
+  const BAR_HOOKS = ['tab-today', 'tab-practice', 'tab-record', 'tab-songs', 'nav-more'];
+  const SHEET_HOOKS = ['tab-ear', 'tab-goals', 'tab-cards', 'more-settings'];
+  assert.deepEqual(await visible(BAR_HOOKS), [true, true, true, true, true], 'five slots in the bar');
+  assert.deepEqual(await visible(SHEET_HOOKS), [false, false, false, false], 'the rest wait in the closed sheet');
+  const boxes = await Promise.all(BAR_HOOKS.map((h) => page.locator(`[data-zg="${h}"]`).boundingBox()));
+  // Structure only: the theme's global button style still pads the More button (see THEME.md), so sizes are not compared.
+  const midY = (b) => b.y + b.height / 2;
+  for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i].x > boxes[i - 1].x && Math.abs(midY(boxes[i]) - midY(boxes[0])) < 10, 'one row, left to right');
+  assert.ok(boxes.every((b) => b.x >= 0 && b.x + b.width <= 391), 'all five fit on a 390px screen');
+  const icon = (h) => page.evaluate((h) => document.querySelector(`[data-zg="${h}"] svg`).getBoundingClientRect().width, h);
+  assert.ok((await icon('tab-record')) > (await icon('tab-today')), 'Record is the larger button');
+  step('tabs: five slots on a phone: Today, Practice, Record (larger, centre), Songs, More');
+
+  const sheetOpen = () => page.evaluate(() => [document.querySelector('[data-zg="nav-more"]').getAttribute('aria-expanded'), document.querySelector('[data-zg="more-sheet"]').hasAttribute('data-open')]);
+  const focused = () => page.evaluate(() => document.activeElement?.dataset.zg ?? null);
+  await page.click('[data-zg="nav-more"]');
+  assert.deepEqual(await sheetOpen(), ['true', true]);
+  assert.deepEqual(await visible(SHEET_HOOKS), [true, true, true, true], 'Ear training, Goals, Cards, Settings');
+  assert.equal(await focused(), 'tab-ear', 'focus moves into the sheet');
+  const sheetBox = await page.locator('[data-zg="more-sheet"]').boundingBox();
+  const navBox = await page.locator('[data-zg="nav"]').boundingBox();
+  assert.ok(sheetBox.y + sheetBox.height <= navBox.y + 1 && sheetBox.height > 0, 'the sheet opens just above the bar');
+  await page.keyboard.press('Escape');
+  assert.deepEqual(await sheetOpen(), ['false', false], 'Escape closes it');
+  assert.equal(await focused(), 'nav-more', 'and returns focus to More');
+  await page.click('[data-zg="nav-more"]');
+  await page.click('h1');
+  assert.deepEqual(await sheetOpen(), ['false', false], 'a tap outside closes it');
+  await page.click('[data-zg="nav-more"]');
+  await page.click('[data-zg="nav-more"]');
+  assert.deepEqual(await sheetOpen(), ['false', false], 'More toggles');
+  await page.click('[data-zg="nav-more"]');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
+  assert.deepEqual(await sheetOpen(), ['false', false], 'tabbing past the last item closes it');
+  step('more: the sheet opens above the bar and closes on Escape, a tap outside, More again, or tabbing away');
+
+  const at = () => page.evaluate(() => [location.hash, [...document.querySelectorAll('[data-zg^="screen-"]')].filter((e) => !e.hidden).map((e) => e.dataset.zg)]);
+  await page.click('[data-zg="tab-songs"]');
+  await arrive('songs');
+  await page.click('[data-zg="nav-more"]');
+  await page.click('[data-zg="tab-goals"]');
+  await arrive('goals');
+  assert.deepEqual(await at(), ['#/goals', ['screen-goals']]);
+  assert.deepEqual(await sheetOpen(), ['false', false], 'choosing a screen closes the sheet');
+  assert.equal(await page.getAttribute('[data-zg="tab-goals"]', 'aria-current'), 'page');
+  assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), '', 'More shows that the screen lives in its sheet');
+  await page.goBack();
+  await arrive('songs');
+  assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), null);
+  await page.goForward();
+  await arrive('goals');
+  await page.click('[data-zg="nav-more"]');
+  await page.click('[data-zg="more-settings"]');
+  await arrive('settings');
+  for (const h of ['more-settings', 'gear']) assert.equal(await page.getAttribute(`[data-zg="${h}"]`, 'aria-current'), 'page', h);
+  await page.click('[data-zg="nav-more"]');
+  await page.click('[data-zg="tab-ear"]');
+  await arrive('ear');
+  await page.goto(url); // reopen with no hash, same practice day: the More-sheet screen is remembered
+  await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
+  assert.deepEqual(await at(), ['#/ear', ['screen-ear']]);
+  assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), '');
+  await page.click('[data-zg="tab-record"]');
+  await arrive('record');
+  assert.ok(await page.isVisible('[data-zg="rec-start"]'), 'the centre button opens the Recorder, Record button ready');
+  step('more: sheet screens route with back and forward, mark More as current, and are remembered; the centre button opens the Recorder');
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  assert.deepEqual(await visible([...BAR_HOOKS.slice(0, 4), ...SHEET_HOOKS]), Array(8).fill(true), 'the side nav shows every section');
+  assert.equal(await page.isVisible('[data-zg="nav-more"]'), false, 'no More button on a laptop');
+  const ys = await Promise.all([...BAR_HOOKS.slice(0, 4), ...SHEET_HOOKS].map((h) => page.locator(`[data-zg="${h}"]`).boundingBox().then((b) => b.y)));
+  for (let i = 1; i < ys.length; i++) assert.ok(ys[i] > ys[i - 1], 'one column, top to bottom');
+  step('tabs: from 800px the side nav lists every section; no More button');
+  await show('practice');
 
   await show('settings');
   assert.equal(await page.isChecked('[data-zg=\"notify-all\"]'), false);
@@ -506,6 +590,24 @@ try {
     await until((args) => (window.zg.replica.library.reviews.get(args.id) ?? []).length === args.n + 1, { id: cardId, n: before });
   }
   assert.deepEqual([...seen].sort(), ['mc', 'qa'], 'both card types came up in the silent burst');
+  // Badges: the missed multiple-choice card's 1-minute step comes due. The gig-night step above moved the
+  // clock to Nov 10 and back, and a device never back-dates its events, so these answers are stamped Nov 10:
+  // look a day later, in the work-hours burst.
+  await page.clock.setSystemTime(new Date('2026-11-11T13:05:00Z'));
+  await page.clock.runFor(30_000);
+  for (const [b, label] of [['practice', 'Practice'], ['cards', 'Cards']]) {
+    await until((b) => !document.querySelector(`[data-zg="nav-badge-${b}"]`).hidden, b);
+    const n = await page.textContent(`[data-zg="nav-badge-${b}"]`);
+    assert.match(n, /^\d+$/, `${b} badge shows a count`);
+    assert.ok(Number(n) >= 1);
+    assert.equal(await page.getAttribute(`[data-zg="tab-${b}"]`, 'aria-label'), `${label}, ${n} due`, 'the count is read with the tab name');
+  }
+  const cardsDue = await page.evaluate(() => {
+    const lib = window.zg.replica.library;
+    return [...lib.cards.values()].filter((c) => lib.items.get(c.itemId)?.module === 'theory' && (lib.reviews.get(c.id) ?? []).some((r) => r.rating === 'again')).length;
+  });
+  assert.ok(Number(await page.textContent('[data-zg="nav-badge-cards"]')) >= cardsDue, 'Cards counts the theory cards due');
+  step('badges: Practice and Cards show their due counts once something is due');
   step('theory: silent work-hours burst serves Q/A and multiple-choice cards with their sources, through the contract');
 
   await show('cards');

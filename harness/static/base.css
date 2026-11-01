@@ -18,7 +18,30 @@
   padding-bottom: env(safe-area-inset-bottom);
   background: Canvas; /* system colour so content never shows through; the theme replaces it */
 }
-:where([data-zg="nav"] > a) { flex: 1 1 0; min-width: 0; text-align: center; }
+/* Five equal slots (Today, Practice, Record, Songs, More): icon over label. */
+:where([data-zg="nav"] > a, [data-zg="nav"] > button, [data-zg="more-sheet"] > a) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  text-align: center;
+}
+:where([data-zg="nav"] > a, [data-zg="nav"] > button) { flex: 1 1 0; }
+/* Due-count badge on the icon's corner. */
+:where([data-zg^="nav-badge-"]) { position: absolute; top: 0; left: 55%; }
+/* The More sheet: a grid that opens just above the bar; closed, it takes no room. */
+:where([data-zg="more-sheet"]) {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  background: Canvas; /* placeholder so the page never shows through; the theme replaces it */
+}
+:where([data-zg="more-sheet"]:not([data-open])) { display: none; }
 :where([data-zg="screens"]) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
 :where([data-zg="topbar"]) { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 
@@ -41,6 +64,16 @@
     padding-bottom: 0;
     background: none;
   }
-  :where([data-zg="nav"] > a) { flex: none; text-align: start; }
+  /* Every section in one column: no More button; the sheet's links join the nav. */
+  :where([data-zg="nav-more"]) { display: none; }
+  :where([data-zg="more-sheet"]) { position: static; display: contents; }
+  :where([data-zg="nav"] > a, [data-zg="more-sheet"] > a) {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    text-align: start;
+  }
+  :where([data-zg^="nav-badge-"]) { position: static; }
   :where([data-zg="screens"]) { grid-area: main; padding-bottom: 0; }
 }

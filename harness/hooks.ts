@@ -4,7 +4,7 @@
  * so the theme can restyle freely. Renaming or removing a hook in the HTML
  * fails test/hooks.test.ts. See docs/THEME.md.
  */
-import { SCREENS, TABS } from './routes.ts';
+import { BADGED, SCREENS, TABS } from './routes.ts';
 
 export const MX_NUMBER_FIELDS = ['bpm', 'beatsPerBar', 'beatUnit', 'subdivision', 'accentHz', 'beatHz', 'master', 'countInBars', 'targetBpm', 'stepBpm', 'everyBars', 'playBars', 'muteBars', 'repBars'] as const;
 export const MX_TEXT_FIELDS = ['groove', 'sound', 'workout'] as const;
@@ -14,6 +14,8 @@ export const RATINGS = ['again', 'hard', 'good', 'easy'] as const;
 const STATIC = [
   // app shell (2026-10-31): screens and tabs are generated below from routes.ts
   'shell', 'topbar', 'gear', 'nav', 'screens', 'dev',
+  // social-style tab bar (2026-11-01): More button and its sheet; badges generated below
+  'nav-more', 'more-sheet', 'more-settings',
   // today
   'today', 'today-now', 'today-start', 'today-blocks', 'today-reminder',
   // settings: quiet hours
@@ -48,6 +50,7 @@ export type Hook =
   | (typeof STATIC)[number]
   | `tab-${(typeof TABS)[number]}`
   | `screen-${(typeof SCREENS)[number]}`
+  | `nav-badge-${(typeof BADGED)[number]}`
   | `mx-${MxField}`
   | `mx-vol-${(typeof MX_VOICES)[number]}`
   | `r-${(typeof RATINGS)[number]}`;
@@ -57,6 +60,7 @@ export const HOOKS: readonly Hook[] = [
   ...STATIC,
   ...TABS.map((t) => `tab-${t}` as const),
   ...SCREENS.map((s) => `screen-${s}` as const),
+  ...BADGED.map((b) => `nav-badge-${b}` as const),
   ...MX_NUMBER_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_TEXT_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_VOICES.map((v) => `mx-vol-${v}` as const),

@@ -8,6 +8,7 @@
 import {
   changeSettings,
   createHost,
+  dueToday,
   nudgesBetween,
   practiceDay,
   todayBlocks,
@@ -36,6 +37,7 @@ import { setupEar } from './ear-ui.ts';
 import { setupRecorder } from './recorder-ui.ts';
 import { setupGoals } from './goals-ui.ts';
 import { setupShell } from './shell.ts';
+import { badgeText } from './routes.ts';
 import type { Shell } from './shell.ts';
 import { setupTheory } from './theory-ui.ts';
 import { THEORY, contentOf, seedTheory } from '../src/modules/theory/practice.ts';
@@ -181,11 +183,30 @@ function renderToday() {
       : 'No reminders in the next 7 days.';
 }
 
+const BADGE_LABEL = { practice: 'Practice', cards: 'Cards' } as const;
+
+/** Due-count badges: Practice = due in the session open now; Cards = theory cards due today. */
+function renderBadges(dueNow: number) {
+  const counts: Record<'practice' | 'cards', number> = { practice: dueNow, cards: dueToday(replica.library, Date.now()).get(THEORY.id) ?? 0 };
+  for (const [tab, count] of Object.entries(counts) as ['practice' | 'cards', number][]) {
+    const text = badgeText(count);
+    const badge = $(`nav-badge-${tab}`);
+    const link = $(`tab-${tab}`);
+    badge.textContent = text ?? '';
+    badge.hidden = text === null;
+    // The badge is aria-hidden; the count is read as part of the tab's name instead.
+    if (text === null) link.removeAttribute('aria-label');
+    else link.setAttribute('aria-label', `${BADGE_LABEL[tab]}, ${text} due`);
+  }
+}
+
 function render() {
   renderToday();
   const lib = replica.library;
   const now = Date.now();
   const s = sessionFor(lib, now);
+  const reviewNow = s.segments.find((x) => x.kind === 'review');
+  renderBadges(reviewNow && reviewNow.kind === 'review' ? reviewNow.due.length : 0);
   // Quiet hours fields follow the settings, except while being edited.
   for (const [name, value] of [['quiet-start', lib.settings.quietHours.start], ['quiet-end', lib.settings.quietHours.end]] as const) {
     const input = $(name) as HTMLInputElement;
