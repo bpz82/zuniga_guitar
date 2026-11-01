@@ -1,20 +1,23 @@
-/* Zuniga Guitar — studio material and layout tokens. Original Zuniga Mission display family. */
+/* Zuniga Guitar — v5 rustic PRISM-inspired materials */
 :root {
   --zg-color-bg: #2e1e15;
-  --zg-color-text: #d5d5c5;
-  --zg-color-muted: #c5c0ac;
-  --zg-color-border: #62442e;
-  --zg-color-accent: #d99a38;
-  --zg-color-warning: #f1a47e;
-  --zg-color-wood: #62442e;
-  --zg-color-wood-dark: #2e1e15;
-  --zg-color-panel: #9a9b94;
-  --zg-color-panel-light: #b0b0ab;
+  --zg-color-text: #ece4d4;
+  --zg-color-muted: #c4baa8;
+  --zg-color-border: #8b6f56;
+  --zg-color-accent: #d89b43;
+  --zg-color-warning: #f1b77d;
+  --zg-color-wood: #705945;
+  --zg-color-wood-mid: #62442e;
+  --zg-color-wood-dark: #513b29;
+  --zg-color-wood-seam: #2e1e15;
+  --zg-color-panel: #b0b0ab;
+  --zg-color-panel-light: #c0c0bb;
   --zg-color-panel-dark: #86857f;
-  --zg-color-ink: #141110;
+  --zg-color-ink: #171312;
   --zg-color-cream: #d5d5c5;
   --zg-color-knob: #141110;
-  --zg-color-amber: #ecab49;
+  --zg-color-charcoal: #39322a;
+  --zg-color-amber: #ffb24a;
   --zg-space-1: .25rem;
   --zg-space-2: .5rem;
   --zg-space-3: .75rem;
@@ -29,8 +32,5 @@
   --zg-line-height: 1.45;
   --zg-radius: 6px;
   --zg-target: 48px;
-  --zg-color-charcoal: #39322a;
-  --zg-color-wood-mid: #705945;
-  --zg-color-grain: #513b29;
-  --zg-color-silver-highlight: #c2c1b9;
+  --zg-panel-shadow: 0 10px 22px rgba(11, 8, 7, .34), 0 2px 5px rgba(11, 8, 7, .18);
 }
