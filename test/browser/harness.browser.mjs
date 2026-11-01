@@ -658,7 +658,7 @@ try {
   const expected = ['setup-keys.html', 'theme/tokens.css', 'theme/theme.css', 'base.css'].map((f) => `${url}${f}`);
   // The theme's own font files (same origin) may load too, now that the stylesheets really do.
   const extra = requests.filter((r) => !expected.includes(r));
-  assert.ok(extra.every((r) => r.startsWith(`${url}theme/fonts/`) && r.endsWith('.woff2')), `only the page, its stylesheets and theme fonts load: ${extra.join(', ')}`);
+  assert.ok(extra.every((r) => (r.startsWith(`${url}theme/fonts/`) && r.endsWith('.woff2')) || (r.startsWith(`${url}theme/img/`) && r.endsWith('.webp'))), `only the page, its stylesheets and theme fonts load: ${extra.join(', ')}`);
   assert.deepEqual(requests.filter((r) => expected.includes(r)).sort(), expected.sort(), 'keys are made locally; nothing is sent');
   await keys.close();
   step('setup-keys page makes valid keys in the browser and sends nothing');

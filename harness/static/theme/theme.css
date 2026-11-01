@@ -1,5 +1,5 @@
 /* Zuniga Guitar — look-only CSS. Selectors are tags and existing data-zg hooks. */
-@font-face {font-family:'Zuniga Mission';src:url('./fonts/ZunigaMission-Regular.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap;}
+@font-face {font-family:'Zuniga Mission';src:url('./fonts/ZunigaMission-Regular.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap;unicode-range:U+0000-0026,U+0028-2018,U+201A-FFFF;}
 * { box-sizing:border-box; }
 html { color-scheme:dark; min-height:100%; }
 body {
@@ -433,3 +433,51 @@ button {font-family:var(--zg-font-display);font-weight:400;}
   [data-zg="more-sheet"] {border-radius:10px;box-shadow:inset 0 1px 0 rgba(245,223,186,.16);} 
 }
 @media(prefers-reduced-motion:reduce) {button:active {transform:none;}}
+
+/* PASS 5.1 — walnut instrument inlays. Only silver surfaces and their typography change. */
+section {
+  color:var(--zg-color-cream);
+  border:1px solid #8e7050;
+  background-image:linear-gradient(135deg,rgba(255,241,210,.055),transparent 22%,rgba(6,4,3,.36) 100%),url('./img/panel.webp');
+  background-color:#2d211b;
+  background-size:auto,512px 512px;
+  background-repeat:no-repeat,repeat;
+  box-shadow:inset 0 1px rgba(255,228,190,.13),inset 0 -1px rgba(0,0,0,.4),0 0 0 2px #1b1410,0 10px 23px rgba(11,7,4,.34);
+}
+section::after {border:1px solid rgba(216,193,156,.33);}
+section h2 {
+  color:var(--zg-color-cream);
+  border-bottom:1px solid rgba(218,189,143,.40);
+  background:transparent;
+  text-shadow:0 1px 1px #120d09;
+  box-shadow:none;
+}
+section h3 {color:var(--zg-color-cream);text-shadow:0 1px 1px #120d09;}
+section label {color:var(--zg-color-cream);text-shadow:0 1px 1px #120d09;}
+section p,section li {color:var(--zg-color-cream);}
+section small {color:#c5bcae;}
+[data-zg="card"],[data-zg="song"],[data-zg="take"],[data-zg="goal"],[data-zg="goal-song"],[data-zg="theory-topic"],[data-zg="goal-checkin"],[data-zg="ear-prompt"],[data-zg="mx-result"] {
+  color:var(--zg-color-cream);
+  border:1px solid rgba(203,172,125,.62);
+  border-radius:9px;
+  background:linear-gradient(145deg,rgba(255,238,207,.06),rgba(0,0,0,.24)),url('./img/panel.webp');
+  background-size:auto,512px 512px;
+  background-repeat:no-repeat,repeat;
+  box-shadow:inset 0 1px rgba(249,227,194,.11),0 3px 9px rgba(0,0,0,.23);
+}
+[data-zg="card"] p,[data-zg="song"] p,[data-zg="take"] p,[data-zg="goal"] p,[data-zg="ear-prompt"] p {color:var(--zg-color-cream);}
+[data-zg="answer"],[data-zg="card-source"] {color:#d5cbb9;}
+[data-zg="card-source"] {border-top-color:rgba(210,186,153,.35);}
+[data-zg="songs-list"],[data-zg="songs-archived"],[data-zg="takes-list"],[data-zg="takes-archived"],[data-zg="goals-list"],[data-zg="theory-topics"] {
+  color:var(--zg-color-cream);
+  border-color:rgba(188,158,116,.40);
+  background:linear-gradient(rgba(16,10,8,.4),rgba(13,9,6,.34)),url('./img/panel.webp');
+  background-size:auto,512px 512px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.25);
+}
+[data-zg="today-now"],[data-zg="today-reminder"],[data-zg="today-block"],[data-zg="today-blocks"] {color:var(--zg-color-cream);}
+[data-zg="block"],[data-zg="today-block"] {border-bottom-color:rgba(213,213,197,.24);}
+/* Preserve active amber buttons; no geometry, scheduling or navigation changed. */
+[data-zg="more-sheet"] {margin-bottom:2px;}
+[data-zg="metronome"] {background-color:#2d211b;background-image:linear-gradient(135deg,rgba(255,241,210,.055),transparent 22%,rgba(6,4,3,.36) 100%),url('./img/panel.webp');background-size:auto,512px 512px;background-repeat:no-repeat,repeat;color:var(--zg-color-cream);}
+[data-zg="metronome"] h2,[data-zg="metronome"] legend,[data-zg="metronome"] label {color:var(--zg-color-cream);text-shadow:0 1px 1px #120d09;}
