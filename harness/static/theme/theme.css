@@ -127,3 +127,116 @@ button {font-family:var(--zg-font-display);font-weight:400;}
 /* Nav tab labels stay on one line; an empty card-feedback draws nothing. */
 [data-zg="nav"] > a { overflow-wrap: normal; white-space: nowrap; }
 [data-zg="card-feedback"]:empty { background: none; border: 0; padding: 0; min-height: 0; margin: 0; }
+
+/* PASS 3 — social-style tab chrome. Visual only; base.css owns placement and behavior. */
+[data-zg="nav"] {
+  color:var(--zg-color-cream);
+  border:1px solid #6e5640;
+  border-top:2px solid #9e8568;
+  border-radius:14px 14px 0 0;
+  background:linear-gradient(180deg,#504235 0%,#322921 13%,#211c19 75%,#171413 100%);
+  box-shadow:inset 0 1px 0 #e9d5b333,0 -7px 24px #09080775;
+  padding-bottom:calc(8px + env(safe-area-inset-bottom, 0px));
+}
+/* Use the identical slot appearance for anchors and the More button. */
+[data-zg="nav"] > a,
+[data-zg="nav"] > [data-zg="nav-more"] {
+  position:relative;
+  min-width:0;
+  min-height:56px;
+  padding:8px 2px 5px;
+  margin:0;
+  border:1px solid transparent;
+  border-radius:9px;
+  background:transparent;
+  box-shadow:none;
+  color:#c6b9a6;
+  text-decoration:none;
+  text-shadow:0 1px 2px #0009;
+  font-family:var(--zg-font-body);
+  font-size:.66rem;
+  font-weight:700;
+  line-height:1.15;
+  letter-spacing:.015em;
+  text-align:center;
+  vertical-align:middle;
+  white-space:nowrap;
+  overflow-wrap:normal;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+[data-zg="nav"] > [data-zg="nav-more"] {
+  appearance:none;
+  -webkit-appearance:none;
+  width:100%;
+  max-width:100%;
+  height:auto;
+  transform:none;
+}
+[data-zg="nav"] > [data-zg="nav-more"]:active {transform:none;box-shadow:none;}
+[data-zg="nav"] svg {width:24px;height:24px;flex-shrink:0;stroke:currentColor;}
+[data-zg="nav"] > a > span,
+[data-zg="nav"] > [data-zg="nav-more"] > span {font-family:var(--zg-font-body);font-size:inherit;line-height:1.2;}
+[data-zg="nav"] > a[aria-current="page"],
+[data-zg="nav"] > [data-zg="nav-more"][data-current],
+[data-zg="nav"] > [data-zg="nav-more"][aria-expanded="true"] {
+  color:var(--zg-color-amber);
+  background:linear-gradient(180deg,#dfa64b19,#dfa64b06);
+  border-color:#dfa64b24;
+  text-shadow:0 0 10px #f5a34045;
+}
+[data-zg="nav"] > a[aria-current="page"] svg,
+[data-zg="nav"] > [data-zg="nav-more"][data-current] svg {filter:drop-shadow(0 0 4px #ffa93c66);}
+/* Record is the raised, luminous centre control; preserve its original slot. */
+[data-zg="tab-record"] {color:#fce4ae !important;}
+[data-zg="tab-record"] svg {
+  width:32px;
+  height:32px;
+  padding:5px;
+  border:1px solid #f7c078;
+  border-radius:13px;
+  background:linear-gradient(160deg,#eeaf55,#9e5b23);
+  color:#231b14;
+  box-shadow:inset 0 1px #fff6,0 2px 0 #6e451f,0 4px 11px #0007;
+}
+[data-zg="tab-record"][aria-current="page"] svg {background:linear-gradient(#ffd48d,#d89036);box-shadow:0 0 12px #ef9c3988,inset 0 1px #fff8;}
+/* Number badges are small legible capsules. Their hidden state remains code-owned. */
+[data-zg^="nav-badge-"] {
+  min-width:17px;
+  min-height:17px;
+  padding:2px 4px;
+  border:1px solid #2c2116;
+  border-radius:999px;
+  background:linear-gradient(#ffd17c,#d58f38);
+  box-shadow:0 1px 3px #0008;
+  color:#24190d;
+  font:800 10px/1.1 var(--zg-font-body);
+  text-align:center;
+  white-space:nowrap;
+  text-shadow:none;
+}
+/* The menu has its own opaque surface, so base.css Canvas cannot show through. */
+[data-zg="more-sheet"] {
+  color:var(--zg-color-cream);
+  background:linear-gradient(150deg,#524337 0%,#302720 47%,#201b18 100%);
+  border:1px solid #957657;
+  border-bottom-color:#4b3727;
+  border-radius:16px 16px 8px 8px;
+  box-shadow:0 -12px 32px #0009,inset 0 1px 0 #f5dfba3d;
+  padding:12px;
+  margin-bottom:2px; /* clear the nav's 2px top border */
+}
+[data-zg="more-sheet"] a {min-width:0;min-height:48px;color:var(--zg-color-cream);border-radius:8px;text-decoration:none;text-shadow:0 1px #0009;}
+[data-zg="more-sheet"] a[aria-current="page"],
+[data-zg="more-sheet"] [data-zg="more-settings"][aria-current="page"] {color:var(--zg-color-amber);background:#dfa64b22;}
+[data-zg="more-settings"] {color:var(--zg-color-cream);}
+/* Maintain keyboard visibility against both dark chrome and the amber record face. */
+[data-zg="nav"] a:focus-visible,
+[data-zg="nav"] [data-zg="nav-more"]:focus-visible,
+[data-zg="more-sheet"] a:focus-visible {outline:3px solid var(--zg-color-amber);outline-offset:2px;}
+@media (min-width:800px) {
+  [data-zg="nav"] {border-radius:12px;padding-bottom:10px;box-shadow:inset 0 1px #e9d5b333,0 8px 25px #0005;}
+  [data-zg="nav"] > a {font-size:.85rem;}
+  [data-zg="more-sheet"] {border-radius:10px;box-shadow:inset 0 1px #f5dfba3d;}
+}
