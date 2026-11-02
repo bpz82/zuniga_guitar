@@ -355,3 +355,118 @@ dialog header h2 { margin: 0; font-size: 1.3rem; }
   *, *::before, *::after, dialog::backdrop { animation: none !important; transition: none !important; }
   button:active, [data-zg="nav"] > a:active { transform: none; }
 }
+
+/* -------------------------------------------------------------------------
+   GRAPHICS POLISH — 2026-11-01. Material finish only; existing layout,
+   hooks, transitions, timing and interactions are left with the v6 owner.
+   ------------------------------------------------------------------------- */
+
+/* Warm paper with actual microvariation rather than a flat fill. */
+body {
+  background-image:
+    linear-gradient(150deg, rgba(255,250,240,.91), rgba(241,232,218,.955)),
+    url('./img/wood.webp');
+  background-repeat: repeat, repeat;
+}
+section, dialog {
+  background-color: var(--zg-color-surface);
+  background-image:
+    radial-gradient(ellipse at 7% 1%, rgba(255,255,255,.74), transparent 49%),
+    linear-gradient(165deg, rgba(255,253,248,.72), rgba(247,235,219,.24) 60%, rgba(209,183,151,.075));
+  border-color: var(--zg-color-border);
+  box-shadow: 0 1px 1px rgba(61,39,22,.045), 0 6px 15px rgba(61,39,22,.065), 0 18px 38px rgba(61,39,22,.055), inset 0 1px 0 rgba(255,255,255,.85);
+}
+section h2 { letter-spacing: .052em; text-wrap: pretty; }
+[data-zg="topbar"] h1 { text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+[data-zg="status"] {
+  background: linear-gradient(115deg, rgba(255,253,246,.9), rgba(245,233,216,.78));
+  border: 1px solid rgba(169,133,95,.17);
+  box-shadow: inset 0 1px rgba(255,255,255,.85);
+}
+/* Satin walnut hero, retaining existing wood texture and all positioning. */
+[data-zg="today"] {
+  background-color: var(--zg-color-wood-mid);
+  background-image:
+    radial-gradient(ellipse at 12% 0%, rgba(255,218,157,.19), transparent 52%),
+    linear-gradient(155deg, rgba(48,30,17,.06), rgba(17,10,7,.57)),
+    url('./img/panel.webp');
+  background-size: auto, auto, 520px;
+  border: 1px solid rgba(134,99,66,.55);
+  box-shadow: 0 2px 3px rgba(31,19,11,.10), 0 14px 30px rgba(31,19,11,.20), inset 0 1px 0 rgba(255,228,187,.18);
+}
+[data-zg="today"] h2 { text-shadow: 0 1px 2px rgba(0,0,0,.28); }
+[data-zg="today-now"] { color: #f0e5d4; }
+[data-zg="today-reminder"] { color: #dfccba; }
+/* Quiet paper beneath the question, without changing visibility or sizing. */
+[data-zg="card"], [data-zg="ear-stage"], [data-zg="rec-stage"] {
+  background-color: var(--zg-color-surface-2);
+  background-image: linear-gradient(155deg, rgba(255,255,255,.66), rgba(246,231,212,.22) 70%, rgba(196,162,122,.10));
+  border: 1px solid rgba(173,145,115,.36);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px rgba(68,44,23,.055);
+}
+[data-zg="answer"]:not(:empty), [data-zg="ear-feedback"]:not(:empty), [data-zg="card-feedback"]:not(:empty) {
+  border: 1px solid rgba(188,151,110,.24);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+}
+/* Metronome screen: restrained recessed instrument readout. */
+[data-zg="mx-display"] {
+  background-color: #302015;
+  background-image:
+    radial-gradient(ellipse at 12% 0%, rgba(226,173,109,.16), transparent 55%),
+    linear-gradient(155deg, rgba(21,13,9,.22), rgba(11,8,7,.65)),
+    url('./img/panel.webp');
+  background-size: auto, auto, 420px;
+  border: 1px solid rgba(130,94,60,.67);
+  box-shadow: inset 0 1px 0 rgba(255,235,201,.17), inset 0 0 0 3px rgba(15,10,8,.24), 0 8px 22px rgba(50,29,15,.14);
+}
+[data-zg="mx-bpm"] { color: #faf0dd; text-shadow: 0 2px 2px rgba(0,0,0,.35); }
+[data-zg="mx-position"] { color: #f2bd74; }
+[data-zg="mx-display"] label { color: #d9c5a7; }
+/* Inputs: hand-finished ceramic/paper wells, clearly separate from labels. */
+input:not([type="checkbox"]):not([type="range"]):not([type="file"]), select, textarea {
+  background: linear-gradient(180deg, #fffdf8, #fbf4ea);
+  border-color: #cbb49a;
+  box-shadow: inset 0 1px 2px rgba(75,48,27,.075), 0 1px 0 rgba(255,255,255,.9);
+}
+input:not([type="checkbox"]):not([type="range"]):not([type="file"]):focus, select:focus, textarea:focus {
+  background: #fffdfa;
+  border-color: var(--zg-color-accent);
+  box-shadow: 0 0 0 3px var(--zg-color-accent-soft), inset 0 1px 2px rgba(75,48,27,.055);
+}
+input::placeholder, textarea::placeholder { color: #9d8874; opacity: 1; }
+/* A small machined-wood settings control, not a generic raised tile. */
+[data-zg="gear"] {
+  color: #62412b;
+  background: linear-gradient(150deg, #fffbf4, #e9d9c5);
+  border: 1px solid #cbb49a;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 3px 9px rgba(66,42,21,.13);
+  text-shadow: 0 1px 0 rgba(255,255,255,.7);
+}
+[data-zg="gear"][aria-current="page"] { border-color: #bc8d55; background: linear-gradient(145deg, #fbebd3, #ecd3ae); }
+/* Preserve amber actions, with matte hardware-like definition. */
+[data-zg="today-start"], [data-zg="reveal"], [data-zg="songs-add"], [data-zg="ear-play"],
+[data-zg="open-goal-new"], [data-zg="goal-save"], [data-zg="songs-paste-add"],
+[data-zg="ear-next"], [data-zg="practice"] {
+  background-image: linear-gradient(175deg, rgba(255,235,188,.18), rgba(110,63,19,.08));
+  box-shadow: inset 0 1px 0 rgba(255,236,196,.3), 0 5px 13px rgba(115,68,22,.19);
+}
+[data-zg="today-start"] { background-color: var(--zg-color-amber); }
+/* Record remains red, never amber. */
+[data-zg="rec-start"], [data-zg="tab-record"] svg { background-color: var(--zg-color-record); }
+[data-zg="rec-start"] { background-image: linear-gradient(165deg, rgba(255,209,191,.16), rgba(60,11,7,.15)); }
+/* Sheets retain their dimensions and animations, but read as paper stationery. */
+dialog, dialog header, [data-zg="more-sheet"] {
+  background-color: var(--zg-color-surface);
+  background-image: linear-gradient(160deg, #fffdf8, #f8efe3 78%, #f2e6d6);
+}
+dialog header { box-shadow: 0 1px 0 rgba(255,255,255,.8); }
+/* Mobile navigation remains opaque, soft and highly legible. */
+[data-zg="nav"] {
+  background: rgba(255,250,242,.96);
+  border-top-color: #d7c5ae;
+  box-shadow: 0 -5px 22px rgba(66,42,21,.10), inset 0 1px 0 rgba(255,255,255,.85);
+}
+@media(min-width:800px) {
+  [data-zg="nav"] { background: linear-gradient(165deg,#fffdf8,#f8efe4); }
+}
+
