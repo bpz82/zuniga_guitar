@@ -30,7 +30,7 @@ export { sessionFor, todayBlocks, dueToday, windowsFor, currentWindow, isQuiet, 
 export type { Mode, WindowSlot, Session, Segment, ReviewSegment, BlockSegment, Nudge } from './session.ts';
 export { goalFromForm, blocksFromForm, tasksFromText, archiveGoal, checkInGoal, FORM_LIMITS } from './goal-form.ts';
 export type { GoalForm } from './goal-form.ts';
-export { settingsFromOnboarding, changeSettings, toggleNotifications, toggleWindowNotify, toggleAlwaysRemindMorning } from './settings.ts';
+export { settingsFromOnboarding, changeSettings, toggleNotifications, toggleWindowNotify, toggleAlwaysRemindMorning, adoptDeviceTimeZone } from './settings.ts';
 export type { Onboarding } from './settings.ts';
 export { Replica, memoryStore } from './replica.ts';
 export type { EventStore, StoredState, StoreChange, Remote, SyncReport } from './replica.ts';
@@ -39,5 +39,29 @@ export type { SupabaseLike } from './remote.ts';
 export { createHost, runModule, ContractViolation, CONTRACT_VERSION, MAX_WRITES_PER_HOUR } from './contract.ts';
 export type { ModuleHost, ModuleManifest } from './contract.ts';
 export { TEST_DECK, seedTestDeck, deckEntries, prompt, chordSpelling, spell } from './modules/test-deck.ts';
-export { SONGS, MAX_TITLE, MAX_PASTE, cleanTitle, songs, songByCard, addSong, pasteSongs, renameSong, archiveSong, restoreSong, rateSong } from './modules/songs.ts';
-export type { Song, PasteReport } from './modules/songs.ts';
+export {
+  SONGS,
+  MAX_TITLE,
+  MAX_PASTE,
+  cleanTitle,
+  songs,
+  songByCard,
+  addSong,
+  pasteSongs,
+  renameSong,
+  archiveSong,
+  restoreSong,
+  rateSong,
+  unratedSongs,
+  rateBaseline,
+  TAB_TYPES,
+  MAX_TAB_BYTES,
+  tabTypeOf,
+  tabPath,
+  attachTab,
+  pendingTabs,
+  markTabUploaded,
+  uploadPendingTabs,
+  tabFile,
+} from './modules/songs.ts';
+export type { Song, SongTab, TabType, TabFiles, TabStorage, PasteReport } from './modules/songs.ts';

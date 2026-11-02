@@ -11,6 +11,12 @@
  *   apps while the metronome plays.
  * - The screen is kept awake while playing (Wake Lock), since iOS suspends
  *   web audio when the screen locks.
+ * - 2026-11-02: older iOS has no audio-session setting, so the ring/silent
+ *   switch would mute the clicks. There, a silent <audio> element plays
+ *   inside the tap, which moves iOS to its "playback" audio session.
+ * - 2026-11-02: an audio context iOS has "interrupted" (a call, Siri, another
+ *   app's audio) is resumed on the next Start; if it still will not run, Start
+ *   reports it instead of playing silently.
  */
 import { findOnset } from './core.ts';
 import type { MetronomeConfig, Tick, Voice } from './core.ts';
@@ -30,6 +36,7 @@ export class MetronomePlayer {
   #config: MetronomeConfig | null = null;
   #openHat: { gain: GainNode; src: AudioBufferSourceNode } | null = null;
   #wakeLock: { release(): Promise<void> } | null = null;
+  #htmlAudio: HTMLAudioElement | null = null;
   readonly #soundsUrl: string;
 
   constructor(soundsUrl = './sounds/') {
@@ -72,6 +79,7 @@ export class MetronomePlayer {
   async unlock(): Promise<void> {
     const nav = navigator as Navigator & { audioSession?: { type: string } };
     if (nav.audioSession) nav.audioSession.type = 'playback';
+    else this.#playbackSession();
     if (!this.#ctx) {
       this.#ctx = new AudioContext({ latencyHint: 'interactive' });
       this.#out = this.#ctx.createGain();
@@ -87,7 +95,19 @@ export class MetronomePlayer {
       silent.start();
     }
     if (this.#ctx.state !== 'running') await this.#ctx.resume();
+    if (this.#ctx.state !== 'running') throw new Error('the browser kept audio switched off; tap Start again');
     if (this.#samples.size < KIT_VOICES.length) await this.#load();
+  }
+
+  /** Without the audio-session API (older iOS): a looping silent <audio> started inside the tap. */
+  #playbackSession(): void {
+    if (typeof Audio === 'undefined') return;
+    if (!this.#htmlAudio) {
+      this.#htmlAudio = new Audio(SILENT_WAV);
+      this.#htmlAudio.loop = true;
+      this.#htmlAudio.setAttribute('playsinline', '');
+    }
+    void this.#htmlAudio.play().catch(() => undefined);
   }
 
   async #load(): Promise<void> {
@@ -136,6 +156,7 @@ export class MetronomePlayer {
   #halt(): void {
     if (this.#timer) clearInterval(this.#timer);
     this.#timer = null;
+    this.#htmlAudio?.pause();
     void this.#wakeLock?.release().catch(() => undefined);
     this.#wakeLock = null;
   }
@@ -194,3 +215,28 @@ export class MetronomePlayer {
     osc.onended = () => env.disconnect();
   }
 }
+
+/** A short silent WAV (8 kHz, 8-bit, 0.1 s), built once: the <audio> that switches older iOS to playback. */
+const SILENT_WAV = (() => {
+  const samples = 800;
+  const bytes = new Uint8Array(44 + samples);
+  const view = new DataView(bytes.buffer);
+  const text = (at: number, s: string) => [...s].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)));
+  text(0, 'RIFF');
+  view.setUint32(4, 36 + samples, true);
+  text(8, 'WAVE');
+  text(12, 'fmt ');
+  view.setUint32(16, 16, true); // fmt chunk size
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, 8000, true); // sample rate
+  view.setUint32(28, 8000, true); // byte rate
+  view.setUint16(32, 1, true); // block align
+  view.setUint16(34, 8, true); // bits per sample
+  text(36, 'data');
+  view.setUint32(40, samples, true);
+  bytes.fill(128, 44); // 8-bit silence is the midpoint
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return `data:audio/wav;base64,${btoa(bin)}`;
+})();

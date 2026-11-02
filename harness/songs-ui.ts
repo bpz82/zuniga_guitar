@@ -1,17 +1,32 @@
 /**
  * Bare Songs I Already Know controls for the test harness: add a title,
  * paste a list, rename, archive and restore. No design. Practice happens in
- * the "Now" card (main.ts): the song is served, played, then rated.
+ * today's lesson: the song is served, played, then rated.
+ *
+ * 2026-11-02 (Blake): rate every song without playing it (its baseline), and
+ * attach a tab to a song (PDF, picture or plain text), saved on this device
+ * and backed up when signed in; the tab opens from the song's row and from
+ * the song being practised.
  */
-import { addSong, archiveSong, pasteSongs, renameSong, restoreSong, runModule, songs } from '../src/index.ts';
-import type { ModuleHost, Song, Validation } from '../src/index.ts';
-import { hook } from './hooks.ts';
+import { addSong, archiveSong, attachTab, MAX_TAB_BYTES, pasteSongs, rateBaseline, renameSong, restoreSong, runModule, songs, tabFile, tabTypeOf, unratedSongs } from '../src/index.ts';
+import type { ModuleHost, Rating, Song, TabFiles, TabStorage, Validation } from '../src/index.ts';
+import { hook, RATINGS } from './hooks.ts';
 import type { Hook } from './hooks.ts';
+import type { Sheets } from './sheets.ts';
 
 const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
 const newKey = () => crypto.randomUUID();
+const RATING_LABEL: Readonly<Record<Rating, string>> = { again: 'Again', hard: 'Hard', good: 'Good', easy: 'Easy' };
 
-export function setupSongs(host: ModuleHost, say: (s: string) => void, afterChange: () => Promise<void>, onPasted: () => void = () => undefined) {
+export interface TabPlaces {
+  /** This device's tab files. */
+  files(): TabFiles;
+  /** Storage, when signed in. */
+  cloud(): { storage: TabStorage; userId: string } | null;
+  sheets: Sheets;
+}
+
+export function setupSongs(host: ModuleHost, say: (s: string) => void, afterChange: () => Promise<void>, onPasted: () => void, tabs: TabPlaces) {
   /** Runs a songs action inside the crash boundary and reports the outcome. */
   const act = async <T>(fn: () => Promise<Validation<T>>, done: (value: T) => string) => {
     const r = await runModule(host, fn);
@@ -21,10 +36,105 @@ export function setupSongs(host: ModuleHost, say: (s: string) => void, afterChan
     await afterChange();
   };
 
+  // ---- tabs ----
+  /** The song a picked file is for (one shared file picker). */
+  let attachingTo: string | null = null;
+  /** Object URL of the tab on show, freed when the viewer closes. */
+  let shownUrl: string | null = null;
+  const freeUrl = () => {
+    if (shownUrl) URL.revokeObjectURL(shownUrl);
+    shownUrl = null;
+  };
+  tabs.sheets.onClose('songtab', () => {
+    freeUrl();
+    $('songtab-view').replaceChildren();
+  });
+
+  const pick = (song: Song) => {
+    attachingTo = song.itemId;
+    const input = $('songtab-file');
+    input.value = '';
+    input.click();
+  };
+
+  const attach = async (file: File) => {
+    const itemId = attachingTo;
+    attachingTo = null;
+    if (!itemId) return;
+    const id = newKey();
+    // Checked before the file is stored, so a refused file leaves nothing behind.
+    const r = await runModule(host, async () => {
+      const probe = await attachCheck(file);
+      if (!probe.ok) return probe;
+      await tabs.files().put(id, { blob: file, type: file.type });
+      return attachTab(host, itemId, { id, name: file.name, type: file.type, bytes: file.size });
+    });
+    if (!r.ok) say(`Songs switched off: ${r.error}`);
+    else if (!r.value.ok) say(`Tab: ${r.value.error}`);
+    else say(`Tab added to "${r.value.value.title}"${tabs.cloud() ? '' : '; sign in to back it up'}`);
+    await afterChange();
+  };
+  /** The same checks attachTab makes, without writing: type and size. */
+  const attachCheck = async (file: File): Promise<Validation<true>> => {
+    const t = tabTypeOf(file.name, file.type);
+    if (!t.ok) return t;
+    if (file.size <= 0) return { ok: false, error: 'the file is empty' };
+    if (file.size > MAX_TAB_BYTES) return { ok: false, error: `a tab can be at most ${MAX_TAB_BYTES / 1024 / 1024} MB` };
+    return { ok: true, value: true };
+  };
+
+  /** Opens a song's tab in the viewer. */
+  const showTab = async (itemId: string) => {
+    const r = await runModule(host, () => tabFile(host, tabs.files(), itemId, tabs.cloud()));
+    if (!r.ok) return say(`Songs switched off: ${r.error}`);
+    if (!r.value.ok) return say(`Tab: ${r.value.error}`);
+    const { tab, blob } = r.value.value;
+    const song = songs(host).find((s) => s.itemId === itemId);
+    freeUrl();
+    shownUrl = URL.createObjectURL(blob.type ? blob : new Blob([blob], { type: tab.type }));
+    $('songtab-title').textContent = song ? `${song.title}: tab` : 'Tab';
+    let view: HTMLElement;
+    if (tab.type === 'text/plain') {
+      view = document.createElement('pre');
+      view.textContent = await blob.text();
+    } else if (tab.type === 'application/pdf') {
+      const frame = document.createElement('iframe');
+      frame.src = shownUrl;
+      frame.title = tab.name;
+      view = frame;
+    } else {
+      const img = document.createElement('img');
+      img.src = shownUrl;
+      img.alt = `Tab for ${song?.title ?? 'the song'}`;
+      view = img;
+    }
+    view.dataset.zg = 'songtab-content';
+    $('songtab-view').replaceChildren(view);
+    const open = $<HTMLAnchorElement>('songtab-open');
+    open.href = shownUrl;
+    open.download = tab.name;
+    tabs.sheets.open('songtab');
+  };
+
+  // ---- rows ----
   const row = (song: Song) => {
     const li = document.createElement('li');
     li.dataset.zg = 'song';
     li.append(song.title, ' ');
+    if (!song.archived) {
+      if (song.tab) {
+        const view = document.createElement('button');
+        view.dataset.zg = 'song-tab';
+        view.textContent = 'Tab';
+        view.onclick = () => void showTab(song.itemId);
+        li.append(view, ' ');
+      }
+      const add = document.createElement('button');
+      add.dataset.zg = 'song-tab-attach';
+      add.textContent = song.tab ? 'New tab' : 'Add tab';
+      add.onclick = () => pick(song);
+      li.append(add, ' ');
+    }
     const rename = document.createElement('button');
     rename.dataset.zg = 'song-rename';
     rename.textContent = 'Rename';
@@ -46,16 +156,41 @@ export function setupSongs(host: ModuleHost, say: (s: string) => void, afterChan
     return li;
   };
 
+  /** A song waiting for its baseline: the title and the four ratings. */
+  const baselineRow = (song: Song) => {
+    const li = document.createElement('li');
+    li.dataset.zg = 'baseline-song';
+    li.dataset.card = song.cardId;
+    const name = document.createElement('span');
+    name.textContent = song.title;
+    li.append(name);
+    for (const rating of RATINGS as readonly Rating[]) {
+      const b = document.createElement('button');
+      b.dataset.zg = 'baseline-rate';
+      b.dataset.rating = rating;
+      b.textContent = RATING_LABEL[rating];
+      b.onclick = () => void act(() => rateBaseline(host, song.cardId, rating), (s) => `"${s.title}" starts at ${RATING_LABEL[rating]}`);
+      li.append(b);
+    }
+    return li;
+  };
+
   return {
+    showTab,
     render() {
       if (!host.enabled) {
         $('songs-list').replaceChildren();
         $('songs-archived').replaceChildren();
+        $('songs-baseline').hidden = true;
         return;
       }
       const all = songs(host);
       $('songs-list').replaceChildren(...all.filter((s) => !s.archived).map(row));
       $('songs-archived').replaceChildren(...all.filter((s) => s.archived).map(row));
+      const waiting = unratedSongs(host);
+      $('songs-baseline').hidden = waiting.length === 0;
+      $('baseline-status').textContent = `${waiting.length} ${waiting.length === 1 ? 'song' : 'songs'} to rate.`;
+      $('baseline-list').replaceChildren(...waiting.map(baselineRow));
     },
     wire() {
       $('songs-add').onclick = () => {
@@ -68,6 +203,10 @@ export function setupSongs(host: ModuleHost, say: (s: string) => void, afterChan
           () => pasteSongs(host, box.value, newKey),
           (r) => ((box.value = ''), onPasted(), `Added ${r.added.length} songs${r.skipped.length ? `; skipped ${r.skipped.length} already listed` : ''}`),
         );
+      };
+      $('songtab-file').onchange = () => {
+        const file = $('songtab-file').files?.[0];
+        if (file) void attach(file);
       };
     },
   };

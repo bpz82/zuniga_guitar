@@ -1,6 +1,9 @@
 // End-to-end check of the built harness in headless Chromium (Playwright):
 // offline-first storage, the test deck through the module contract,
 // settings and notification toggles, and the offline app shell.
+// 2026-11-02: the single-page Today (goal, breakdown, lesson), the curriculum,
+// song tabs and baselines, the sign-in popup, the device time zone and the
+// metronome's quiet-hours note.
 // Run with `npm run test:browser` (needs Playwright and its Chromium).
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -23,7 +26,8 @@ const url = `http://localhost:${server.address().port}/`;
 
 // A fake microphone (a test tone), so the recorder really records.
 const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
-const context = await browser.newContext({ permissions: ['microphone'] });
+// UTC, so the neutral defaults (UTC) are this device's own zone and nothing is adjusted.
+const context = await browser.newContext({ permissions: ['microphone'], timezoneId: 'UTC' });
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
@@ -66,22 +70,32 @@ try {
   assert.match(await status(), /this device only/);
   const sheets = await page.evaluate(() => [...document.styleSheets].map((x) => [x.href.split('/').pop(), x.cssRules.length > 0]));
   assert.deepEqual(sheets, [['tokens.css', true], ['theme.css', true], ['base.css', true]], 'all three stylesheets load, in order');
-  // The app shell opens on Today: one screen, what is due now, Start session.
+  // The app opens on Today, the single page: the goal first, then today, then today's lesson.
   assert.equal(new URL(page.url()).hash, '#/today');
   assert.deepEqual(await visibleScreens(), ['screen-today']);
   assert.equal(await page.getAttribute('[data-zg="tab-today"]', 'aria-current'), 'page');
+  assert.equal(await page.textContent('[data-zg="goal-focus"]'), 'No goal yet');
+  assert.equal(await page.textContent('[data-zg="goal-focus-link"]'), 'Set your goal');
   assert.match(await page.textContent('[data-zg="today-now"]'), /^After-work burst \(sound\): \d+ due, \d+ new\.$/);
   assert.equal(await page.textContent('[data-zg="today-reminder"]'), 'Reminders are off (turn them on in Settings).');
-  for (const b of ['practice', 'cards']) {
+  assert.equal(await page.textContent('[data-zg="today-lesson"]'), 'Lesson 1 · What sound is · new today', 'the breakdown names the lesson');
+  for (const b of ['today', 'cards']) {
     assert.ok(await page.isHidden(`[data-zg="nav-badge-${b}"]`), `no ${b} badge with nothing due`);
     assert.equal(await page.getAttribute(`[data-zg="tab-${b}"]`, 'aria-label'), null);
   }
+  const tops = await page.evaluate(() => ['today', 'today-plan', 'lesson', 'now', 'plan', 'metronome'].map((h) => document.querySelector(`[data-zg="${h}"]`).getBoundingClientRect().top));
+  for (let i = 1; i < tops.length; i++) assert.ok(tops[i] > tops[i - 1], 'goal, today, lesson, cards, tasks, metronome: top to bottom');
+  assert.equal(await page.textContent('[data-zg="lesson-title"]'), 'Lesson 1 · What sound is (Sound itself)');
+  assert.ok(await page.evaluate(() => document.querySelector('[data-zg="lesson-reading"]').open), 'a new lesson opens with its reading');
+  assert.match(await page.textContent('[data-zg="lesson-text"]'), /^Sound is a vibration that travels\./);
   await page.click('[data-zg="today-start"]');
-  await until(() => location.hash === '#/practice' && !document.querySelector('[data-zg="screen-practice"]').hidden);
-  assert.deepEqual(await visibleScreens(), ['screen-practice']);
+  await until(() => document.activeElement?.dataset.zg === 'lesson');
+  assert.equal(new URL(page.url()).hash, '#/today', 'the lesson is on the same page');
+  await until(() => Math.abs(document.querySelector('[data-zg="lesson"]').getBoundingClientRect().top) < 40);
+  assert.deepEqual(await visibleScreens(), ['screen-today']);
   assert.match(await page.textContent('[data-zg=\"session\"]'), /after-work · sound/);
   assert.match(await page.textContent('[data-zg=\"question\"]'), /String \d .*which note\?|Spell /);
-  step('loads offline-first with no account and serves the test deck');
+  step('loads offline-first with no account: Today leads with the goal, then today, then today\'s lesson; Start moves down to it');
 
   const first = await page.getAttribute('[data-zg=\"card\"]', 'data-card');
   await page.click('[data-zg=\"reveal\"]');
@@ -98,23 +112,23 @@ try {
   assert.equal(await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first), 1);
   assert.equal(await page.evaluate(() => window.zg.replica.pendingCount), pending);
   assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.keys()].filter((k) => k.startsWith('td-')).length), 102, 'seeding again added nothing');
-  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 227, 'plus the metronome\'s Free practice exercise, the 4 level-1 ear skills and the 120 theory cards');
+  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 132, 'plus the metronome\'s Free practice exercise, the 4 level-1 ear skills, lesson 1 (8 cards) and the 17 Extras (off)');
   step('the review survives a reload (IndexedDB), still queued to sync');
 
   // App shell routing.
-  assert.equal(new URL(page.url()).hash, '#/practice', 'a reload stays on the same screen');
-  assert.deepEqual(await visibleScreens(), ['screen-practice']);
+  assert.equal(new URL(page.url()).hash, '#/today', 'a reload stays on the same screen');
+  assert.deepEqual(await visibleScreens(), ['screen-today']);
   await show('songs');
   assert.equal(new URL(page.url()).hash, '#/songs');
   assert.deepEqual(await visibleScreens(), ['screen-songs'], 'one screen at a time');
   assert.equal(await page.getAttribute('[data-zg="tab-songs"]', 'aria-current'), 'page');
-  assert.equal(await page.getAttribute('[data-zg="tab-practice"]', 'aria-current'), null);
+  assert.equal(await page.getAttribute('[data-zg="tab-today"]', 'aria-current'), null);
   await show('ear');
   await page.goBack();
   await until(() => location.hash === '#/songs' && !document.querySelector('[data-zg="screen-songs"]').hidden);
   await page.goBack();
-  await until(() => location.hash === '#/practice' && !document.querySelector('[data-zg="screen-practice"]').hidden);
-  // Practice is the long screen: scroll it, then a newly opened screen starts at the top.
+  await until(() => location.hash === '#/today' && !document.querySelector('[data-zg="screen-today"]').hidden);
+  // Today is the long screen: scroll it, then a newly opened screen starts at the top.
   await page.evaluate(() => window.scrollTo(0, 400));
   assert.ok(await page.evaluate(() => window.scrollY) > 0);
   await page.goForward();
@@ -134,22 +148,19 @@ try {
   step('shell: Settings behind the gear (setup tucked away); a bad link is ignored');
 
   await show('cards');
-  await page.goto(url); // reopen the app without a hash, same practice day
+  await page.goto(url); // reopen the app without a hash
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  assert.equal(new URL(page.url()).hash, '#/cards', 'the last tab is remembered');
-  assert.deepEqual(await visibleScreens(), ['screen-cards']);
-  await show('settings');
-  await page.goto(url);
+  assert.equal(new URL(page.url()).hash, '#/today', 'opening the app always shows the goal first');
+  assert.deepEqual(await visibleScreens(), ['screen-today']);
+  await page.goto(`${url}#/practice`); // an old link to the merged Practice screen
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  assert.equal(new URL(page.url()).hash, '#/cards', 'Settings is never the remembered tab');
-  await page.clock.setSystemTime(new Date('2026-11-03T05:00:00Z')); // the next practice day (neutral day start 4:00 UTC)
-  await page.goto(url);
+  assert.equal(new URL(page.url()).hash, '#/today');
+  await page.goto(`${url}#/cards`);
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  assert.equal(new URL(page.url()).hash, '#/today', 'a new practice day opens on Today');
-  await page.clock.setSystemTime(new Date('2026-11-02T18:00:30Z'));
-  await page.goto(`${url}#/practice`);
+  assert.deepEqual(await visibleScreens(), ['screen-cards'], 'a link opens its screen');
+  await page.goto(`${url}#/today`);
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  step('shell: the last tab is remembered for the practice day; a new day opens on Today; links open their screen');
+  step('shell: opening the app shows Today (the goal first); old Practice links land there; links open their screen');
 
   const layout = () => page.evaluate(() => {
     const nav = getComputedStyle(document.querySelector('[data-zg="nav"]'));
@@ -164,10 +175,10 @@ try {
   // Social-style tab bar on a phone (2026-11-01).
   await page.setViewportSize({ width: 390, height: 844 });
   const visible = async (hooks) => Promise.all(hooks.map((h) => page.isVisible(`[data-zg="${h}"]`)));
-  const BAR_HOOKS = ['tab-today', 'tab-practice', 'tab-record', 'tab-songs', 'nav-more'];
-  const SHEET_HOOKS = ['tab-ear', 'tab-goals', 'tab-cards', 'more-settings'];
+  const BAR_HOOKS = ['tab-today', 'tab-goals', 'tab-record', 'tab-songs', 'nav-more'];
+  const SHEET_HOOKS = ['tab-ear', 'tab-cards', 'more-settings'];
   assert.deepEqual(await visible(BAR_HOOKS), [true, true, true, true, true], 'five slots in the bar');
-  assert.deepEqual(await visible(SHEET_HOOKS), [false, false, false, false], 'the rest wait in the closed sheet');
+  assert.deepEqual(await visible(SHEET_HOOKS), [false, false, false], 'the rest wait in the closed sheet');
   const boxes = await Promise.all(BAR_HOOKS.map((h) => page.locator(`[data-zg="${h}"]`).boundingBox()));
   // Structure only: the theme's global button style still pads the More button (see THEME.md), so sizes are not compared.
   const midY = (b) => b.y + b.height / 2;
@@ -175,13 +186,13 @@ try {
   assert.ok(boxes.every((b) => b.x >= 0 && b.x + b.width <= 391), 'all five fit on a 390px screen');
   const icon = (h) => page.evaluate((h) => document.querySelector(`[data-zg="${h}"] svg`).getBoundingClientRect().width, h);
   assert.ok((await icon('tab-record')) > (await icon('tab-today')), 'Record is the larger button');
-  step('tabs: five slots on a phone: Today, Practice, Record (larger, centre), Songs, More');
+  step('tabs: five slots on a phone: Today, Goals, Record (larger, centre), Songs, More');
 
   const sheetOpen = () => page.evaluate(() => [document.querySelector('[data-zg="nav-more"]').getAttribute('aria-expanded'), document.querySelector('[data-zg="more-sheet"]').hasAttribute('data-open')]);
   const focused = () => page.evaluate(() => document.activeElement?.dataset.zg ?? null);
   await page.click('[data-zg="nav-more"]');
   assert.deepEqual(await sheetOpen(), ['true', true]);
-  assert.deepEqual(await visible(SHEET_HOOKS), [true, true, true, true], 'Ear training, Goals, Cards, Settings');
+  assert.deepEqual(await visible(SHEET_HOOKS), [true, true, true], 'Ear training, Cards, Settings');
   assert.equal(await focused(), 'tab-ear', 'focus moves into the sheet');
   await page.waitForTimeout(400); // let the opening rise finish (a CSS transition)
   const sheetBox = await page.locator('[data-zg="more-sheet"]').boundingBox();
@@ -205,17 +216,17 @@ try {
   await page.click('[data-zg="tab-songs"]');
   await arrive('songs');
   await page.click('[data-zg="nav-more"]');
-  await page.click('[data-zg="tab-goals"]');
-  await arrive('goals');
-  assert.deepEqual(await at(), ['#/goals', ['screen-goals']]);
+  await page.click('[data-zg="tab-cards"]');
+  await arrive('cards');
+  assert.deepEqual(await at(), ['#/cards', ['screen-cards']]);
   assert.deepEqual(await sheetOpen(), ['false', false], 'choosing a screen closes the sheet');
-  assert.equal(await page.getAttribute('[data-zg="tab-goals"]', 'aria-current'), 'page');
+  assert.equal(await page.getAttribute('[data-zg="tab-cards"]', 'aria-current'), 'page');
   assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), '', 'More shows that the screen lives in its sheet');
   await page.goBack();
   await arrive('songs');
   assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), null);
   await page.goForward();
-  await arrive('goals');
+  await arrive('cards');
   await page.click('[data-zg="nav-more"]');
   await page.click('[data-zg="more-settings"]');
   await arrive('settings');
@@ -223,17 +234,17 @@ try {
   await page.click('[data-zg="nav-more"]');
   await page.click('[data-zg="tab-ear"]');
   await arrive('ear');
-  await page.goto(url); // reopen with no hash, same practice day: the More-sheet screen is remembered
-  await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  assert.deepEqual(await at(), ['#/ear', ['screen-ear']]);
   assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), '');
+  await page.click('[data-zg="tab-goals"]');
+  await arrive('goals');
+  assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), null, 'Goals is in the bar');
   await page.click('[data-zg="tab-record"]');
   await arrive('record');
   assert.ok(await page.isVisible('[data-zg="rec-start"]'), 'the centre button opens the Recorder, Record button ready');
-  step('more: sheet screens route with back and forward, mark More as current, and are remembered; the centre button opens the Recorder');
+  step('more: sheet screens route with back and forward and mark More as current; Goals sits in the bar; the centre button opens the Recorder');
 
   await page.setViewportSize({ width: 1280, height: 720 });
-  assert.deepEqual(await visible([...BAR_HOOKS.slice(0, 4), ...SHEET_HOOKS]), Array(8).fill(true), 'the side nav shows every section');
+  assert.deepEqual(await visible([...BAR_HOOKS.slice(0, 4), ...SHEET_HOOKS]), Array(7).fill(true), 'the side nav shows every section');
   assert.equal(await page.isVisible('[data-zg="nav-more"]'), false, 'no More button on a laptop');
   const ys = await Promise.all([...BAR_HOOKS.slice(0, 4), ...SHEET_HOOKS].map((h) => page.locator(`[data-zg="${h}"]`).boundingBox().then((b) => b.y)));
   for (let i = 1; i < ys.length; i++) assert.ok(ys[i] > ys[i - 1], 'one column, top to bottom');
@@ -242,7 +253,7 @@ try {
   // Layout redesign (2026-11-01): touch targets and bottom sheets, on a phone.
   await page.setViewportSize({ width: 390, height: 844 });
   const small = [];
-  for (const screen of ['today', 'practice', 'record', 'songs', 'ear', 'goals', 'cards', 'settings']) {
+  for (const screen of ['today', 'record', 'songs', 'ear', 'goals', 'cards', 'settings']) {
     await page.evaluate((x) => (location.hash = `#/${x}`), screen);
     await arrive(screen);
     small.push(...(await page.evaluate((x) => {
@@ -276,8 +287,8 @@ try {
   await openSheet('goal-new');
   await page.evaluate(() => history.back()); // leaving the screen closes its sheet
   await until(() => !document.querySelector('[data-zg="sheet-goal-new"]').open);
-  await page.evaluate(() => (location.hash = '#/practice'));
-  await arrive('practice');
+  await page.evaluate(() => (location.hash = '#/today'));
+  await arrive('today');
   await openSheet('mx-settings');
   await page.waitForTimeout(400); // let the slide-up finish (a CSS transition)
   const sheetBox2 = await page.locator('[data-zg="sheet-mx-settings"]').boundingBox();
@@ -285,7 +296,7 @@ try {
   await closeSheet('mx-settings');
   step('sheets: modal bottom sheets close on Escape, a backdrop tap, the close button, or leaving the screen');
   await page.setViewportSize({ width: 1280, height: 720 });
-  await show('practice');
+  await show('today');
 
   await show('settings');
   assert.equal(await page.isChecked('[data-zg=\"notify-all\"]'), false);
@@ -307,13 +318,24 @@ try {
   step('settings can be edited any time; invalid ones are refused');
 
   // Metronome. Quiet hours were just set to 17:00-19:00 and it is 18:00 UTC.
-  await show('practice');
+  await show('today');
   assert.equal(await page.inputValue('[data-zg=\"mx-bpm\"]'), '80');
   assert.match(await page.textContent('[data-zg=\"mx-exercise\"]'), /Free practice/);
   await page.click('[data-zg=\"mx-start\"]');
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Quiet hours'));
   assert.equal(await page.evaluate(() => window.zg.metronome.player.playing), false);
-  step('metronome refuses to play during quiet hours by default');
+  assert.equal(await page.textContent('[data-zg="mx-note"]'), 'Quiet hours (17:00 to 19:00): the metronome stays silent. Play anyway, or change quiet hours in Settings.', 'the reason shows right under Start');
+  assert.ok(await page.isVisible('[data-zg="mx-anyway"]'));
+  await page.click('[data-zg="mx-anyway"]');
+  await page.waitForFunction(() => window.zg.metronome.player.playing && window.zg.metronome.player.ready, null, { timeout: 15000 });
+  assert.equal(await page.textContent('[data-zg="mx-note"]'), '');
+  assert.ok(await page.isHidden('[data-zg="mx-anyway"]'));
+  await page.click('[data-zg=\"mx-start\"]'); // stop at once: too short to log
+  await until(() => !window.zg.metronome.player.playing);
+  await page.click('[data-zg=\"mx-start\"]');
+  await until(() => document.querySelector('[data-zg="mx-note"]').textContent.startsWith('Quiet hours'));
+  assert.equal(await page.evaluate(() => window.zg.metronome.player.playing), false, 'Play anyway is for that once only');
+  step('metronome: silent in quiet hours by default, says why under Start, and Play anyway plays it this once');
 
   await openSheet('mx-settings');
   await page.check('[data-zg=\"mx-allowDuringQuietHours\"]');
@@ -397,7 +419,7 @@ try {
   await page.clock.runFor(30_000); // the page's own 30-second refresh picks up the new time
   assert.match(await page.textContent('[data-zg="ear-level"]'), /^Level 1: .* today 0 of 18 min/);
   assert.equal(await page.textContent('[data-zg="question"]'), 'Ear training: Up', 'the Now card serves a new ear skill');
-  await show('practice');
+  await show('today');
   await page.click('[data-zg="practice"]');
   await until(() => location.hash === '#/ear' && !document.querySelector('[data-zg="screen-ear"]').hidden);
   const answerRight = async () => {
@@ -449,13 +471,54 @@ try {
   assert.equal(await page.locator('[data-zg="songs-list"] [data-zg="song"]').count(), 3);
   step('songs: add a title, duplicates refused, paste a list (blank lines and repeats skipped)');
 
-  await show('practice');
+  // Baseline (2026-11-02): every new song waits on the Songs screen for a rating without playing.
+  assert.ok(await page.isVisible('[data-zg="songs-baseline"]'));
+  assert.equal(await page.textContent('[data-zg="baseline-status"]'), '3 songs to rate.');
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('[data-zg="baseline-song"]')].map((li) => li.firstChild.textContent.trim())), ['Blackbird', 'Little Wing', 'Wonderwall']);
+
+  // Tabs (2026-11-02): a text tab and a picture, kept on this device; a web page is refused.
+  const attachTabFile = async (title, file) => {
+    const chooser = page.waitForEvent('filechooser');
+    await page.click(`[data-zg="songs-list"] [data-zg="song"] >> text=${title} >> [data-zg="song-tab-attach"]`);
+    await (await chooser).setFiles(file);
+  };
+  await attachTabFile('Blackbird', { name: 'evil.html', mimeType: 'text/html', buffer: Buffer.from('<script>alert(1)</script>') });
+  await until(() => document.querySelector('[data-zg="status"]').textContent.includes('Tab: a tab must be a PDF, a picture'));
+  await attachTabFile('Blackbird', { name: 'blackbird.tab', mimeType: '', buffer: Buffer.from('e|---0---3---|\nB|-----0-----|') });
+  await until(() => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song-tab"]').length === 1);
+  assert.match(await status(), /Tab added to "Blackbird"; sign in to back it up/);
+  const tabField = await page.evaluate(() => [...window.zg.replica.library.items.values()].find((i) => i.fields.title === 'Blackbird').fields);
+  assert.deepEqual([tabField.tabName, tabField.tabType, tabField.tabBytes, tabField.tabUploaded], ['blackbird.tab', 'text/plain', 29, false]);
+  await page.click('[data-zg="songs-list"] [data-zg="song"] >> text=Blackbird >> [data-zg="song-tab"]');
+  await until(() => document.querySelector('[data-zg="sheet-songtab"]').open);
+  assert.equal(await page.textContent('[data-zg="songtab-title"]'), 'Blackbird: tab');
+  assert.equal(await page.textContent('pre[data-zg="songtab-content"]'), 'e|---0---3---|\nB|-----0-----|');
+  assert.match(await page.getAttribute('[data-zg="songtab-open"]', 'href'), /^blob:/);
+  await page.click('[data-zg="close-songtab"]');
+  await until(() => !document.querySelector('[data-zg="sheet-songtab"]').open && document.querySelector('[data-zg="songtab-view"]').children.length === 0);
+  // A 1x1 PNG.
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await attachTabFile('Wonderwall', { name: 'wonderwall.png', mimeType: 'image/png', buffer: png });
+  await until(() => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song-tab"]').length === 2);
+  await page.click('[data-zg="songs-list"] [data-zg="song"] >> text=Wonderwall >> [data-zg="song-tab"]');
+  await until(() => document.querySelector('img[data-zg="songtab-content"]')?.complete && document.querySelector('img[data-zg="songtab-content"]').naturalWidth === 1);
+  await page.keyboard.press('Escape');
+  await until(() => !document.querySelector('[data-zg="sheet-songtab"]').open);
+  step('songs: attach a tab (text or picture; a web page is refused), saved on this device, shown in the tab viewer');
+
+  await show('today');
   assert.match(await page.textContent('[data-zg="session"]'), /morning · guitar/);
   assert.equal(await page.textContent('[data-zg="question"]'), 'Play: Blackbird');
   assert.ok(await page.isHidden('[data-zg="reveal"]'), 'nothing to reveal for a song');
   assert.ok(await page.isVisible('[data-zg="r-easy"]'));
+  assert.ok(await page.isVisible('[data-zg="card-tab"]'), 'the song being played has its tab a tap away');
+  await page.click('[data-zg="card-tab"]');
+  await until(() => document.querySelector('[data-zg="sheet-songtab"]').open && document.querySelector('pre[data-zg="songtab-content"]'));
+  await page.click('[data-zg="close-songtab"]');
+  await until(() => !document.querySelector('[data-zg="sheet-songtab"]').open);
   await page.click('[data-zg="r-easy"]');
   await page.waitForFunction(() => document.querySelector('[data-zg="question"]').textContent === 'Play: Little Wing');
+  assert.ok(await page.isHidden('[data-zg="card-tab"]'), 'no tab, no button');
   const rated = await page.evaluate(() => {
     const card = [...window.zg.replica.library.cards.values()].find((c) => window.zg.replica.library.items.get(c.itemId)?.fields.title === 'Blackbird');
     return window.zg.replica.library.reviews.get(card.id).map((r) => r.rating);
@@ -474,7 +537,20 @@ try {
   page.once('dialog', (d) => d.accept('Little Wing (live)'));
   await page.click('[data-zg="songs-list"] [data-zg="song"] >> nth=1 >> [data-zg="song-rename"]');
   await page.waitForFunction(() => document.querySelector('[data-zg="songs-list"]').textContent.includes('Little Wing (live)'));
+  assert.ok(await page.evaluate(() => [...window.zg.replica.library.items.values()].find((i) => i.fields.title === 'Wonderwall').fields.tab), 'tabs survive the list changes');
   step('songs: archive (not served, history kept), restore, rename');
+
+  // Baseline: Blackbird was played and rated, so it no longer waits; rate one of the others without playing it.
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('[data-zg="baseline-song"]')].map((li) => li.firstChild.textContent.trim())), ['Little Wing (live)', 'Wonderwall']);
+  await page.click('[data-zg="baseline-song"]:has-text("Little Wing (live)") [data-zg="baseline-rate"][data-rating="good"]');
+  await until(() => document.querySelector('[data-zg="baseline-status"]').textContent === '1 song to rate.');
+  const base = await page.evaluate(() => {
+    const lib = window.zg.replica.library;
+    const card = [...lib.cards.values()].find((c) => lib.items.get(c.itemId)?.fields.title === 'Little Wing (live)');
+    return lib.reviews.get(card.id).map((r) => [r.rating, r.durationMs, r.details.baseline]);
+  });
+  assert.deepEqual(base, [['good', 0, true]]);
+  step('songs: baseline ratings without playing set each song\'s starting point in the scheduler');
 
   await show('ear');
   await ear(() => window.zg.ear.ui.select('ear-direction-same-c'));
@@ -570,7 +646,11 @@ try {
   step('goals: a deadline goal from the intake form; its timed task and today\'s songwriting prompt show in the session');
 
   assert.match(await page.textContent('[data-zg="today-blocks"]'), /10 min in Chord Chemistry · 10 min.*Songwriting prompt · 1 min/, 'Today lists the goal blocks');
-  await show('practice');
+  assert.equal(await page.textContent('[data-zg="goal-focus"]'), 'Write a new record', 'the goal leads Today');
+  assert.match(await page.textContent('[data-zg="goal-focus-when"]'), /^Due Mon 1 Mar · \d+ days to go$/);
+  assert.equal(await page.textContent('[data-zg="goal-focus-why"]'), 'Ten new songs by spring');
+  assert.equal(await page.textContent('[data-zg="goal-focus-link"]'), 'All goals');
+  await show('today');
   await page.click('[data-zg="blocks"] [data-zg="block-record"]');
   await until(() => location.hash === '#/record', null);
   await until(() => !document.querySelector('[data-zg="rec-stop"]').hidden);
@@ -605,12 +685,17 @@ try {
   // 7 days before the gig, half way through a 14-day ramp from 5 to 10: 8 takes today.
   assert.match(await page.textContent('[data-zg="blocks"]'), /Improv takes · \d+ min · Improv takes \(8 × 1 min, recorded\)/);
   assert.match(await page.textContent('[data-zg="goals-list"]'), /Friday gig .*Post-gig rundown memo/);
+  assert.equal(await page.textContent('[data-zg="goal-focus"]'), 'Friday gig', 'the nearest deadline leads');
+  assert.match(await page.textContent('[data-zg="goal-focus-when"]'), /^Gig Tue 10 Nov · 7 days to go · and 1 more goal$/);
+  const rowsToday = await page.evaluate(() => [...document.querySelectorAll('[data-zg="today-block"]')].map((li) => li.textContent));
+  assert.ok(rowsToday[0].startsWith('Improv takes'), "the gig's own blocks come first");
+  assert.ok(rowsToday.some((r) => /Songwriting prompt .*· for Write a new record$/.test(r)), "the other goal's blocks say whose they are");
   // Gig night: from 6pm on the gig's day the rundown memo shows, with Record (neutral defaults: UTC, day starts 4am).
   await page.clock.setSystemTime(new Date('2026-11-10T20:00:00Z'));
   await page.clock.runFor(30_000);
   await until(() => document.querySelector('[data-zg="blocks"]').textContent.includes('Post-gig rundown memo'));
   assert.match(await page.textContent('[data-zg="today-blocks"]'), /Post-gig rundown memo/, 'Today shows the memo on gig night');
-  await show('practice');
+  await show('today');
   await page.click('[data-zg="blocks"] [data-zg="block"] >> text=Post-gig rundown memo >> [data-zg="block-record"]');
   await until(() => !document.querySelector('[data-zg="rec-stop"]').hidden);
   await page.clock.runFor(2_000);
@@ -626,7 +711,7 @@ try {
   step('goals: a gig goal ramps improv takes toward the date; its rundown memo shows on gig night and records; bad input refused; archive keeps the goal');
 
   // Theory and physics cards in the silent work-hours burst (neutral defaults: 12:30 UTC window, quiet hours 17-19 set above).
-  await show('practice');
+  await show('today');
   await page.clock.setSystemTime(new Date('2026-11-03T13:00:00Z'));
   await page.clock.runFor(30_000); // the page's own refresh picks up the new time
   assert.match(await page.textContent('[data-zg="session"]'), /during-work · silent/);
@@ -634,7 +719,8 @@ try {
   for (let i = 0; i < 12 && seen.size < 2; i++) {
     const cardId = await page.evaluate(() => document.querySelector('[data-zg="card"]').dataset.card);
     const content = await page.evaluate((id) => window.zg.theory.content(id) ?? null, cardId);
-    if (content) assert.match(await page.textContent('[data-zg="card-source"]'), /^Source: (Benade|Winer|.*not from Benade or Winer)/);
+    if (content) assert.ok(!/Benade|Winer|Source:|ch\. \d/.test(await page.textContent('[data-zg="card"]')), 'no sources on the card (Blake, 2026-11-02)');
+    if (content) assert.equal(content.lesson, 1, 'only lesson 1 is unlocked');
     const before = await page.evaluate((id) => (window.zg.replica.library.reviews.get(id) ?? []).length, cardId);
     if (content?.type === 'mc' && !seen.has('mc')) {
       assert.equal(await page.locator('[data-zg="mc-choice"]').count(), 4);
@@ -644,7 +730,7 @@ try {
       await until((id) => (window.zg.replica.library.reviews.get(id) ?? []).length === 1, cardId);
       assert.match(await page.textContent('[data-zg="card-feedback"]'), /^✗ The answer: /);
       const r = await page.evaluate((id) => window.zg.replica.library.reviews.get(id)[0], cardId);
-      assert.deepEqual([r.rating, r.details.correct, r.details.topic], ['again', false, content.topic]);
+      assert.deepEqual([r.rating, r.details.correct, r.details.lesson], ['again', false, 1]);
       seen.add('mc');
       continue;
     }
@@ -655,7 +741,7 @@ try {
       await page.click('[data-zg="r-good"]');
       await until((args) => (window.zg.replica.library.reviews.get(args.id) ?? []).length === args.n + 1, { id: cardId, n: before });
       const r = await page.evaluate((id) => window.zg.replica.library.reviews.get(id).at(-1), cardId);
-      assert.deepEqual([r.rating, r.details.topic], ['good', content.topic]);
+      assert.deepEqual([r.rating, r.details.lesson], ['good', 1]);
       seen.add('qa');
       continue;
     }
@@ -668,7 +754,7 @@ try {
   // look a day later, in the work-hours burst.
   await page.clock.setSystemTime(new Date('2026-11-11T13:05:00Z'));
   await page.clock.runFor(30_000);
-  for (const [b, label] of [['practice', 'Practice'], ['cards', 'Cards']]) {
+  for (const [b, label] of [['today', 'Today'], ['cards', 'Cards']]) {
     await until((b) => !document.querySelector(`[data-zg="nav-badge-${b}"]`).hidden, b);
     const n = await page.textContent(`[data-zg="nav-badge-${b}"]`);
     assert.match(n, /^\d+$/, `${b} badge shows a count`);
@@ -680,16 +766,46 @@ try {
     return [...lib.cards.values()].filter((c) => lib.items.get(c.itemId)?.module === 'theory' && (lib.reviews.get(c.id) ?? []).some((r) => r.rating === 'again')).length;
   });
   assert.ok(Number(await page.textContent('[data-zg="nav-badge-cards"]')) >= cardsDue, 'Cards counts the theory cards due');
-  step('badges: Practice and Cards show their due counts once something is due');
-  step('theory: silent work-hours burst serves Q/A and multiple-choice cards with their sources, through the contract');
+  step('badges: Today and Cards show their due counts once something is due');
+  step('theory: the silent work-hours burst serves lesson 1\'s Q/A and multiple-choice cards, no sources shown, through the contract');
 
+  // The course on the Cards screen: chapters, lesson 1 learning, the rest locked; the Extras switch.
   await show('cards');
-  await page.click('[data-zg="theory-topic"] >> text=Tape and noise reduction >> input');
-  await until(() => document.querySelector('[data-zg="theory-topics"]').textContent.includes('Tape and noise reduction (0 of 12 cards on)'));
-  assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.values()].filter((c) => c.id.startsWith('th-tape-') && c.retired).length), 12);
-  await page.click('[data-zg="theory-topic"] >> text=Tape and noise reduction >> input');
-  await until(() => document.querySelector('[data-zg="theory-topics"]').textContent.includes('Tape and noise reduction (12 of 12 cards on)'));
-  step('theory: cards by topic, switched off and back on');
+  assert.equal(await page.locator('[data-zg="theory-chapter"]').count(), 5);
+  const lessonRows = () => page.evaluate(() => [...document.querySelectorAll('[data-zg="theory-lesson"]')].map((li) => li.dataset.status));
+  assert.deepEqual((await lessonRows()).slice(0, 3), ['current', 'locked', 'locked']);
+  assert.equal((await lessonRows()).length, 24);
+  assert.equal(await page.isChecked('[data-zg="theory-extras"]'), false, 'Extras start off');
+  await page.click('label:has([data-zg="theory-extras"])');
+  await until(() => document.querySelector('[data-zg="theory-extras-label"]').textContent.includes('(17 of 17 on)'));
+  await page.click('label:has([data-zg="theory-extras"])');
+  await until(() => document.querySelector('[data-zg="theory-extras-label"]').textContent.includes('(0 of 17 on)'));
+  assert.ok(!/Benade|Winer/.test(await page.evaluate(() => document.body.innerText)), 'no sources anywhere on the page');
+  // Graduation: every lesson 1 card right, then right again two days later (answered here through the module's host).
+  const passLesson1 = () => page.evaluate(async () => {
+    const host = window.zg.theory.host;
+    for (const c of host.cards().filter((x) => x.id.startsWith('th-l01-'))) await host.reportRep(c.id, 'good', 2000);
+  });
+  await page.clock.setSystemTime(new Date('2026-11-12T13:05:00Z'));
+  await passLesson1();
+  await page.clock.setSystemTime(new Date('2026-11-12T13:20:00Z'));
+  await passLesson1();
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+  assert.equal((await lessonRows())[1], 'locked', 'right today is not enough');
+  // Later days, right each time. The card missed earlier lapsed, so it needs a couple more on-time reviews than the rest.
+  for (const day of ['2026-11-14', '2026-11-18', '2026-11-26']) {
+    if ((await lessonRows())[0] === 'graduated') break;
+    await page.clock.setSystemTime(new Date(`${day}T13:05:00Z`));
+    await passLesson1();
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+  }
+  assert.deepEqual((await lessonRows()).slice(0, 3), ['graduated', 'current', 'locked'], 'right again on later days unlocks lesson 2');
+  await show('today');
+  assert.equal(await page.textContent('[data-zg="lesson-title"]'), 'Lesson 2 · Frequency, period and pitch (Sound itself)');
+  assert.equal(await page.textContent('[data-zg="today-lesson"]'), 'Lesson 2 · Frequency, period and pitch · new today');
+  step('theory: the course by lesson; lesson 2 unlocks only when lesson 1 graduates (right again on a later day); Extras switch');
   await page.clock.setSystemTime(new Date('2026-11-03T07:40:00Z'));
 
   await show('settings');
@@ -712,11 +828,97 @@ try {
   await context.setOffline(false);
   step('works offline after the first visit (service worker shell + local data)');
 
+  await show('settings');
+  await page.click('[data-zg="open-signin"]');
+  await until(() => document.querySelector('[data-zg="sheet-signin"]').open);
   await page.fill('[data-zg=\"email\"]', 'blake@example.com');
   await page.fill('[data-zg=\"code\"]', 'abc');
   await page.click('[data-zg=\"verify\"]');
   assert.match(await status(), /Enter the code/);
-  step('sign-in by typed email code checks the code first');
+  assert.equal(await page.textContent('[data-zg="signin-note"]'), 'Enter the code from the email.', 'and says so inside the popup');
+  await page.click('[data-zg="signin-later"]');
+  await until(() => !document.querySelector('[data-zg="sheet-signin"]').open);
+  step('sign-in (in its popup) by typed email code checks the code first');
+
+  // Sign-in popup at launch (2026-11-02). A connection is set up (a fake Supabase client stands in for
+  // supabase-js): signed out, the popup opens straight away; "Not now" keeps this device only.
+  const FAKE_SUPABASE = `
+    const db = (globalThis.__fakeDb ??= { events: [], seq: 0, files: new Map() });
+    const ok = (data) => Promise.resolve({ data, error: null });
+    export function createClient() {
+      return {
+        auth: {
+          getSession: async () => ({ data: { session: localStorage.getItem('fake-session') ? { user: { id: 'aaaaaaaa-0000-0000-0000-000000000001', email: 'blake@example.com' } } : null } }),
+          signInWithOtp: async () => ({ error: null }),
+          verifyOtp: async () => ({ error: { message: 'Token has expired or is invalid' } }),
+          signOut: async () => localStorage.removeItem('fake-session'),
+        },
+        from() {
+          return {
+            upsert(rows) { for (const r of rows) if (!db.events.some((e) => e.id === r.id)) db.events.push({ seq: ++db.seq, id: r.id, event: r.event }); return ok(null); },
+            select() { const q = { after: 0, gt(c, v) { q.after = v; return q; }, order() { return q; }, limit(n) { return ok(db.events.filter((e) => e.seq > q.after).slice(0, n).map((e) => ({ seq: e.seq, event: e.event }))); } }; return q; },
+          };
+        },
+        rpc: () => ok(null),
+        storage: { from: (bucket) => ({
+          upload: async (path, body) => { const k = bucket + '/' + path; if (db.files.has(k)) return { data: null, error: { message: 'already exists', statusCode: '409' } }; db.files.set(k, body); globalThis.__uploads = [...db.files.keys()]; return { data: { path }, error: null }; },
+          download: async (path) => (db.files.has(bucket + '/' + path) ? { data: db.files.get(bucket + '/' + path), error: null } : { data: null, error: { message: 'not found' } }),
+        }) },
+      };
+    }`;
+  const connected = await browser.newContext({ timezoneId: 'UTC' });
+  await connected.route('https://esm.sh/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_SUPABASE }));
+  await connected.addInitScript(() => localStorage.setItem('zg-config', JSON.stringify({ supabaseUrl: 'https://example.supabase.co', publishableKey: 'sb_publishable_test' })));
+  const signin = await connected.newPage();
+  signin.on('pageerror', (e) => errors.push(e.message));
+  await signin.goto(url);
+  await signin.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+  assert.equal(await signin.evaluate(() => document.querySelector('[data-zg="sheet-signin"]').open), true, 'signed out: the sign-in popup is up at launch');
+  assert.equal(await signin.evaluate(() => document.querySelector('[data-zg="sheet-signin"]').matches(':modal')), true);
+  assert.equal(await signin.evaluate(() => document.querySelector('[data-zg="account"]').textContent), 'Not signed in');
+  await signin.fill('[data-zg="email"]', 'blake@example.com');
+  await signin.click('[data-zg="sign-in"]');
+  await signin.waitForFunction(() => document.querySelector('[data-zg="signin-note"]').textContent.startsWith('Check your email'));
+  await signin.click('[data-zg="signin-later"]');
+  await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-signin"]').open);
+  assert.equal(await signin.evaluate(() => location.hash), '#/today', 'and the app carries on, goal first');
+  step('sign-in: signed out with a connection set up, the popup opens at launch; Not now keeps this device only');
+
+  // Signed in: no popup; a tab added here is backed up to the user's own folder on sync.
+  await signin.evaluate(() => localStorage.setItem('fake-session', '1'));
+  await signin.reload();
+  await signin.waitForFunction(() => /Synced|Offline/.test(document.querySelector('[data-zg="status"]').textContent));
+  assert.equal(await signin.evaluate(() => document.querySelector('[data-zg="sheet-signin"]').open), false, 'signed in: no popup');
+  await signin.evaluate(() => (location.hash = '#/songs'));
+  await signin.fill('[data-zg="songs-new"]', 'Blackbird');
+  await signin.click('[data-zg="songs-add"]');
+  await signin.waitForFunction(() => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === 1);
+  const chooser = signin.waitForEvent('filechooser');
+  await signin.click('[data-zg="song-tab-attach"]');
+  await (await chooser).setFiles({ name: 'blackbird.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n') });
+  await signin.waitForFunction(() => (globalThis.__uploads ?? []).some((k) => /^tabs\/aaaaaaaa-0000-0000-0000-000000000001\/tab-[A-Za-z0-9-]+\.pdf$/.test(k)));
+  await signin.waitForFunction(() => [...window.zg.replica.library.items.values()].some((i) => i.fields.title === 'Blackbird' && i.fields.tabUploaded === true));
+  await connected.close();
+  step('tabs: signed in, a tab is uploaded on sync to tabs/<user id>/tab-<id>.pdf and marked backed up');
+
+  // The metronome's root cause (2026-11-02): settings never set left the zone at UTC, so the default 9-to-5 quiet
+  // hours fell at 4am to noon in New York and silenced the metronome all morning. Now the device's zone is used.
+  const nyContext = await browser.newContext({ timezoneId: 'America/New_York' });
+  const nyPage = await nyContext.newPage();
+  nyPage.on('pageerror', (e) => errors.push(e.message));
+  await nyPage.clock.install({ time: new Date('2026-11-03T12:30:00Z') }); // 7:30 in the morning in New York
+  await nyPage.goto(url);
+  await nyPage.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes("Using this device's time zone (America/New_York)"));
+  assert.equal(await nyPage.evaluate(() => window.zg.replica.library.settings.dayStart.timeZone), 'America/New_York');
+  await nyPage.click('[data-zg="mx-start"]');
+  await nyPage.waitForFunction(() => window.zg.metronome.player.playing && window.zg.metronome.player.ready, null, { timeout: 15000 });
+  assert.equal(await nyPage.textContent('[data-zg="mx-note"]'), '', 'no quiet-hours refusal at 7:30am');
+  await nyPage.click('[data-zg="mx-start"]');
+  await nyPage.reload();
+  await nyPage.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+  assert.equal(await nyPage.evaluate(() => window.zg.replica.log.filter((e) => e.type === 'settings-set').length), 1, 'set once, never again');
+  await nyContext.close();
+  step("metronome: the device's own time zone is used when settings were never set, so it plays in the New York morning");
 
   const keys = await context.newPage();
   const requests = [];

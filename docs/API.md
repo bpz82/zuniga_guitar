@@ -173,6 +173,7 @@ Engine defaults are generic (UTC, 7:00 / 8:30 / 12:30 / 17:30, quiet 9:00 to 17:
 | `toggleNotifications(lib, on)` | Master switch. |
 | `toggleWindowNotify(lib, windowId, on)` | One window's notification. The window itself stays. |
 | `toggleAlwaysRemindMorning(lib, on)` | Morning reminder even when nothing is due (default on). Has no effect until notifications are on; the morning window's own toggle still wins. |
+| `adoptDeviceTimeZone(lib, zone)` | (2026-11-02) For settings never set: an event that sets the device's time zone instead of the UTC default, or null (settings already set, zone unchanged or invalid). The app records it once at launch, after the first sync when signed in. |
 
 ## Storage and sync
 
@@ -242,22 +243,42 @@ await runModule(host, () => rateSong(host, cardId, 'good', msTaken));
 
 Song cards have **no learning or relearning steps** (Blake, 2026-10-31): every rating schedules in whole days, so a song is never repeated in the same session. From a first rating: Again tomorrow, Hard about 2 days, Good about 3, Easy about 8 (fuzz applies). A forgotten song comes back the next morning and still counts as a lapse.
 
-## Theory and physics flashcards
+**Baseline ratings (Blake, 2026-11-02).** Every active song never rated waits on the Songs screen for a rating given without playing it. That rating is the song's first review (`details: { baseline: true }`, duration 0), so it sets the song's starting memory state: Easy starts about a week out, Again comes back the next morning.
 
-120 starter cards (`src/modules/theory/deck.ts`), module `theory` via contract v1, all tagged `pocket-silent`: off the instrument, silent, served in every pocket burst including work hours, never in the morning guitar session.
+| Function | What it does |
+|---|---|
+| `unratedSongs(host)` | Active songs with no review yet. |
+| `rateBaseline(host, cardId, rating)` | The starting rating. Refused for a song already rated (it is in practice now) or archived. |
 
-- **Card types:** `qa` (show the answer, rate Again/Hard/Good/Easy) and `mc` (four options, shuffled per showing; right logs Good, wrong logs Again and shows the answer with a short explanation).
-- **Sources:** every card cites Benade, *Fundamentals of Musical Acoustics* (Dover), or Winer, *The Audio Expert*, 2nd ed. (Routledge 2018), by chapter number and title (`CHAPTERS`, checked against publisher and retailer contents listings), or says plainly that the fact comes from neither (CAGED, modes, cassette types, NIOSH limits). Cards are original wording about facts: no quotations, no figures. A test refuses quotation marks.
-- **Topics:** harmonics, strings, temperament, resonance, loudness, ranges, signal, processing, tape, theory. `setTopic(host, topic, on)` retires or restores a topic's cards (history kept; launching again never switches a topic back on).
-- **Content stays in code;** the log holds only each card's id and topic, so corrections reach every device with the app.
+**Tabs (Blake, 2026-11-02).** One tab file per song: a PDF, a picture (PNG, JPEG, WebP, GIF) or plain text (also `.tab`, `.crd`, `.chopro` files), up to 20 MB. The file is kept on the device (IndexedDB `zg-tabs-<user>`) and, when signed in, backed up on sync to the private Storage bucket `tabs` at `<user id>/tab-<id>.<ext>`: the user's own folder only, add and read, never overwrite or delete (`supabase/migrations/20261102120000_tabs_storage.sql`). The log keeps only the tab's id, name, type, size and whether it is backed up, in the song's item fields; renaming a song keeps them. A new tab replaces the song's tab; the old file is kept. The tab opens from the song's row and from the song being practised.
+
+| Function | What it does |
+|---|---|
+| `tabTypeOf(name, type)` | The tab type of a picked file, by its type or, when the browser gives none, its name. Anything else is refused. |
+| `attachTab(host, itemId, { id, name, type, bytes })` | Attaches (or replaces) a song's tab once its file is saved on the device. |
+| `pendingTabs(host)`, `uploadPendingTabs(host, files, storage, userId)` | Tabs not backed up yet; uploads those saved on this device and marks them backed up. |
+| `tabFile(host, files, itemId, cloud)` | The tab's file: from this device, or downloaded from Storage and kept. |
+| `tabPath(userId, tab)` | `<user id>/tab-<id>.<ext>`. |
+
+## Theory and physics: the curriculum
+
+**One course from both books (Blake, 2026-11-02),** `src/modules/theory/curriculum.ts`: 24 lessons in five chapters (Sound itself; Musical tones; The guitar string; Bodies, ears and rooms; Recording and sound engineering), 171 cards. It starts from absolute basics (what sound is, frequency, amplitude) and every term is defined in a lesson's reading before any card uses it (a test checks about 120 key terms against the lesson that teaches them). Module `theory` via contract v1, all cards `pocket-silent`: off the instrument, served in every pocket burst including work hours, never in the morning guitar session.
+
+- **Lessons:** each has a short reading (shown at the top of today's lesson, and on the Cards screen once unlocked) and 6 to 9 cards. Card types: `qa` (show the answer, rate Again/Hard/Good/Easy) and `mc` (four options, shuffled per showing; right logs Good, wrong logs Again and shows the answer with a short explanation). Reviews record `details.lesson`.
+- **Locked until graduated:** a lesson's cards enter the log only when it unlocks, so the scheduler never serves locked material. Lesson 1 is open from the start; the next unlocks when the current one graduates, one at a time. Unlocking is permanent.
+- **Graduation rule** (`GRADUATE_STABILITY_DAYS` = 7): every card of the lesson answered, answered right the last time (not Again), and with an FSRS memory stability of at least 7 days (the model expects 90% recall a week from now). In practice: right once, then right again on a later day. A Q/A card rated Easy the very first time counts at once; a multiple-choice answer is at most Good, so it always needs the later day. A slip costs stability, so a card answered Again needs a couple more on-time reviews.
+- **Sources stay in the data, never on screen** (Blake, 2026-11-02): each card keeps its citation (book and chapter, or "general" with a note) for checking facts. Cards are original wording about facts: no quoted passages, no reproduced figures; a test refuses book, author and publisher names in anything the user reads.
+- **Superseded:** the 2026-10-31 topic deck (`deck.ts`, kept as data). On first launch after the rebuild its book cards are retired and its 17 "general" cards (guitar theory, cassette gear) become Extras, off by default and switchable on the Cards screen; all history is kept. `topics`/`setTopic` are kept for the record and no longer used by the app.
+- **Content stays in code;** the log holds only each card's id and lesson number, so corrections reach every device with the app.
 
 | `src/modules/theory/practice.ts` | |
 |---|---|
-| `seedTheory(host)` | Adds missing cards. Safe on every launch. |
-| `contentOf(host, cardId)` | The card's question, answer (and options, explanation), topic and source. |
+| `seedTheory(host, dayStart)` | Brings the log up to date: the one-time migration, the cards of every unlocked lesson, the next lesson if the current one has graduated, missing Extras (off). Safe on every launch and after every answer. |
+| `lessonStates(host, dayStart)`, `currentLesson(host, dayStart)` | Each lesson's state (`graduated`, `current`, `locked`) with how many cards are started and how many meet the rule. |
+| `contentOf(host, cardId)` | The card's question, answer (and options, explanation), lesson (or old topic) and source. |
 | `rateQa(host, cardId, rating, durationMs)` / `answerMc(host, cardId, option, durationMs)` | Log one answer. |
 | `optionsFor(card, seed)` | A multiple-choice card's options in a shuffled order. |
-| `topics(host)`, `setTopic(host, topic, on)` | Cards by topic: counts, and switching a topic on or off. |
+| `extras(host)`, `setExtras(host, on)` | The Extras: counts, and switching them on or off (history kept). |
 
 ## Recorder and improv takes
 
@@ -310,7 +331,7 @@ Built from the research review in [`ear-training-research.md`](ear-training-rese
 
 ## Test harness
 
-`harness/` is the app's bare shell (no design; the look is the theme's). Phone first: Today (the default). A social-style bottom bar on phones (Today, Practice, a larger centre Record, Songs, More; More opens a sheet with Ear training, Goals, Cards, Settings; badges on Practice and Cards show what is due), and a side nav listing every section from 800px. Settings is also behind the gear, with setup tools in a closed "Setup and developer tools" panel. One screen at a time, routed by the URL hash (`#/songs`), so back and forward work and screens can be linked. Opening the app with no hash returns to the last tab used that practice day, otherwise Today; Settings is never remembered (`harness/routes.ts`, tested in `test/routes.test.ts`). Buttons that hand off to another screen move there: an ear card's Practise goes to Ear, a goal block's Record goes to Record. It exercises everything: sessions, the test deck, songs, ear training, "I played", settings, notification toggles, sign-in by emailed code, sync, backup. `npm run build` writes it to `public/` for Vercel, with the public Supabase connection built in from `ZG_SUPABASE_URL`, `ZG_SUPABASE_PUBLISHABLE_KEY` and `ZG_VAPID_PUBLIC_KEY` (secret keys are refused). `npm run test:browser` checks it in headless Chromium.
+`harness/` is the app's bare shell (no design; the look is the theme's). Phone first. **Today is a single page (Blake, 2026-11-02):** the current goal first (the live goal with the nearest deadline, its date, countdown and why; `harness/today.ts`), then what today holds for it (the session, the goal's blocks first and other goals' after, the current lesson), then a Start button that moves smoothly down to today's lesson: the current curriculum lesson's reading, the cards and songs due (a song with a tab shows Show the tab), the goal's tasks, and the metronome. A social-style bottom bar on phones (Today, Goals, a larger centre Record, Songs, More; More opens a sheet with Ear training, Cards, Settings; badges on Today and Cards show what is due), and a side nav listing every section from 800px. Settings is also behind the gear, with setup tools in a closed "Setup and developer tools" panel. One screen at a time, routed by the URL hash (`#/songs`), so back and forward work and screens can be linked. Opening the app with no hash always shows Today, so the goal comes first; an old `#/practice` link lands there too (`harness/routes.ts`, tested in `test/routes.test.ts`). Signed out with a connection set up, a sign-in popup opens at launch ("Not now" keeps this device only); sign-in by emailed code lives in it, also reachable from Settings. Settings never set on any device: the device's time zone replaces the UTC default once (`adoptDeviceTimeZone`), after the first sync when signed in. Buttons that hand off to another screen move there: an ear card's Practise goes to Ear, a goal block's Record goes to Record. It exercises everything: sessions, the test deck, songs, ear training, "I played", settings, notification toggles, sign-in by emailed code, sync, backup. `npm run build` writes it to `public/` for Vercel, with the public Supabase connection built in from `ZG_SUPABASE_URL`, `ZG_SUPABASE_PUBLISHABLE_KEY` and `ZG_VAPID_PUBLIC_KEY` (secret keys are refused). `npm run test:browser` checks it in headless Chromium.
 
 ## Metronome module
 

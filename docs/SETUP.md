@@ -33,7 +33,7 @@ Dashboards change now and then. If a menu name differs slightly, use the nearest
 1. **SQL Editor**, **New query**.
 2. On GitHub, open `supabase/migrations/20261030000000_init.sql`, click **Raw**, select all, copy, paste into the editor.
 3. **Run**. Expect "Success. No rows returned."
-4. Do the same with every later file in `supabase/migrations/`, in name order. Today that is `20261030232900_service_role_grants.sql`: without it the reminder sender fails with "permission denied for table nudges". (Already applied by hand on the live project on 2026-10-30; running it again is harmless.) Then `20261031180000_takes_storage.sql`: the private `takes` bucket for recordings and its security rules (needed before takes can back up; until then they stay on the device and sync says why).
+4. Do the same with every later file in `supabase/migrations/`, in name order. Today that is `20261030232900_service_role_grants.sql`: without it the reminder sender fails with "permission denied for table nudges". (Already applied by hand on the live project on 2026-10-30; running it again is harmless.) Then `20261031180000_takes_storage.sql`: the private `takes` bucket for recordings and its security rules (needed before takes can back up; until then they stay on the device and sync says why). Then `20261102120000_tabs_storage.sql`: the private `tabs` bucket for song tabs and its security rules (the same rules as takes: each user adds and reads in their own folder only; no overwrite, no delete). Until it is applied, tabs stay on the device and sync reports them as waiting.
 5. Check: **Table Editor** shows `events`, `nudges`, `push_subscriptions`, each with RLS enabled.
 
 ## 3. Sign-in by email code
@@ -148,7 +148,7 @@ Fix: turn 2-Step Verification back on, create a new app password (Google Account
 - [ ] Paid Supabase plan (free projects pause after about a week of low activity).
 - [ ] A real email service instead of Gmail SMTP (sending limits; the app-password failure above).
 - [ ] Self-service account deletion.
-- [ ] **Account deletion must also delete the user's takes folder in Storage.** Supabase does not remove Storage files when an Auth user is deleted, so a user's recordings would outlive their account (shown in `test/sql/rls.test.sql`). Needs a small server function (service role) that removes `takes/<user id>/` before deleting the user.
+- [ ] **Account deletion must also delete the user's takes and tabs folders in Storage.** Supabase does not remove Storage files when an Auth user is deleted, so a user's recordings and tabs would outlive their account (shown in `test/sql/rls.test.sql`). Needs a small server function (service role) that removes `takes/<user id>/` and `tabs/<user id>/` before deleting the user.
 
 ## Appendix: command-line route for step 7
 

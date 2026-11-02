@@ -42,13 +42,17 @@ function req<T>(r: IDBRequest<T>): Promise<T> {
   });
 }
 
-export function blobDatabaseName(userId: string): string {
+/** What a store holds: takes' audio, or (2026-11-02) song tab files. Each kind is its own database. */
+export type BlobKind = 'takes' | 'tabs';
+
+export function blobDatabaseName(userId: string, kind: BlobKind = 'takes'): string {
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(userId)) throw new Error('bad user id for local storage');
-  return `zg-takes-${userId}`;
+  return `zg-${kind}-${userId}`;
 }
 
-export async function indexedDbBlobStore(userId: string, factory: IDBFactory = indexedDB): Promise<BlobStore> {
-  const open = factory.open(blobDatabaseName(userId), 1);
+export async function indexedDbBlobStore(userId: string, factory: IDBFactory = indexedDB, kind: BlobKind = 'takes'): Promise<BlobStore> {
+  const open = factory.open(blobDatabaseName(userId, kind), 1);
+  // The object store keeps the name "takes" in every database: one schema, nothing to migrate.
   open.onupgradeneeded = () => open.result.createObjectStore('takes');
   const db = await req(open);
   return {

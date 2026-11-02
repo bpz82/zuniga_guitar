@@ -4,8 +4,14 @@
  * Works offline with no account; connecting Supabase adds sign-in, sync and
  * push reminders. The values it asks for (project URL, publishable key,
  * VAPID public key) are public by design; no secret ever goes in the app.
+ *
+ * Single-page flow (Blake, 2026-11-02): Today opens with the current goal,
+ * then what today holds for it, then today's lesson (the curriculum reading,
+ * the cards and songs due, the goal's tasks, the metronome). Signed out with
+ * a connection set up: the sign-in popup shows at launch.
  */
 import {
+  adoptDeviceTimeZone,
   changeSettings,
   createHost,
   dueToday,
@@ -27,6 +33,7 @@ import {
   toggleNotifications,
   toggleWindowNotify,
   uploadNudges,
+  uploadPendingTabs,
 } from '../src/index.ts';
 import type { EventBody, ModuleHost, Rating, SupabaseLike, Validation, WindowId } from '../src/index.ts';
 import { indexedDbStore } from '../src/stores/indexeddb.ts';
@@ -41,19 +48,20 @@ import { setupSheets } from './sheets.ts';
 import type { Sheets } from './sheets.ts';
 import { badgeText } from './routes.ts';
 import type { Shell } from './shell.ts';
-import { setupTheory } from './theory-ui.ts';
+import { lessonHeading, setupTheory } from './theory-ui.ts';
 import { THEORY, contentOf, seedTheory } from '../src/modules/theory/practice.ts';
 import { improvFor, memoFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
 import { runTakes } from '../src/modules/recorder/takes.ts';
 import { RECORDER, uploadPending } from '../src/modules/recorder/takes.ts';
 import { indexedDbBlobStore } from '../src/modules/recorder/blobs.ts';
 import type { BlobStore } from '../src/modules/recorder/blobs.ts';
-import { supabaseTakeStorage } from '../src/modules/recorder/storage.ts';
+import { supabaseBucketStorage, supabaseTakeStorage, TABS_BUCKET } from '../src/modules/recorder/storage.ts';
 import type { StorageClientLike } from '../src/modules/recorder/storage.ts';
 import { EAR, seedEar } from '../src/modules/ear/practice.ts';
 import { skillOf } from '../src/modules/ear/core.ts';
 import { hook, RATINGS } from './hooks.ts';
 import type { Hook } from './hooks.ts';
+import { blocksForFocus, focusGoal, goalWhen } from './today.ts';
 
 interface Config {
   supabaseUrl?: string;
@@ -94,6 +102,7 @@ let earHost!: ModuleHost;
 let earUi!: ReturnType<typeof setupEar>;
 let recHost!: ModuleHost;
 let recBlobs!: BlobStore;
+let tabBlobs!: BlobStore;
 let recorder!: ReturnType<typeof setupRecorder>;
 let goalsUi!: ReturnType<typeof setupGoals>;
 let theoryHost!: ModuleHost;
@@ -102,10 +111,20 @@ let shell!: Shell;
 let sheets!: Sheets;
 /** Takes storage, when signed in. */
 const cloud = () => (client && userId !== 'local' ? { storage: supabaseTakeStorage(client as unknown as StorageClientLike), userId } : null);
+/** Tab storage, when signed in. */
+const tabCloud = () => (client && userId !== 'local' ? { storage: supabaseBucketStorage(client as unknown as StorageClientLike, TABS_BUCKET), userId } : null);
 let revealed = false;
+/** A connection is set up and it answered: nobody is signed in on this device. */
+let signedOut = false;
 
 function say(text: string) {
   $('status').textContent = `${new Date().toLocaleTimeString()} ${text}`;
+}
+
+/** Sign-in messages show in the popup (the status line is behind it) and in the status line. */
+function signInSay(text: string) {
+  $('signin-note').textContent = text;
+  say(text);
 }
 
 async function record(r: Validation<EventBody>) {
@@ -132,6 +151,7 @@ async function connect() {
   const { data } = await client.auth.getSession();
   if (data.session) userId = data.session.user.id;
   $('account').textContent = data.session ? `Signed in as ${data.session.user.email ?? userId}` : 'Not signed in';
+  signedOut = !data.session;
   if (!data.session) client = null; // sync needs a signed-in user
 }
 
@@ -141,11 +161,15 @@ async function syncNow() {
   await uploadNudges(client, planNudges(replica.library, Date.now()));
   const c = cloud();
   const up = c ? await uploadPending(recHost, recBlobs, c.storage, c.userId) : null;
-  // Marking takes uploaded wrote new events: send them too.
-  if (up && up.uploaded > 0) await replica.sync(supabaseRemote(client));
+  const t = tabCloud();
+  const tabsUp = t ? await runModule(songsHost, () => uploadPendingTabs(songsHost, tabBlobs, t.storage, t.userId)) : null;
+  const tabs = tabsUp?.ok ? tabsUp.value : null;
+  // Marking takes and tabs uploaded wrote new events: send them too.
+  if ((up && up.uploaded > 0) || (tabs && tabs.uploaded > 0)) await replica.sync(supabaseRemote(client));
   say(
     `Synced: sent ${report.pushed}, received ${report.pulled}${report.rejected.length ? `, ${report.rejected.length} bad rows set aside` : ''}` +
-      (up ? `; takes uploaded ${up.uploaded}${up.failed.length ? `, ${up.failed.length} waiting (${up.failed[0]!.error})` : ''}` : ''),
+      (up ? `; takes uploaded ${up.uploaded}${up.failed.length ? `, ${up.failed.length} waiting (${up.failed[0]!.error})` : ''}` : '') +
+      (tabs && (tabs.uploaded > 0 || tabs.failed.length > 0) ? `; tabs uploaded ${tabs.uploaded}${tabs.failed.length ? `, ${tabs.failed.length} waiting (${tabs.failed[0]!.error})` : ''}` : ''),
   );
   render();
 }
@@ -157,26 +181,50 @@ const WINDOW_LABEL: Record<string, string> = {
   'after-work': 'After-work burst',
 };
 
-/** The Today screen: what is due now, today's goal blocks, the next reminder. */
+/**
+ * Today, the single page (2026-11-02): the goal first, then what today holds
+ * for it (the session, the goal's blocks, the current lesson), then the lesson
+ * itself (drawn by render()).
+ */
 function renderToday() {
   const lib = replica.library;
   const now = Date.now();
+  const today = practiceDay(now, lib.settings.dayStart);
+
+  // 1. The goal.
+  const focus = focusGoal(lib, today);
+  $('goal-focus').textContent = focus ? focus.goal.what : 'No goal yet';
+  $('goal-focus-when').textContent = focus
+    ? `${goalWhen(focus.goal, today)}${focus.others ? ` · and ${focus.others} more ${focus.others === 1 ? 'goal' : 'goals'}` : ''}`
+    : 'Set a goal (a gig, a record, a deadline) and every day is planned around it.';
+  $('goal-focus-why').textContent = focus?.goal.why ?? '';
+  $('goal-focus-why').hidden = !focus?.goal.why;
+  $('goal-focus-link').textContent = focus ? 'All goals' : 'Set your goal';
+
+  // 2. What today holds for it.
   const s = sessionFor(lib, now);
   const review = s.segments.find((x) => x.kind === 'review');
   const due = review && review.kind === 'review' ? review.due.length : 0;
   const fresh = review && review.kind === 'review' ? review.fresh.length : 0;
   const where = `${WINDOW_LABEL[s.windowId ?? ''] ?? 'Practice'} (${s.mode}${s.quiet ? ', quiet hours' : ''})`;
   $('today-now').textContent = s.empty ? `${where}: nothing due right now.` : `${where}: ${due} due, ${fresh} new.`;
-  const blocks = todayBlocks(lib, now);
-  $('today-blocks').replaceChildren(
-    ...blocks.map((seg) => {
-      const li = document.createElement('li');
-      li.dataset.zg = 'today-block';
-      li.textContent = `${seg.block.label} · ${seg.block.minutes} min${seg.done ? ' ✓' : ''}`;
-      return li;
-    }),
-  );
-  if (blocks.length === 0) $('today-blocks').textContent = 'No goal blocks today.';
+  const goalName = (id: string) => lib.goals.get(id)?.what ?? 'another goal';
+  const rows = blocksForFocus(todayBlocks(lib, now), focus?.goal.id ?? null).map(({ seg, focus: mine }) => {
+    const li = document.createElement('li');
+    li.dataset.zg = 'today-block';
+    li.textContent = `${seg.block.label} · ${seg.block.minutes} min${seg.done ? ' ✓' : ''}${mine ? '' : ` · for ${goalName(seg.block.goalId)}`}`;
+    return li;
+  });
+  const lesson = theoryUi.current();
+  if (lesson) {
+    const li = document.createElement('li');
+    li.dataset.zg = 'today-lesson';
+    li.textContent = `${lessonHeading(lesson)} · ${lesson.started === 0 ? 'new today' : `${lesson.ready} of ${lesson.total} cards solid`}`;
+    rows.push(li);
+  }
+  $('today-blocks').replaceChildren(...rows);
+  if (rows.length === 0) $('today-blocks').textContent = 'No goal blocks today.';
+  $('today-start').textContent = s.empty ? 'Open today\'s lesson' : 'Start today\'s lesson';
   const zone = lib.settings.dayStart.timeZone;
   const next = nudgesBetween(lib, now, now + 7 * 24 * 60 * 60 * 1000)[0];
   $('today-reminder').textContent = !lib.settings.notifications
@@ -184,14 +232,17 @@ function renderToday() {
     : next
       ? `Next reminder: ${WINDOW_LABEL[next.windowId] ?? next.windowId}, ${new Date(next.at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: zone })}.`
       : 'No reminders in the next 7 days.';
+
+  // 3. Today's lesson opens with the current curriculum lesson's reading.
+  theoryUi.renderReading();
 }
 
-const BADGE_LABEL = { practice: 'Practice', cards: 'Cards' } as const;
+const BADGE_LABEL = { today: 'Today', cards: 'Cards' } as const;
 
-/** Due-count badges: Practice = due in the session open now; Cards = theory cards due today. */
+/** Due-count badges: Today = due in the session open now; Cards = theory cards due today. */
 function renderBadges(dueNow: number) {
-  const counts: Record<'practice' | 'cards', number> = { practice: dueNow, cards: dueToday(replica.library, Date.now()).get(THEORY.id) ?? 0 };
-  for (const [tab, count] of Object.entries(counts) as ['practice' | 'cards', number][]) {
+  const counts: Record<'today' | 'cards', number> = { today: dueNow, cards: dueToday(replica.library, Date.now()).get(THEORY.id) ?? 0 };
+  for (const [tab, count] of Object.entries(counts) as ['today' | 'cards', number][]) {
     const text = badgeText(count);
     const badge = $(`nav-badge-${tab}`);
     const link = $(`tab-${tab}`);
@@ -224,6 +275,7 @@ function render() {
   const card = next ? lib.cards.get(next) : undefined;
   const item = card ? lib.items.get(card.itemId) : undefined;
   $('practice').hidden = true;
+  $('card-tab').hidden = true;
   // Every card shown is named on the card element (tests and ratings read it).
   $('card').dataset.card = card?.id ?? '';
   // Theory cards draw themselves (question, source, options); this also clears them for any other card.
@@ -245,12 +297,15 @@ function render() {
     $('practice').hidden = false;
     $('practice').onclick = () => (earUi.select(card.id), shell.go('ear'));
   } else if (card && item && item.module === SONGS.id) {
-    // A song: no answer to reveal. Play it, then rate how it went.
-    $('question').textContent = `Play: ${songByCard(songsHost, card.id)?.title ?? card.id}`;
+    // A song: no answer to reveal. Play it, then rate how it went. Its tab, if it has one, is a tap away.
+    const song = songByCard(songsHost, card.id);
+    $('question').textContent = `Play: ${song?.title ?? card.id}`;
     $('answer').textContent = '';
     $('card').dataset.card = card.id;
     $('reveal').hidden = true;
     $('rate').hidden = false;
+    $('card-tab').hidden = !song?.tab;
+    $('card-tab').onclick = () => song && void songsUi.showTab(song.itemId);
   } else if (card && item) {
     const q = card.itemId.startsWith('td-') ? prompt(card, item) : { question: `${card.template}: ${JSON.stringify(item.fields)}`, answer: '' };
     $('question').textContent = q.question;
@@ -316,7 +371,7 @@ function render() {
   earUi.render();
   recorder.render();
   goalsUi.render();
-  theoryUi.renderTopics();
+  theoryUi.renderLessons();
   $('notify-windows').replaceChildren(
     ...lib.settings.windows.map((w) => {
       const label = document.createElement('label');
@@ -351,7 +406,16 @@ async function enableNotifications() {
   say('Notifications on for this device.');
 }
 
+/** Moves down to today's lesson: smoothly, unless the user asked for less motion. */
+function goToLesson() {
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const lesson = $('lesson');
+  lesson.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+  lesson.focus({ preventScroll: true });
+}
+
 function wire() {
+  $('today-start').onclick = goToLesson;
   $('reveal').onclick = () => ((revealed = true), render());
   for (const rating of RATINGS as readonly Rating[]) {
     $(`r-${rating}`).onclick = async () => {
@@ -393,6 +457,7 @@ function wire() {
   earUi.wire();
   recorder.wire();
   goalsUi.wire();
+  theoryUi.wire();
   $('enable-push').onclick = () => void enableNotifications().catch((e) => say((e as Error).message));
   $('save-config').onclick = () => {
     config = { supabaseUrl: ($('cfg-url') as HTMLInputElement).value.trim(), publishableKey: ($('cfg-key') as HTMLInputElement).value.trim(), vapidPublicKey: ($('cfg-vapid') as HTMLInputElement).value.trim() };
@@ -400,20 +465,22 @@ function wire() {
     localStorage.setItem('zg-config', JSON.stringify(config));
     location.reload();
   };
+  $('open-signin').onclick = () => sheets.open('signin');
+  $('signin-later').onclick = () => sheets.close('signin');
   $('sign-in').onclick = async () => {
-    if (!config.supabaseUrl) return say('Save the Supabase settings first.');
+    if (!config.supabaseUrl) return signInSay('Save the Supabase settings first.');
     const c = await supabaseClient();
     const { error } = await c.auth.signInWithOtp({ email: ($('email') as HTMLInputElement).value.trim(), options: { emailRedirectTo: location.origin } });
-    say(error ? error.message : 'Check your email. Type the code below (on iPhone, use the code, not the link).');
+    signInSay(error ? error.message : 'Check your email. Type the code below (on iPhone, use the code, not the link).');
   };
   // The code, not the link: on iPhone a link opens Safari, which is separate
   // from the Home Screen app, so the app itself would never be signed in.
   $('verify').onclick = async () => {
     const token = ($('code') as HTMLInputElement).value.replace(/\s/g, '');
-    if (!/^\d{6,10}$/.test(token)) return say('Enter the code from the email.');
+    if (!/^\d{6,10}$/.test(token)) return signInSay('Enter the code from the email.');
     const c = await supabaseClient();
     const { error } = await c.auth.verifyOtp({ email: ($('email') as HTMLInputElement).value.trim(), token, type: 'email' });
-    if (error) return say(error.message);
+    if (error) return signInSay(error.message);
     location.reload();
   };
   $('sign-out').onclick = async () => {
@@ -447,7 +514,8 @@ async function main() {
   await metronome.init();
   songsHost = createHost(replica, SONGS);
   sheets = setupSheets();
-  songsUi = setupSongs(songsHost, say, afterChange, () => sheets.close('songs-paste'));
+  tabBlobs = await indexedDbBlobStore(userId, indexedDB, 'tabs');
+  songsUi = setupSongs(songsHost, say, afterChange, () => sheets.close('songs-paste'), { files: () => tabBlobs, cloud: tabCloud, sheets });
   earHost = createHost(replica, EAR);
   const earSeeded = await runModule(earHost, () => seedEar(earHost));
   if (!earSeeded.ok) say(`Ear training failed: ${earSeeded.error}`);
@@ -462,18 +530,29 @@ async function main() {
   });
   goalsUi = setupGoals(replica, songsHost, record, say, () => sheets.close('goal-new'));
   theoryHost = createHost(replica, THEORY);
-  const theorySeeded = await runModule(theoryHost, () => seedTheory(theoryHost));
+  const dayStart = () => replica.library.settings.dayStart;
+  const theorySeeded = await runModule(theoryHost, () => seedTheory(theoryHost, dayStart()));
   if (!theorySeeded.ok) say(`Theory cards failed: ${theorySeeded.error}`);
-  theoryUi = setupTheory(theoryHost, say, afterChange);
+  theoryUi = setupTheory(theoryHost, say, afterChange, dayStart);
   wire();
   $('card').dataset.started = String(Date.now());
   // Leaving a screen closes its sheets (a modal left open on a hidden screen would block the page).
-  shell = setupShell(() => practiceDay(Date.now(), replica.library.settings.dayStart), () => (sheets.closeAll(), render()));
+  shell = setupShell(() => (sheets.closeAll(), render()));
   sheets.closeAll();
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
-  if (client) await syncNow().catch((e) => say(`Offline: ${(e as Error).message}`));
+  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, tabs: tabBlobs, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) }, shell, sheets };
+  // Signed out but able to sign in: ask straight away (Blake, 2026-11-02). "Not now" keeps this device only.
+  if (signedOut) sheets.open('signin');
+  const synced = client ? await syncNow().then(() => true, (e) => (say(`Offline: ${(e as Error).message}`), false)) : true;
+  // Settings never set (on any synced device): use this device's time zone instead of the UTC default.
+  if (synced) {
+    const zone = adoptDeviceTimeZone(replica.library, Intl.DateTimeFormat().resolvedOptions().timeZone);
+    if (zone) {
+      await record(zone);
+      say(`Using this device's time zone (${Intl.DateTimeFormat().resolvedOptions().timeZone}) for your practice day and quiet hours. Change it in Settings.`);
+    }
+  }
   setInterval(render, 30_000);
-  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) }, shell };
 }
 
 void main();

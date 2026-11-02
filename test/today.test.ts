@@ -1,0 +1,43 @@
+/** The goal-first Today page (2026-11-02): which goal leads, how its deadline reads, how blocks group. */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { append, emptyLog, project } from '../src/index.ts';
+import type { BlockSegment, EventBody, Log } from '../src/index.ts';
+import { blocksForFocus, focusGoal, goalWhen } from '../harness/today.ts';
+
+let n = 0;
+const ctx = { device: 'phone', now: () => Date.UTC(2026, 10, 2, 12) + n * 1000, newId: () => `e${++n}` };
+const goal = (id: string, deadline: string, extra: Record<string, unknown> = {}): EventBody =>
+  ({ type: 'goal-set', goal: { id, kind: 'general', what: `Goal ${id}`, why: '', deadline, itemIds: [], dailyMinutes: 10, weight: 1, blocks: [], archived: false, ...extra } }) as EventBody;
+const lib = (...bodies: EventBody[]) => project(bodies.reduce((log: Log, b) => append(log, b, ctx).log, emptyLog()));
+
+test('the goal on top is the live goal with the nearest deadline', () => {
+  const l = lib(goal('record', '2027-03-01'), goal('gig', '2026-11-13', { kind: 'gig' }), goal('old', '2026-10-01'), goal('shelved', '2026-11-05', { archived: true }));
+  const f = focusGoal(l, '2026-11-02')!;
+  assert.equal(f.goal.id, 'gig');
+  assert.equal(f.others, 1, 'past and archived goals do not count');
+  assert.equal(focusGoal(lib(), '2026-11-02'), null);
+  assert.equal(focusGoal(lib(goal('old', '2026-10-01')), '2026-11-02'), null);
+});
+
+test('ties: the heavier goal, then a stable order', () => {
+  const l = lib(goal('b', '2026-12-01', { weight: 1 }), goal('a', '2026-12-01', { weight: 3 }));
+  assert.equal(focusGoal(l, '2026-11-02')!.goal.id, 'a');
+  const m = lib(goal('b', '2026-12-01'), goal('a', '2026-12-01'));
+  assert.equal(focusGoal(m, '2026-11-02')!.goal.id, 'a');
+});
+
+test('the deadline reads as a date and a countdown', () => {
+  const l = lib(goal('gig', '2026-11-13', { kind: 'gig' }), goal('rec', '2027-03-01'));
+  assert.equal(goalWhen(l.goals.get('gig')!, '2026-11-02'), 'Gig Fri 13 Nov · 11 days to go');
+  assert.equal(goalWhen(l.goals.get('gig')!, '2026-11-12'), 'Gig Fri 13 Nov · tomorrow');
+  assert.equal(goalWhen(l.goals.get('gig')!, '2026-11-13'), 'Gig Fri 13 Nov · today');
+  assert.equal(goalWhen(l.goals.get('rec')!, '2026-11-02'), 'Due Mon 1 Mar · 119 days to go');
+});
+
+test("today's blocks: the focus goal's first, the rest after, each marked", () => {
+  const seg = (goalId: string, blockId: string): BlockSegment => ({ kind: 'block', done: false, block: { goalId, blockId, kind: 'timed-task', label: blockId, minutes: 5, weight: 1, protected: false, daysLeft: 3 } });
+  const rows = blocksForFocus([seg('x', 'x1'), seg('f', 'f1'), seg('x', 'x2'), seg('f', 'f2')], 'f');
+  assert.deepEqual(rows.map((r) => [r.seg.block.blockId, r.focus]), [['f1', true], ['f2', true], ['x1', false], ['x2', false]]);
+  assert.deepEqual(blocksForFocus([seg('x', 'x1')], null).map((r) => r.focus), [false]);
+});

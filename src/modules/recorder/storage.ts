@@ -28,7 +28,15 @@ const alreadyThere = (e: { message: string; statusCode?: string | number }) =>
   String(e.statusCode) === '409' || /already exists|duplicate/i.test(e.message);
 
 export function supabaseTakeStorage(client: StorageClientLike): TakeStorage {
-  const bucket = () => client.storage.from(TAKES_BUCKET);
+  return supabaseBucketStorage(client, TAKES_BUCKET);
+}
+
+/** Song tabs (2026-11-02): same rules, their own private bucket (supabase/migrations/20261102120000_tabs_storage.sql). */
+export const TABS_BUCKET = 'tabs';
+
+/** The same add-and-read-only adapter for any of the app's private buckets. */
+export function supabaseBucketStorage(client: StorageClientLike, name: string): TakeStorage {
+  const bucket = () => client.storage.from(name);
   return {
     async upload(path, blob, type) {
       // upsert: false — the bucket allows adding, never overwriting.

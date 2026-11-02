@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  adoptDeviceTimeZone,
   append,
   changeSettings,
   dayBegins,
@@ -118,4 +119,24 @@ test('the always-remind-morning switch is a normal settings edit', () => {
   assert.deepEqual(project(log).settings.windows, BLAKE_SETTINGS.windows, 'nothing else changed');
   log = apply(log, ok(toggleAlwaysRemindMorning(project(log), true)));
   assert.equal(project(log).settings.alwaysRemindMorning, true);
+});
+
+test("settings never set: the device's time zone replaces the UTC default (the metronome was silenced through New York mornings)", () => {
+  const fresh = project(emptyLog());
+  const r = adoptDeviceTimeZone(fresh, 'America/New_York');
+  assert.ok(r && r.ok);
+  const lib = project(apply(emptyLog(), ok(r!)));
+  assert.equal(lib.settings.dayStart.timeZone, 'America/New_York');
+  assert.equal(lib.settings.dayStart.hour, DEFAULT_SETTINGS.dayStart.hour, 'only the zone changes');
+  assert.deepEqual(lib.settings.quietHours, DEFAULT_SETTINGS.quietHours);
+  assert.equal(adoptDeviceTimeZone(lib, 'Europe/London'), null, 'never again once settings are set');
+});
+
+test('time zone default: nothing to do for UTC devices, a bad zone, or settings already set', () => {
+  const fresh = project(emptyLog());
+  assert.equal(adoptDeviceTimeZone(fresh, 'UTC'), null);
+  assert.equal(adoptDeviceTimeZone(fresh, ''), null);
+  assert.equal(adoptDeviceTimeZone(fresh, 'Not/AZone'), null);
+  const blake = project(apply(emptyLog(), BLAKE_SETTINGS_EVENT));
+  assert.equal(adoptDeviceTimeZone(blake, 'Europe/London'), null, "Blake's own settings are never touched");
 });

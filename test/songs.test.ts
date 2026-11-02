@@ -1,12 +1,23 @@
 /**
  * Songs I Already Know (Blake, 2026-10-31): title-only songs, served in the
  * morning guitar session, rated Again/Hard/Good/Easy, archived not deleted.
+ * 2026-11-02: baseline ratings without playing, and a tab file per song.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   addSong,
   archiveSong,
+  attachTab,
+  MAX_TAB_BYTES,
+  memoryOf,
+  pendingTabs,
+  rateBaseline,
+  tabFile,
+  tabPath,
+  tabTypeOf,
+  unratedSongs,
+  uploadPendingTabs,
   cleanTitle,
   createHost,
   dayBegins,
@@ -284,4 +295,118 @@ test('a forgotten song comes back the next morning, not minutes later, and the l
   assert.deepEqual(served(sessionFor(replica.library, ny('2026-11-10', '04:30'))), []);
   const next = review(sessionFor(replica.library, ny('2026-11-11', '04:05')))!;
   assert.deepEqual(next.due.map((d) => [d.memory.cardId, d.memory.phase, d.memory.lapses]), [['song-a1-c', 'review', 1]]);
+});
+
+// ------------------------------------------------- baseline (2026-11-02) --
+
+test('baseline: every unrated song can be rated without playing; that first review sets its memory state', async () => {
+  const { replica, host } = await setup();
+  ok(await pasteSongs(host, 'Blackbird\nLittle Wing\nWonderwall', key));
+  assert.equal(unratedSongs(host).length, 3);
+  const [a, b] = songs(host);
+  ok(await rateBaseline(host, a!.cardId, 'easy'));
+  ok(await rateBaseline(host, b!.cardId, 'again'));
+  assert.deepEqual(unratedSongs(host).map((x) => x.title), ['Wonderwall']);
+  const r = replica.library.reviews.get(a!.cardId)!;
+  assert.deepEqual(r.map((x) => [x.rating, x.durationMs, x.details?.baseline]), [['easy', 0, true]]);
+  // Easy starts days out; Again comes back the next morning (songs skip same-day steps).
+  const easy = memoryOf(a!.cardId, r, 0.9, NY, false);
+  const again = memoryOf(b!.cardId, replica.library.reviews.get(b!.cardId)!, 0.9, NY, false);
+  assert.equal(easy.phase, 'review');
+  assert.ok(easy.stability > 7 && again.stability < 1, `${easy.stability} / ${again.stability}`);
+  assert.deepEqual(served(sessionFor(replica.library, ny('2026-11-02', '04:30'))), [songs(host)[2]!.cardId], 'only the unrated song is still new today');
+});
+
+test('baseline: only once per song, never for an archived song; refusals write nothing', async () => {
+  const { replica, host } = await setup();
+  const s = ok(await addSong(host, key(), 'Blackbird'));
+  ok(await rateSong(host, s.cardId, 'good', 60_000));
+  const n = replica.log.length;
+  assert.match((await rateBaseline(host, s.cardId, 'easy') as { error: string }).error, /already has a rating/);
+  const x = ok(await addSong(host, key(), 'Little Wing'));
+  ok(await archiveSong(host, x.itemId));
+  const m = replica.log.length;
+  assert.equal((await rateBaseline(host, x.cardId, 'good')).ok, false);
+  assert.equal((await rateBaseline(host, 'song-nope-c', 'good')).ok, false);
+  assert.equal((await rateBaseline(host, s.cardId, 'perfect' as 'good')).ok, false);
+  assert.equal(replica.log.length, m);
+  assert.ok(m > n && host.enabled);
+  assert.deepEqual(unratedSongs(host), [], 'archived songs are not waiting for a rating');
+});
+
+// ----------------------------------------------------- tabs (2026-11-02) --
+
+test('tab types: PDF, pictures and plain text, by type or by file name; nothing else', () => {
+  assert.deepEqual(tabTypeOf('a.pdf', 'application/pdf'), { ok: true, value: 'application/pdf' });
+  assert.deepEqual(tabTypeOf('photo.JPG', 'image/jpeg'), { ok: true, value: 'image/jpeg' });
+  assert.deepEqual(tabTypeOf('song.tab', ''), { ok: true, value: 'text/plain' }, 'a .tab file often has no type');
+  assert.deepEqual(tabTypeOf('song.crd', 'application/octet-stream'), { ok: true, value: 'text/plain' });
+  assert.deepEqual(tabTypeOf('notes.txt', 'text/plain;charset=utf-8'), { ok: true, value: 'text/plain' });
+  for (const [name, type] of [['x.html', 'text/html'], ['x.svg', 'image/svg+xml'], ['x.exe', ''], ['x.pdf', 'text/html'], ['x', '']]) {
+    assert.equal(tabTypeOf(name!, type!).ok, false, `${name} ${type}`);
+  }
+  assert.equal(tabPath('aaaa-1', { id: 'k1', type: 'image/jpeg' }), 'aaaa-1/tab-k1.jpg', "in the user's own folder");
+});
+
+test('attach a tab: the log keeps only its name, type and size; renaming the song keeps the tab', async () => {
+  const { replica, host } = await setup();
+  const s = ok(await addSong(host, 'a1', 'Blackbird'));
+  const withTab = ok(await attachTab(host, s.itemId, { id: 't1', name: 'Blackbird tab.pdf', type: 'application/pdf', bytes: 5000 }));
+  assert.deepEqual(withTab.tab, { id: 't1', name: 'Blackbird tab.pdf', type: 'application/pdf', bytes: 5000, uploaded: false });
+  assert.deepEqual(replica.library.items.get('song-a1')?.fields, { title: 'Blackbird', tab: 't1', tabName: 'Blackbird tab.pdf', tabType: 'application/pdf', tabBytes: 5000, tabUploaded: false });
+  ok(await renameSong(host, s.itemId, 'Blackbird (live)'));
+  assert.equal(songs(host)[0]!.tab?.id, 't1', 'rename keeps the tab');
+  // A new tab replaces the old one in the song (the old file is never deleted).
+  ok(await attachTab(host, s.itemId, { id: 't2', name: 'take 2.txt', type: '', bytes: 30 }));
+  assert.deepEqual(songs(host)[0]!.tab, { id: 't2', name: 'take 2.txt', type: 'text/plain', bytes: 30, uploaded: false });
+  assert.equal(songs(host)[0]!.title, 'Blackbird (live)');
+});
+
+test('attach a tab: bad files are refused and write nothing', async () => {
+  const { replica, host } = await setup();
+  const s = ok(await addSong(host, 'a1', 'Blackbird'));
+  const n = replica.log.length;
+  assert.equal((await attachTab(host, s.itemId, { id: 't1', name: 'x.html', type: 'text/html', bytes: 10 })).ok, false);
+  assert.equal((await attachTab(host, s.itemId, { id: 't1', name: 'x.pdf', type: 'application/pdf', bytes: 0 })).ok, false);
+  assert.equal((await attachTab(host, s.itemId, { id: 't1', name: 'x.pdf', type: 'application/pdf', bytes: MAX_TAB_BYTES + 1 })).ok, false);
+  assert.equal((await attachTab(host, s.itemId, { id: 'bad id/..', name: 'x.pdf', type: 'application/pdf', bytes: 10 })).ok, false);
+  assert.equal((await attachTab(host, 'song-nope', { id: 't1', name: 'x.pdf', type: 'application/pdf', bytes: 10 })).ok, false);
+  assert.equal(replica.log.length, n);
+  assert.ok(host.enabled);
+});
+
+test('tabs back up to Storage on sync, are read back from this device first, and download on another device', async () => {
+  const { host } = await setup();
+  const s = ok(await addSong(host, 'a1', 'Blackbird'));
+  const files = new Map<string, { blob: Blob; type: string }>();
+  const local = { put: async (id: string, v: { blob: Blob; type: string }) => void files.set(id, v), get: async (id: string) => files.get(id) };
+  const bucket = new Map<string, Blob>();
+  const storage = {
+    upload: async (path: string, blob: Blob) => (bucket.has(path) ? 'exists' as const : (bucket.set(path, blob), 'uploaded' as const)),
+    download: async (path: string) => bucket.get(path) ?? Promise.reject(new Error('not found')),
+  };
+  await local.put('t1', { blob: new Blob(['e|-0-'], { type: 'text/plain' }), type: 'text/plain' });
+  ok(await attachTab(host, s.itemId, { id: 't1', name: 'riff.txt', type: 'text/plain', bytes: 5 }));
+  assert.equal(pendingTabs(host).length, 1);
+  assert.match((await tabFile(host, { put: local.put, get: async () => undefined }, s.itemId, null) as { error: string }).error, /not backed up yet/);
+  const report = await uploadPendingTabs(host, local, storage, 'user-1');
+  assert.deepEqual(report, { uploaded: 1, failed: [] });
+  assert.deepEqual([...bucket.keys()], ['user-1/tab-t1.txt']);
+  assert.equal(pendingTabs(host).length, 0);
+  assert.equal(songs(host)[0]!.tab?.uploaded, true);
+  // This device: read locally.
+  assert.equal(await ok(await tabFile(host, local, s.itemId, null)).blob.text(), 'e|-0-');
+  // Another device (empty local store): needs sign-in, then downloads and keeps a copy.
+  const other = new Map<string, { blob: Blob; type: string }>();
+  const otherFiles = { put: async (id: string, v: { blob: Blob; type: string }) => void other.set(id, v), get: async (id: string) => other.get(id) };
+  assert.match((await tabFile(host, otherFiles, s.itemId, null) as { error: string }).error, /sign in/);
+  assert.equal(await ok(await tabFile(host, otherFiles, s.itemId, { storage, userId: 'user-1' })).blob.text(), 'e|-0-');
+  assert.ok(other.has('t1'));
+  // A failed upload is reported and retried next time.
+  const s2 = ok(await addSong(host, 'a2', 'Little Wing'));
+  await local.put('t2', { blob: new Blob(['x']), type: 'text/plain' });
+  ok(await attachTab(host, s2.itemId, { id: 't2', name: 'lw.txt', type: 'text/plain', bytes: 1 }));
+  const failing = { ...storage, upload: async () => Promise.reject(new Error('Storage: offline')) };
+  assert.deepEqual(await uploadPendingTabs(host, local, failing, 'user-1'), { uploaded: 0, failed: [{ title: 'Little Wing', error: 'Storage: offline' }] });
+  assert.equal(pendingTabs(host).length, 1);
 });

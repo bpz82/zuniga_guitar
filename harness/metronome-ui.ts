@@ -2,6 +2,11 @@
  * Bare metronome controls for the test harness. No design: every setting is
  * a plain form field so it can be tested on a phone. The product UI is built
  * separately.
+ *
+ * 2026-11-02 (Blake: "it makes no sound"): when the metronome will not play
+ * (quiet hours, or audio the browser kept off) the reason now shows right
+ * under Start, not only in the status line at the top of the page, and quiet
+ * hours offer "Play anyway" for this one session.
  */
 import { isQuiet, runModule } from '../src/index.ts';
 import type { ModuleHost, Replica } from '../src/index.ts';
@@ -128,22 +133,32 @@ export function setupMetronome(replica: Replica, host: ModuleHost, say: (s: stri
     await afterChange();
   };
 
-  const start = async () => {
+  /** A message next to Start (and in the status line). */
+  const note = (text: string, offerAnyway = false) => {
+    $('mx-note').textContent = text;
+    $('mx-anyway').hidden = !offerAnyway;
+    if (text) say(text);
+  };
+
+  /** `anyway`: the user chose to play through quiet hours this once. */
+  const start = async (anyway = false) => {
     if (player.playing) {
       player.stop();
       finish();
       return;
     }
     const checked = validateConfig(readForm());
-    if (!checked.ok) return say(`Metronome: ${checked.error}`);
-    if (isQuiet(replica.library, Date.now()) && !checked.value.allowDuringQuietHours) {
-      return say('Quiet hours: the metronome is off. Tick "Allow during quiet hours" to play anyway.');
+    if (!checked.ok) return note(`Metronome: ${checked.error}`);
+    if (!anyway && isQuiet(replica.library, Date.now()) && !checked.value.allowDuringQuietHours) {
+      const { start: from, end: to } = replica.library.settings.quietHours;
+      return note(`Quiet hours (${from} to ${to}): the metronome stays silent. Play anyway, or change quiet hours in Settings.`, true);
     }
     try {
       await player.unlock();
     } catch (e) {
-      return say(`Audio could not start: ${(e as Error).message}`);
+      return note(`Audio could not start: ${(e as Error).message}`);
     }
+    note('');
     if (!ladder) await runModule(host, () => savePrefs(host, checked.value));
     taps = [];
     tapsWhilePlaying = [];
@@ -177,6 +192,7 @@ export function setupMetronome(replica: Replica, host: ModuleHost, say: (s: stri
     });
   }
   $('mx-start').onclick = () => void start();
+  $('mx-anyway').onclick = () => void start(true);
   $('mx-tap').addEventListener('pointerdown', tap);
   $('mx-clean').onclick = () => void log(true);
   $('mx-sloppy').onclick = () => void log(false);

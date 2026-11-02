@@ -7,6 +7,7 @@
 import { validateBody } from './validate.ts';
 import type { Validation } from './validate.ts';
 import type { Library } from './project.ts';
+import { DEFAULT_SETTINGS } from './model.ts';
 import type { EventBody, PracticeWindow, SettingsInput, WindowId } from './model.ts';
 
 /** What the onboarding interview asks a new user. Leave a window out to skip it. */
@@ -78,4 +79,20 @@ export function toggleWindowNotify(library: Library, windowId: WindowId, on: boo
   }
   const windows = library.settings.windows.map((w) => (w.id === windowId ? { ...w, notify: on } : w));
   return changeSettings(library, { windows });
+}
+
+/**
+ * The device's time zone for someone whose settings were never set (Blake,
+ * 2026-11-02). The generic defaults use UTC, so for anyone elsewhere the
+ * practice day, the session windows and the quiet hours all sat at the wrong
+ * local times (in New York, quiet hours fell at 4am to noon and silenced the
+ * metronome through the morning session). Returns the settings event to
+ * record, or null when settings were already set (onboarding or any edit),
+ * the zone is already right, or the zone is not valid.
+ */
+export function adoptDeviceTimeZone(library: Library, timeZone: string): Validation<EventBody> | null {
+  if (library.settings !== DEFAULT_SETTINGS) return null;
+  if (typeof timeZone !== 'string' || timeZone === '' || timeZone === library.settings.dayStart.timeZone) return null;
+  const r = changeSettings(library, { dayStart: { ...library.settings.dayStart, timeZone } });
+  return r.ok ? r : null;
 }

@@ -3,18 +3,19 @@
  * URL hash ("#/songs"), so the phone's back and forward buttons work and a
  * screen can be linked to. Pure functions only; the DOM side is shell.ts.
  *
- * Opening the app with no hash: the last tab if it was used earlier the same
- * practice day, otherwise Today. Settings is never remembered.
+ * Single-page flow (Blake, 2026-11-02): Today is the app. It opens with the
+ * current goal, then today's breakdown, then today's lesson (what used to be
+ * the Practice screen, now part of Today). Opening the app with no hash
+ * always shows Today, so the goal comes first. (Superseded: the last tab was
+ * remembered for the practice day, 2026-10-31.)
  */
-export const TABS = ['today', 'practice', 'songs', 'ear', 'record', 'goals', 'cards'] as const;
+export const TABS = ['today', 'songs', 'ear', 'record', 'goals', 'cards'] as const;
 export type Tab = (typeof TABS)[number];
 /** Every screen: the tabs, plus Settings behind the gear. */
 export const SCREENS = [...TABS, 'settings'] as const;
 export type Screen = (typeof SCREENS)[number];
 
 export const DEFAULT_SCREEN: Screen = 'today';
-/** localStorage key for the remembered tab. */
-export const LAST_TAB_KEY = 'zg-last-tab';
 
 export const hashOf = (screen: Screen) => `#/${screen}`;
 
@@ -25,41 +26,15 @@ export function parseHash(hash: string): Screen | null {
   return name !== undefined && (SCREENS as readonly string[]).includes(name) ? (name as Screen) : null;
 }
 
-export interface Remembered {
-  readonly tab: Tab;
-  /** Practice day it was used, "YYYY-MM-DD". */
-  readonly day: string;
-}
-
-/** What to store after showing a screen (null: leave the stored tab alone). */
-export function remember(screen: Screen, day: string): Remembered | null {
-  return (TABS as readonly string[]).includes(screen) ? { tab: screen as Tab, day } : null;
-}
-
-/** Reads a stored value defensively: anything malformed counts as nothing remembered. */
-export function readRemembered(raw: string | null): Remembered | null {
-  try {
-    const v = JSON.parse(raw ?? 'null') as unknown;
-    if (typeof v !== 'object' || v === null) return null;
-    const { tab, day } = v as Record<string, unknown>;
-    if (typeof tab !== 'string' || !(TABS as readonly string[]).includes(tab)) return null;
-    if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
-    return { tab: tab as Tab, day };
-  } catch {
-    return null;
-  }
-}
-
 /**
- * The screen to open at launch. A valid hash wins (a link or a reload). With
- * no valid hash: the remembered tab if it is from today, else Today.
- * `replace`: the URL should be rewritten (without adding a history entry).
+ * The screen to open at launch. A valid hash wins (a link or a reload).
+ * Otherwise Today, the goal-first page. `replace`: the URL should be
+ * rewritten (without adding a history entry).
  */
-export function startScreen(hash: string, remembered: Remembered | null, today: string): { screen: Screen; replace: boolean } {
+export function startScreen(hash: string): { screen: Screen; replace: boolean } {
   const fromHash = parseHash(hash);
   if (fromHash) return { screen: fromHash, replace: false };
-  const screen: Screen = remembered && remembered.day === today ? remembered.tab : DEFAULT_SCREEN;
-  return { screen, replace: true };
+  return { screen: DEFAULT_SCREEN, replace: true };
 }
 
 // ------------------------------------------------ navigation (2026-11-01) --
@@ -68,15 +43,16 @@ export function startScreen(hash: string, remembered: Remembered | null, today: 
  * The phone's bottom bar, left to right, social-app style: Record is the
  * larger centre action; More opens a sheet with the rest. From 800px the
  * side nav shows everything (the More button is not needed there).
+ * 2026-11-02: Practice merged into Today; Goals takes its slot.
  */
-export const BAR = ['today', 'practice', 'record', 'songs', 'more'] as const;
+export const BAR = ['today', 'goals', 'record', 'songs', 'more'] as const;
 /** In the More sheet on phones, in the side nav on laptops. */
-export const MORE = ['ear', 'goals', 'cards', 'settings'] as const;
+export const MORE = ['ear', 'cards', 'settings'] as const;
 export type MoreScreen = (typeof MORE)[number];
 export const inMore = (screen: Screen): screen is MoreScreen => (MORE as readonly string[]).includes(screen);
 
-/** Tabs that show a due-count badge. */
-export const BADGED = ['practice', 'cards'] as const;
+/** Tabs that show a due-count badge: Today (due in the session open now) and Cards (theory cards due today). */
+export const BADGED = ['today', 'cards'] as const;
 export const MAX_BADGE = 99;
 
 /** A badge's text: nothing when none are due, "99+" past the cap. */
@@ -89,9 +65,16 @@ export function badgeText(count: number): string | null {
 
 /**
  * Bottom sheets (native <dialog>s) holding the long forms, so each screen
- * keeps one primary action: metronome settings (Practice), paste a song
- * list (Songs), improv settings (Record), a new goal (Goals). Each has hooks
- * `sheet-<name>` (the dialog), `open-<name>` and `close-<name>` (buttons).
+ * keeps one primary action: metronome settings (in today's lesson), paste a
+ * song list (Songs), improv settings (Record), a new goal (Goals). Each has
+ * hooks `sheet-<name>` (the dialog), `open-<name>` and `close-<name>` (buttons).
  */
 export const SHEETS = ['mx-settings', 'songs-paste', 'improv', 'goal-new'] as const;
-export type SheetName = (typeof SHEETS)[number];
+/**
+ * Sheets that belong to the whole app rather than one screen (2026-11-02),
+ * so they sit outside the screens and the code opens them: the sign-in
+ * popup (shown at launch when signed out) and the tab viewer (from a song's
+ * row or the song being practised). Hooks `sheet-<name>` and `close-<name>`.
+ */
+export const APP_SHEETS = ['signin', 'songtab'] as const;
+export type SheetName = (typeof SHEETS)[number] | (typeof APP_SHEETS)[number];

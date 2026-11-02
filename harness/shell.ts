@@ -1,12 +1,12 @@
 /**
  * The app shell's DOM side (Blake, 2026-10-31): shows exactly one screen,
- * marks the active tab (aria-current="page"), follows the URL hash so back
- * and forward work, and remembers the last tab for the practice day.
- * Structure only: the look is the theme's job.
+ * marks the active tab (aria-current="page") and follows the URL hash so back
+ * and forward work. Opening the app with no hash shows Today, the goal-first
+ * page (2026-11-02). Structure only: the look is the theme's job.
  */
 import { hook } from './hooks.ts';
 import type { Hook } from './hooks.ts';
-import { hashOf, inMore, LAST_TAB_KEY, MORE, parseHash, readRemembered, remember, SCREENS, startScreen, TABS } from './routes.ts';
+import { hashOf, inMore, MORE, parseHash, SCREENS, startScreen, TABS } from './routes.ts';
 import type { Screen } from './routes.ts';
 
 export interface Shell {
@@ -17,29 +17,9 @@ export interface Shell {
   moreOpen(): boolean;
 }
 
-/**
- * Starts routing. `today()` gives the current practice day (for the
- * remembered tab); `onShow` runs after each change of screen.
- */
-export function setupShell(today: () => string, onShow: (screen: Screen) => void = () => undefined): Shell {
+/** Starts routing. `onShow` runs after each change of screen. */
+export function setupShell(onShow: (screen: Screen) => void = () => undefined): Shell {
   let current: Screen = 'today';
-
-  const store = {
-    read(): string | null {
-      try {
-        return localStorage.getItem(LAST_TAB_KEY);
-      } catch {
-        return null;
-      }
-    },
-    write(value: string) {
-      try {
-        localStorage.setItem(LAST_TAB_KEY, value);
-      } catch {
-        // private mode or storage blocked: the shell works without memory
-      }
-    },
-  };
 
   // ---- the More sheet (phones; from 800px its links sit in the side nav) ----
   // A disclosure: the button's aria-expanded and the sheet's data-open say
@@ -94,8 +74,6 @@ export function setupShell(today: () => string, onShow: (screen: Screen) => void
     }
     // The More button marks that the screen shown lives in its sheet (not aria-current: it is a button, not the page's link).
     more.toggleAttribute('data-current', inMore(screen));
-    const r = remember(screen, today());
-    if (r) store.write(JSON.stringify(r));
     onShow(screen);
   };
 
@@ -105,7 +83,7 @@ export function setupShell(today: () => string, onShow: (screen: Screen) => void
     else location.replace(hashOf(current)); // a bad link: stay where we are, no extra history entry
   });
 
-  const start = startScreen(location.hash, readRemembered(store.read()), today());
+  const start = startScreen(location.hash);
   if (start.replace) history.replaceState(null, '', hashOf(start.screen));
   show(start.screen);
 

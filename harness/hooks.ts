@@ -4,7 +4,7 @@
  * so the theme can restyle freely. Renaming or removing a hook in the HTML
  * fails test/hooks.test.ts. See docs/THEME.md.
  */
-import { BADGED, SCREENS, SHEETS, TABS } from './routes.ts';
+import { APP_SHEETS, BADGED, SCREENS, SHEETS, TABS } from './routes.ts';
 
 export const MX_NUMBER_FIELDS = ['bpm', 'beatsPerBar', 'beatUnit', 'subdivision', 'accentHz', 'beatHz', 'master', 'countInBars', 'targetBpm', 'stepBpm', 'everyBars', 'playBars', 'muteBars', 'repBars'] as const;
 export const MX_TEXT_FIELDS = ['groove', 'sound', 'workout'] as const;
@@ -18,15 +18,16 @@ const STATIC = [
   'nav-more', 'more-sheet', 'more-settings',
   // layout redesign (2026-11-01): cards that need a name of their own; sheets are generated below
   'today-plan', 'now', 'plan', 'mx-display', 'songs-archive', 'takes-archive', 'ear-stage', 'rec-stage',
-  // today
+  // today: the single-page flow (2026-11-02): goal, today's breakdown, today's lesson
   'today', 'today-now', 'today-start', 'today-blocks', 'today-reminder',
+  'goal-focus', 'goal-focus-when', 'goal-focus-why', 'goal-focus-link', 'lesson', 'lesson-reading', 'lesson-title', 'lesson-text',
   // settings: quiet hours
   'quiet-start', 'quiet-end', 'save-quiet',
   // practice now
   'status', 'session', 'card', 'question', 'answer', 'reveal', 'practice', 'rate', 'blocks', 'played',
-  'mc-choices', 'card-feedback', 'card-source',
-  // theory and physics cards
-  'theory', 'theory-topics',
+  'mc-choices', 'card-feedback', 'card-tab',
+  // theory and physics: the curriculum (2026-11-02)
+  'theory', 'theory-lessons', 'theory-extras', 'theory-extras-label',
   // goals
   'goals', 'goals-list', 'goal-kind', 'goal-what', 'goal-why', 'goal-deadline', 'goal-songs', 'goal-tasks', 'goal-write-minutes', 'goal-write-takes',
   'goal-write-prompt', 'goal-improv-takes', 'goal-improv-minutes', 'goal-improv-ramp-to', 'goal-improv-ramp-days', 'goal-feel', 'goal-recall',
@@ -36,14 +37,17 @@ const STATIC = [
   'take-player', 'takes-list', 'takes-archived',
   // ear training
   'ear', 'ear-level', 'ear-prompt', 'ear-play', 'ear-choices', 'ear-tap', 'ear-feedback', 'ear-resolve', 'ear-next', 'ear-unlock',
-  // songs I already know
+  // songs I already know; baseline ratings and tabs (2026-11-02)
   'songs', 'songs-new', 'songs-add', 'songs-paste', 'songs-paste-add', 'songs-list', 'songs-archived',
+  'songs-baseline', 'baseline-status', 'baseline-list', 'songtab-file', 'songtab-title', 'songtab-view', 'songtab-open',
   // metronome
   'metronome', 'mx-position', 'mx-exercise', 'mx-new', 'mx-add', 'mx-start', 'mx-tap', 'mx-allowDuringQuietHours',
-  'mx-result', 'mx-summary', 'mx-clean', 'mx-sloppy', 'mx-skip',
+  'mx-result', 'mx-summary', 'mx-clean', 'mx-sloppy', 'mx-skip', 'mx-note', 'mx-anyway',
   // notifications, settings, account, backup
   'notify-all', 'notify-morning-always', 'notify-windows', 'enable-push', 'use-zone', 'settings', 'save-settings',
   'account', 'connection', 'cfg-url', 'cfg-key', 'cfg-vapid', 'save-config', 'email', 'sign-in', 'code', 'verify', 'sign-out', 'sync',
+  // the sign-in popup (2026-11-02): email, sign-in, code and verify live in it
+  'open-signin', 'signin-note', 'signin-later',
   'export', 'import',
 ] as const;
 
@@ -56,6 +60,8 @@ export type Hook =
   | `sheet-${(typeof SHEETS)[number]}`
   | `open-${(typeof SHEETS)[number]}`
   | `close-${(typeof SHEETS)[number]}`
+  | `sheet-${(typeof APP_SHEETS)[number]}`
+  | `close-${(typeof APP_SHEETS)[number]}`
   | `mx-${MxField}`
   | `mx-vol-${(typeof MX_VOICES)[number]}`
   | `r-${(typeof RATINGS)[number]}`;
@@ -67,6 +73,7 @@ export const HOOKS: readonly Hook[] = [
   ...SCREENS.map((s) => `screen-${s}` as const),
   ...BADGED.map((b) => `nav-badge-${b}` as const),
   ...SHEETS.flatMap((s) => [`sheet-${s}` as const, `open-${s}` as const, `close-${s}` as const]),
+  ...APP_SHEETS.flatMap((s) => [`sheet-${s}` as const, `close-${s}` as const]),
   ...MX_NUMBER_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_TEXT_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_VOICES.map((v) => `mx-vol-${v}` as const),
@@ -74,7 +81,9 @@ export const HOOKS: readonly Hook[] = [
 ];
 
 /** Hooks the code puts on elements it creates (lists, per-row buttons). */
-export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice', 'take', 'take-play', 'take-rename', 'take-archive', 'take-restore', 'goal-song', 'goal', 'goal-checkin', 'goal-checkin-save', 'goal-archive', 'block-record', 'mc-choice', 'theory-topic', 'today-block'] as const;
+export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice', 'take', 'take-play', 'take-rename', 'take-archive', 'take-restore', 'goal-song', 'goal', 'goal-checkin', 'goal-checkin-save', 'goal-archive', 'block-record', 'mc-choice', 'today-block',
+  // 2026-11-02: the lesson row in today's breakdown, curriculum lessons, baseline ratings, song tabs
+  'today-lesson', 'theory-chapter', 'theory-lesson', 'baseline-song', 'baseline-rate', 'song-tab', 'song-tab-attach', 'songtab-content'] as const;
 
 /** Finds a hooked element; throws if it is missing, so a broken page fails loudly. */
 export function hook<T extends HTMLElement = HTMLInputElement>(name: Hook, root: ParentNode = document): T {

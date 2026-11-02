@@ -98,6 +98,15 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 
 - **Layout redesign (Blake, 2026-11-01):** every screen redesigned mobile first: fewer, larger rounded cards; one primary action per screen; long forms in bottom sheets (metronome settings, paste a song list, improv settings, new goal) as native modal dialogs closing on Escape, a backdrop tap, the close button or leaving the screen; archived songs and takes collapsed; 44px+ touch targets (tested on every screen); subtle transitions with reduced-motion respected; a cleaner bottom bar with a raised centre Record. Theme v6: lighter warm paper with the wood textures and Zuniga Mission kept as accents. Engine, module contract v1, the log and every existing hook untouched; no behaviour or timing changes (the sheets only move fields; modules read them as before).
 
+- **Seven changes (Blake, 2026-11-02):**
+  1. *Sign-in popup:* signed out with a connection set up, a sign-in popup (email code) opens at launch; "Not now" keeps this device only. The sign-in fields moved from Settings into the popup (Settings opens it).
+  2. *Metronome silent, root cause:* the engine's neutral default time zone is UTC and nothing in the app replaced it unless the user pressed "Use this device's time zone". In New York the default quiet hours (9:00 to 17:00) then fell at 4am to noon local, covering the morning session, and the metronome refuses to sound in quiet hours; its only message went to the status line at the top of the page, out of sight. Fixed: settings never set get the device's time zone once (`adoptDeviceTimeZone`); a refusal shows under Start with "Play anyway" for that once; audio the browser keeps off is reported instead of playing silently; older iOS without the audio-session API gets a silent `<audio>` in the tap so the ring/silent switch does not mute the clicks.
+  3. *Card sources* are no longer shown. Each card keeps its book and chapter as data.
+  4. *Song tabs:* one file per song (PDF, picture, plain text), on the device and backed up to a private per-user `tabs` bucket (add and read own folder only, no overwrite or delete).
+  5. *Baseline ratings:* songs never rated can be rated from the Songs screen without playing; that first review sets the starting memory state.
+  6. *Curriculum:* one course from both books replaces the topic deck: 24 lessons in five chapters from absolute basics, every term defined before use, each lesson locked until the one before graduates (every card right last time with FSRS stability of 7+ days). The old deck's book cards are retired (history kept); its general cards are Extras, off by default.
+  7. *Single-page flow:* Today leads with the current goal, then today's breakdown for it, then today's lesson (reading, cards and songs, goal tasks, metronome). The Practice screen is merged into Today; Goals takes its tab-bar slot. Songs, Record, Cards, Ear and Settings stay reachable. Opening the app always shows Today (the remembered last tab is superseded).
+
 ## Knowingly NOT doing (v0.1)
 
 | Requirement | Why not |
@@ -122,7 +131,7 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Recorder, improv takes, creative prompts, gig memo (superseded Oct 31 2026, all built, see amendments) | Still deferred: they need the recorder, not the metronome. They will sync to the metronome clock service. |
 | Removing `setup-keys.html` | Needed only for setup. On the pre-customer checklist in `docs/SETUP.md`; removal waits for Blake's yes. |
 | Hard delete of a song | The log is append-only; Blake asked for archive. Archived songs are not served and can be restored with their history. |
-| Song details (chords, keys, tabs, links) | Blake, 2026-10-31: a song card holds only a title. |
+| Song details (chords, keys, links) (tabs superseded 2026-11-02: one tab file per song) | Blake, 2026-10-31: a song card holds only a title. |
 | Ear: the research's own half-life scheduler (R = 2^(-t/S) with cold-start multipliers) | FSRS already estimates stability and difficulty from answers, with fitted parameters; the research itself says to replace its multipliers with fitted ones. Its signals map onto FSRS ratings, and its score is logged per answer for later fitting. |
 | Ear: singing, sing-back and melodic imitation | Need the microphone and pitch tracking: ship with the recorder module. |
 | Ear: transcription, notation, fretboard entry, chord transcription, real-recording extraction | Need notation or fretboard input UI, or licensed recordings; deferred. Rhythm echo covers "tap the rhythm". |
@@ -139,16 +148,21 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Goals: AI-written or personalised songwriting prompts | Would need an AI service (no paid services). Twenty fixed prompts rotate; a goal can set its own. |
 | Goals: counting songs written, "ideas", or output | No arbitrary counts (spec). Blocks are timed and recorded; the takes are the record of the work. |
 | Goals: editing a goal's blocks after saving | Check-ins adjust the daily minutes, as specified. For new blocks, archive the goal and make a new one (history kept). |
-| Theory: lessons beyond flashcards (explanations, diagrams, audio demos) | Flashcards first, as asked. The cards are data, so lessons can link to them later. |
+| Theory: lessons beyond flashcards (explanations, diagrams, audio demos) (explanations superseded 2026-11-02: each lesson has a written reading) | Flashcards first, as asked. The cards are data, so lessons can link to them later. |
 | Theory: quoting or reproducing Benade or Winer | Copyright. Every card states facts in original words and cites the chapter; no passages, no figures. |
 | Theory: a chapter for topics neither book covers (CAGED, modes, cassette types, a specific machine) | Marked as general knowledge instead of attaching an unrelated chapter. |
-| Theory: practising one topic only for a session | Topics switch on and off for scheduling; a one-topic practice mode was not asked for. |
+| Theory: practising one topic only for a session (superseded 2026-11-02: the curriculum replaces topics) | Topics switch on and off for scheduling; a one-topic practice mode was not asked for. |
 | Gig memo: a reminder notification on gig night | Not asked for; the memo shows when the app is opened. Notifications stay one per practice window. |
 | Shell: icons in the tab bar, transitions, swipe between tabs (icons superseded 2026-11-01: simple SVG icons in place; transitions and swipe still not done) | Visual work for the graphics pass; labels and structure are in place. |
 | Shell: a separate screen per module setting (e.g. a quiet-hours picker with a clock) | Settings uses plain fields; the raw settings editor stays in the developer panel for everything else. |
 | Shell: remembering the scroll position of each screen | Not asked for. Every screen opens at the top when you switch to it. |
 | Tab bar: the centre Record button starting a recording at once | A tap on a tab bar is easy to make by accident, and it would raise the microphone prompt. It opens the Recorder with its Record button at the top: two taps to capture. |
-| Tab bar: practising cards from the Cards screen | Theory cards are practised in Practice during pocket bursts (they are silent cards). The Cards badge counts what is due today; the Cards screen switches topics. A practise-now button there was not asked for. |
+| Tab bar: practising cards from the Cards screen | Theory cards are practised in today's lesson on Today (Practice until 2026-11-02) during pocket bursts (they are silent cards). The Cards badge counts what is due today; the Cards screen switches topics. A practise-now button there was not asked for. |
 | Tab bar: a separate `nav-record` hook | `tab-record` already names the centre button; a second name for the same element adds nothing. |
+| Theory (2026-11-02): skipping ahead to a later lesson | Blake asked for new material locked until graduation. There is no unlock-by-hand (unlike ear training's levels). |
+| Theory (2026-11-02): folding the 17 general cards (guitar theory, cassette gear) into the course | Not book-based, so outside the rebuild. Kept as Extras, off by default, switchable on the Cards screen. Folding them in, or retiring them for good, is Blake's call. |
+| Theory (2026-11-02): lesson readings with diagrams or audio | Text first. Copyright rules out reproducing the books' figures; original diagrams could come later. |
+| Tabs (2026-11-02): more than one file per song, editing a text tab in the app, a full PDF viewer | One tab per song, as asked. PDFs show in a frame (iOS shows the first page) with "Open full size" for the browser's own viewer. |
+| Single page (2026-11-02): ear training and recording inside today's lesson | They keep their own screens; a goal block's Record and an ear card's Practise hand off to them, as before. |
 | Layout: dark mode | The theme is light only now (Blake asked for lighter). A dark variant can come back as tokens under `prefers-color-scheme: dark`. |
 | Layout: swipe gestures (swipe a sheet down, swipe between tabs) | Sheets close by Escape, backdrop tap, close button or leaving the screen. Swipe needs touch-gesture code; not asked for. |

@@ -117,7 +117,7 @@ test('base.css: the protected hidden rule, then structure only, all at zero spec
 
 // ------------------------------------------ social-style tab bar (2026-11-01) --
 
-test('nav: the five phone slots in order, then the More sheet with Ear training, Goals, Cards, Settings', async () => {
+test('nav: the five phone slots in order, then the More sheet with Ear training, Cards, Settings', async () => {
   const { BAR, MORE } = await import('../harness/routes.ts');
   const nav = html.slice(html.indexOf('<nav data-zg="nav"'), html.indexOf('</nav>'));
   const at = (hook: string) => nav.indexOf(`data-zg="${hook}"`);
@@ -148,7 +148,7 @@ test('nav: the More button is a disclosure for the sheet, closed at load', () =>
 test('nav: every item is an inline SVG icon (currentColor, hidden from screen readers) plus a short label', () => {
   const nav = html.slice(html.indexOf('<nav data-zg="nav"'), html.indexOf('</nav>'));
   const items = [...nav.matchAll(/<(a|button) [^>]*data-zg="(tab-[a-z]+|nav-more|more-settings)"[^>]*>([\s\S]*?)<\/\1>/g)];
-  assert.equal(items.length, 9, 'Today, Practice, Record, Songs, More, Ear training, Goals, Cards, Settings');
+  assert.equal(items.length, 8, 'Today, Goals, Record, Songs, More, Ear training, Cards, Settings');
   for (const [, , hook, inner] of items) {
     const svg = /^<svg ([^>]*)>/.exec(inner!);
     assert.ok(svg, `${hook} starts with its icon`);
@@ -162,7 +162,7 @@ test('nav: every item is an inline SVG icon (currentColor, hidden from screen re
   assert.match(nav, /data-zg="tab-record"><svg width="32" height="32"/, 'Record is the larger centre icon');
 });
 
-test('nav: due-count badges sit inside Practice and Cards, hidden until something is due', async () => {
+test('nav: due-count badges sit inside Today and Cards, hidden until something is due', async () => {
   const { BADGED } = await import('../harness/routes.ts');
   for (const b of BADGED) {
     const link = new RegExp(`data-zg="tab-${b}">[\\s\\S]*?</a>`).exec(html)?.[0] ?? '';
@@ -173,7 +173,7 @@ test('nav: due-count badges sit inside Practice and Cards, hidden until somethin
 // --------------------------------------------- layout redesign (2026-11-01) --
 
 test('sheets: each is a labelled dialog in its own screen, closed at load, with its close button inside and its open button outside', async () => {
-  const { SHEETS, SCREENS } = await import('../harness/routes.ts');
+  const { SHEETS, SCREENS, APP_SHEETS } = await import('../harness/routes.ts');
   for (const name of SHEETS) {
     const open = html.indexOf(`<dialog data-zg="sheet-${name}"`);
     assert.ok(open >= 0, `sheet-${name} is a <dialog>`);
@@ -188,7 +188,32 @@ test('sheets: each is a labelled dialog in its own screen, closed at load, with 
     const screenOf = (at: number) => SCREENS.map((s) => ({ s, i: html.lastIndexOf(`data-zg="screen-${s}"`, at) })).sort((a, b) => b.i - a.i)[0]!.s;
     assert.equal(screenOf(html.indexOf(`data-zg="open-${name}"`)), screenOf(open), `open-${name} and its sheet share a screen`);
   }
-  assert.equal(html.split('<dialog').length - 1, SHEETS.length, 'no other dialogs');
+  // App sheets (sign-in, tab viewer): labelled dialogs outside every screen, closed at load, close button inside.
+  const main = [html.indexOf('<main data-zg="screens">'), html.indexOf('</main>')] as const;
+  for (const name of APP_SHEETS) {
+    const open = html.indexOf(`<dialog data-zg="sheet-${name}"`);
+    assert.ok(open >= 0, `sheet-${name} is a <dialog>`);
+    assert.ok(open > main[1] || open < main[0], `sheet-${name} sits outside the screens`);
+    const tag = html.slice(open, html.indexOf('>', open) + 1);
+    assert.ok(!/\sopen[\s>]/.test(tag), `sheet-${name} starts closed`);
+    const label = /aria-labelledby="([^"]+)"/.exec(tag)?.[1];
+    const body = html.slice(open, html.indexOf('</dialog>', open));
+    assert.ok(label && new RegExp(`<h2 id="${label}"`).test(body), `sheet-${name} is labelled by its heading`);
+    assert.ok(body.includes(`data-zg="close-${name}"`), `close-${name} is inside the sheet`);
+  }
+  assert.equal(html.split('<dialog').length - 1, SHEETS.length + APP_SHEETS.length, 'no other dialogs');
+  // Sign-in fields live in the sign-in popup.
+  const signin = html.slice(html.indexOf('<dialog data-zg="sheet-signin"'), html.indexOf('</dialog>', html.indexOf('<dialog data-zg="sheet-signin"')));
+  for (const h of ['email', 'sign-in', 'code', 'verify', 'signin-note', 'signin-later']) assert.ok(signin.includes(`data-zg="${h}"`), `${h} is in the sign-in popup`);
+});
+
+test('Today is the single page: the goal, then today, then the lesson (reading, cards, goal tasks, metronome), in that order', () => {
+  const today = html.slice(html.indexOf('<div data-zg="screen-today">'), html.indexOf('<div data-zg="screen-songs"'));
+  const order = ['today', 'goal-focus', 'today-plan', 'today-now', 'today-blocks', 'today-start', 'lesson', 'lesson-reading', 'now', 'card', 'plan', 'blocks', 'metronome', 'mx-start', 'mx-note'];
+  const at = order.map((h) => today.indexOf(`data-zg="${h}"`));
+  at.forEach((i, k) => assert.ok(i >= 0, `${order[k]} is on Today`));
+  for (let k = 1; k < at.length; k++) assert.ok(at[k - 1]! < at[k]!, `${order[k - 1]} before ${order[k]}`);
+  assert.ok(!html.includes('data-zg="card-source"'), 'no sources on the cards (Blake, 2026-11-02)');
 });
 
 test('the long forms live in sheets; each screen keeps its main action outside them', () => {
@@ -197,5 +222,5 @@ test('the long forms live in sheets; each screen keeps its main action outside t
     return html.lastIndexOf('<dialog', at) > html.lastIndexOf('</dialog>', at);
   };
   for (const h of ['mx-groove', 'mx-workout', 'mx-vol-kick', 'mx-allowDuringQuietHours', 'songs-paste', 'improv-prompt', 'goal-what', 'goal-save']) assert.ok(inSheet(h), `${h} is in a sheet`);
-  for (const h of ['today-start', 'reveal', 'mx-start', 'mx-bpm', 'rec-start', 'improv-start', 'songs-add', 'ear-play', 'theory-topics', 'notify-all']) assert.ok(!inSheet(h), `${h} stays on its screen`);
+  for (const h of ['today-start', 'reveal', 'mx-start', 'mx-bpm', 'rec-start', 'improv-start', 'songs-add', 'ear-play', 'theory-lessons', 'baseline-list', 'notify-all', 'open-signin']) assert.ok(!inSheet(h), `${h} stays on its screen`);
 });

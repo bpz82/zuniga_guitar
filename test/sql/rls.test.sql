@@ -152,6 +152,40 @@ select pg_temp.expect((select count(*) from storage.objects) = 0, 'signed out: n
 select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'aaaaaaaa-0000-0000-0000-000000000001/take-anon.webm')$$, 'signed out: cannot upload');
 reset role;
 
+-- ------------------------------------------------------- tabs (Storage, 2026-11-02)
+\set aliceTab '\'aaaaaaaa-0000-0000-0000-000000000001/tab-t1.pdf\''
+select pg_temp.expect((select not public and file_size_limit = 20971520 from storage.buckets where id = 'tabs'), 'tabs bucket is private, 20 MB per file');
+select pg_temp.expect((select allowed_mime_types @> array['application/pdf', 'image/jpeg', 'text/plain'] and not allowed_mime_types && array['text/html', 'image/svg+xml', 'application/javascript'] from storage.buckets where id = 'tabs'), 'PDF, pictures and plain text only');
+
+select pg_temp.as_user(:alice);
+insert into storage.objects (bucket_id, name) values ('tabs', :aliceTab);
+insert into storage.objects (bucket_id, name) values ('tabs', 'aaaaaaaa-0000-0000-0000-000000000001/tab-t2.txt');
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'tabs') = 2, 'alice sees her 2 tabs');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'bbbbbbbb-0000-0000-0000-000000000002/tab-x.pdf')$$, 'alice cannot write into bob''s folder');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'tab-x.pdf')$$, 'no tab outside a user folder');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'aaaaaaaa-0000-0000-0000-000000000001/sub/tab-x.pdf')$$, 'no nested folders');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'aaaaaaaa-0000-0000-0000-000000000001/tab-x.html')$$, 'tab extensions only');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'aaaaaaaa-0000-0000-0000-000000000001/take-x.webm')$$, 'take names do not go in the tabs bucket');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'aaaaaaaa-0000-0000-0000-000000000001/tab-x.pdf')$$, 'tab names do not go in the takes bucket');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'aaaaaaaa-0000-0000-0000-000000000001/tab-t1.pdf')$$, 'no overwriting a tab (same name)');
+update storage.objects set name = 'aaaaaaaa-0000-0000-0000-000000000001/tab-renamed.pdf' where name = :aliceTab;
+delete from storage.objects where name = :aliceTab;
+update storage.buckets set public = true where id = 'tabs';
+reset role;
+select pg_temp.expect((select count(*) from storage.objects where name = :aliceTab) = 1, 'alice can neither rename nor delete a tab');
+select pg_temp.expect((select not public from storage.buckets where id = 'tabs'), 'users cannot make the tabs bucket public');
+
+select pg_temp.as_user(:bob);
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'tabs') = 0, 'bob cannot see alice''s tabs');
+delete from storage.objects where bucket_id = 'tabs';
+reset role;
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'tabs') = 2, 'bob cannot delete alice''s tabs');
+
+set role anon;
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'tabs') = 0, 'signed out: no tabs visible');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'aaaaaaaa-0000-0000-0000-000000000001/tab-anon.pdf')$$, 'signed out: cannot upload a tab');
+reset role;
+
 -- --------------------------------------------------------- account deletion
 delete from auth.users where id = :alice;
 select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 0, 'deleting the account deletes the log');
@@ -159,4 +193,4 @@ select pg_temp.expect((select count(*) from public.nudges where user_id = :alice
 select pg_temp.expect((select count(*) from public.events where user_id = :bob) = 1, 'bob untouched');
 -- Storage files do not cascade with the account (Supabase behaviour): the
 -- pre-customer checklist covers removing the folder on account deletion.
-select pg_temp.expect((select count(*) from storage.objects where name like 'aaaaaaaa-0000-0000-0000-000000000001/%') = 2, 'takes outlive the account: cleanup needed (docs/SETUP.md)');
+select pg_temp.expect((select count(*) from storage.objects where name like 'aaaaaaaa-0000-0000-0000-000000000001/%') = 4, 'takes and tabs outlive the account: cleanup needed (docs/SETUP.md)');

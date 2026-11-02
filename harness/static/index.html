@@ -20,60 +20,70 @@
     </header>
     <p data-zg="status">Loading…</p>
     <nav data-zg="nav" aria-label="Main">
-      <a href="#/today" data-zg="tab-today"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span>Today</span></a>
-      <a href="#/practice" data-zg="tab-practice"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21C8 17 5 12.5 5 9.5 5 6 8 4 12 4s7 2 7 5.5c0 3-3 7.5-7 11.5z"/></svg><span>Practice</span><span data-zg="nav-badge-practice" aria-hidden="true" hidden></span></a>
+      <a href="#/today" data-zg="tab-today"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span>Today</span><span data-zg="nav-badge-today" aria-hidden="true" hidden></span></a>
+      <a href="#/goals" data-zg="tab-goals"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4.5L17 13H5"/></svg><span>Goals</span></a>
       <a href="#/record" data-zg="tab-record"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg><span>Record</span></a>
       <a href="#/songs" data-zg="tab-songs"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8" cy="17" r="3"/><path d="M11 17V4l6 3"/></svg><span>Songs</span></a>
       <button type="button" data-zg="nav-more" aria-expanded="false" aria-controls="zg-more-sheet"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg><span>More</span></button>
       <div id="zg-more-sheet" data-zg="more-sheet">
         <a href="#/ear" data-zg="tab-ear"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 9a5 5 0 0 1 10 0c0 3.5-3.5 4.5-3.5 8a3 3 0 0 1-6 0"/><path d="M10 9a2 2 0 0 1 4 0c0 1.5-2 2-2 3.5"/></svg><span>Ear training</span></a>
-        <a href="#/goals" data-zg="tab-goals"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4.5L17 13H5"/></svg><span>Goals</span></a>
         <a href="#/cards" data-zg="tab-cards"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="13" height="14" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/></svg><span>Cards</span><span data-zg="nav-badge-cards" aria-hidden="true" hidden></span></a>
         <a href="#/settings" data-zg="more-settings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Settings</span></a>
       </div>
     </nav>
     <main data-zg="screens">
       <div data-zg="screen-today">
-        <section data-zg="today">
-          <h2>Today</h2>
-          <p data-zg="today-now"></p>
-          <a href="#/practice" data-zg="today-start">Start session</a>
+        <section data-zg="today" aria-labelledby="zg-goal-focus">
+          <p>Your goal</p>
+          <h2 id="zg-goal-focus" data-zg="goal-focus"></h2>
+          <p data-zg="goal-focus-when"></p>
+          <p data-zg="goal-focus-why"></p>
+          <a href="#/goals" data-zg="goal-focus-link">All goals</a>
         </section>
         <section data-zg="today-plan">
-          <h3>Today's goal blocks</h3>
+          <h2>Today</h2>
+          <p data-zg="today-now"></p>
           <ul data-zg="today-blocks"></ul>
           <p data-zg="today-reminder"></p>
+          <button type="button" data-zg="today-start">Start today's lesson</button>
         </section>
-      </div>
-      <div data-zg="screen-practice" hidden>
+        <section data-zg="lesson" tabindex="-1" aria-labelledby="zg-lesson-heading">
+          <h2 id="zg-lesson-heading">Today's lesson</h2>
+          <details data-zg="lesson-reading" open>
+            <summary data-zg="lesson-title"></summary>
+            <div data-zg="lesson-text"></div>
+          </details>
+        </section>
         <section data-zg="now">
-          <h2>Now</h2>
+          <h3>Cards and songs</h3>
           <p data-zg="session"></p>
           <div data-zg="card">
             <p data-zg="question"></p>
             <p data-zg="answer"></p>
             <div data-zg="mc-choices"></div>
             <p data-zg="card-feedback"></p>
-            <p data-zg="card-source"></p>
             <button data-zg="reveal">Show answer</button>
             <button data-zg="practice" hidden>Practise with the metronome</button>
+            <button type="button" data-zg="card-tab" hidden>Show the tab</button>
             <div data-zg="rate" hidden>
               <button data-zg="r-again">Again</button><button data-zg="r-hard">Hard</button><button data-zg="r-good">Good</button><button data-zg="r-easy">Easy</button>
             </div>
           </div>
         </section>
         <section data-zg="plan">
-          <h3>Today's plan</h3>
+          <h3>Your goal tasks</h3>
           <ul data-zg="blocks"></ul>
           <button data-zg="played">I played</button>
         </section>
         <section data-zg="metronome">
-          <h2>Metronome</h2>
+          <h3>Metronome</h3>
           <div data-zg="mx-display">
             <p data-zg="mx-position">stopped</p>
             <label>BPM <input type="number" data-zg="mx-bpm" min="30" max="300" inputmode="numeric"></label>
           </div>
           <p><button data-zg="mx-start">Start</button> <button data-zg="mx-tap">Tap</button></p>
+          <p data-zg="mx-note" role="status"></p>
+          <p><button type="button" data-zg="mx-anyway" hidden>Play anyway</button></p>
           <p><small>Stopped: tap to set the tempo. Playing: tap along to measure your timing.</small></p>
           <label>Exercise <select data-zg="mx-exercise"></select></label>
           <div data-zg="mx-result" hidden>
@@ -129,12 +139,20 @@
         </section>
       </div>
       <div data-zg="screen-songs" hidden>
+        <section data-zg="songs-baseline" hidden>
+          <h2>Rate your songs</h2>
+          <p>How well could you play each one right now? Rate it without playing; this sets where it starts in practice.</p>
+          <p><small>Again: can't play it yet · Hard: shaky · Good: solid · Easy: could play it in my sleep</small></p>
+          <p data-zg="baseline-status"></p>
+          <ul data-zg="baseline-list"></ul>
+        </section>
         <section data-zg="songs">
           <h2>Songs I already know</h2>
           <label>Song title <input type="text" data-zg="songs-new" maxlength="200" placeholder="e.g. Blackbird"></label>
           <button data-zg="songs-add">Add song</button>
           <button type="button" data-zg="open-songs-paste">Paste a list</button>
           <ul data-zg="songs-list"></ul>
+          <input type="file" data-zg="songtab-file" accept="application/pdf,image/*,text/plain,.pdf,.txt,.tab,.crd,.chopro,.cho,.pro" hidden>
           <details data-zg="songs-archive">
             <summary>Archived</summary>
             <ul data-zg="songs-archived"></ul>
@@ -244,9 +262,14 @@
       </div>
       <div data-zg="screen-cards" hidden>
         <section data-zg="theory">
-          <h2>Theory and physics cards</h2>
-          <p>Silent cards for pocket bursts, work hours included. Turn topics on or off.</p>
-          <div data-zg="theory-topics"></div>
+          <h2>Theory and physics</h2>
+          <p>One course, lesson by lesson, from what sound is to recording. Silent cards: fine for pocket bursts, work hours included.</p>
+          <p><small>A lesson unlocks when you have learned the one before it: every card answered right last time, and solid enough that you would still remember it a week from now. In practice: right once, then right again on a later day.</small></p>
+          <ol data-zg="theory-lessons"></ol>
+        </section>
+        <section>
+          <h3>Extras</h3>
+          <label><input type="checkbox" data-zg="theory-extras"> <span data-zg="theory-extras-label">Extra cards outside the course: guitar theory and cassette gear</span></label>
         </section>
       </div>
       <div data-zg="screen-settings" hidden>
@@ -268,10 +291,7 @@
         <section>
           <h2>Account and sync</h2>
           <p data-zg="account">Not connected (this device only)</p>
-          <label>Email <input type="email" data-zg="email"></label>
-          <button data-zg="sign-in">Email me a sign-in code</button>
-          <label>Code from the email <input type="text" data-zg="code" inputmode="numeric" autocomplete="one-time-code"></label>
-          <button data-zg="verify">Sign in</button>
+          <button type="button" data-zg="open-signin">Sign in</button>
           <p><button data-zg="sync">Sync now</button> <button data-zg="sign-out">Sign out</button></p>
         </section>
         <section>
@@ -298,6 +318,31 @@
         </details>
       </div>
     </main>
+    <dialog data-zg="sheet-signin" aria-labelledby="zg-sheet-signin-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-signin-title">Sign in</h2>
+          <button type="button" data-zg="close-signin" aria-label="Close">×</button>
+        </header>
+        <p>Sign in to back up your practice, takes and tabs, and to use them on your phone and laptop. We email you a code; there is no password.</p>
+        <label>Email <input type="email" data-zg="email" autocomplete="email"></label>
+        <button data-zg="sign-in">Email me a sign-in code</button>
+        <label>Code from the email <input type="text" data-zg="code" inputmode="numeric" autocomplete="one-time-code"></label>
+        <button data-zg="verify">Sign in</button>
+        <p data-zg="signin-note" role="status"></p>
+        <button type="button" data-zg="signin-later">Not now: use this device only</button>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-songtab" aria-labelledby="zg-sheet-songtab-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-songtab-title" data-zg="songtab-title">Tab</h2>
+          <button type="button" data-zg="close-songtab" aria-label="Close">×</button>
+        </header>
+        <div data-zg="songtab-view"></div>
+        <p><a data-zg="songtab-open" target="_blank" rel="noopener">Open full size</a></p>
+      </div>
+    </dialog>
   </div>
   <script type="module" src="app.js"></script>
 </body>
