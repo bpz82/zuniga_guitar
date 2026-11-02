@@ -11,7 +11,7 @@ import type { Hook } from './hooks.ts';
 const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
 const newKey = () => crypto.randomUUID();
 
-export function setupSongs(host: ModuleHost, say: (s: string) => void, afterChange: () => Promise<void>) {
+export function setupSongs(host: ModuleHost, say: (s: string) => void, afterChange: () => Promise<void>, onPasted: () => void = () => undefined) {
   /** Runs a songs action inside the crash boundary and reports the outcome. */
   const act = async <T>(fn: () => Promise<Validation<T>>, done: (value: T) => string) => {
     const r = await runModule(host, fn);
@@ -66,7 +66,7 @@ export function setupSongs(host: ModuleHost, say: (s: string) => void, afterChan
         const box = $<HTMLTextAreaElement>('songs-paste');
         void act(
           () => pasteSongs(host, box.value, newKey),
-          (r) => ((box.value = ''), `Added ${r.added.length} songs${r.skipped.length ? `; skipped ${r.skipped.length} already listed` : ''}`),
+          (r) => ((box.value = ''), onPasted(), `Added ${r.added.length} songs${r.skipped.length ? `; skipped ${r.skipped.length} already listed` : ''}`),
         );
       };
     },

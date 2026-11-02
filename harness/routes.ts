@@ -84,3 +84,14 @@ export function badgeText(count: number): string | null {
   if (!Number.isFinite(count) || count < 1) return null;
   return count > MAX_BADGE ? `${MAX_BADGE}+` : String(Math.floor(count));
 }
+
+// ---------------------------------------------------- sheets (2026-11-01) --
+
+/**
+ * Bottom sheets (native <dialog>s) holding the long forms, so each screen
+ * keeps one primary action: metronome settings (Practice), paste a song
+ * list (Songs), improv settings (Record), a new goal (Goals). Each has hooks
+ * `sheet-<name>` (the dialog), `open-<name>` and `close-<name>` (buttons).
+ */
+export const SHEETS = ['mx-settings', 'songs-paste', 'improv', 'goal-new'] as const;
+export type SheetName = (typeof SHEETS)[number];

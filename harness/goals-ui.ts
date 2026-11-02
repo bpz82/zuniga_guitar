@@ -16,7 +16,13 @@ const optional = (name: Hook): number | undefined => {
   return v === '' ? undefined : Number(v);
 };
 
-export function setupGoals(replica: Replica, songsHost: ModuleHost, record: (r: Validation<EventBody>) => Promise<void>, say: (s: string) => void) {
+export function setupGoals(
+  replica: Replica,
+  songsHost: ModuleHost,
+  record: (r: Validation<EventBody>) => Promise<void>,
+  say: (s: string) => void,
+  onSaved: () => void = () => undefined,
+) {
   /** The song checkboxes as last drawn (code keeps its own references; no DOM queries). */
   let songBoxes: HTMLInputElement[] = [];
   const readForm = (): Validation<GoalForm> => {
@@ -118,6 +124,7 @@ export function setupGoals(replica: Replica, songsHost: ModuleHost, record: (r: 
         const r = goalFromForm(form.value, `goal-${crypto.randomUUID().slice(0, 18)}`, replica.library, Date.now());
         if (!r.ok) return say(`Goal: ${r.error}`);
         await record(r);
+        onSaved();
         say(`Goal saved: ${form.value.what.trim()}`);
       };
     },

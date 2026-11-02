@@ -37,6 +37,8 @@ import { setupEar } from './ear-ui.ts';
 import { setupRecorder } from './recorder-ui.ts';
 import { setupGoals } from './goals-ui.ts';
 import { setupShell } from './shell.ts';
+import { setupSheets } from './sheets.ts';
+import type { Sheets } from './sheets.ts';
 import { badgeText } from './routes.ts';
 import type { Shell } from './shell.ts';
 import { setupTheory } from './theory-ui.ts';
@@ -97,6 +99,7 @@ let goalsUi!: ReturnType<typeof setupGoals>;
 let theoryHost!: ModuleHost;
 let theoryUi!: ReturnType<typeof setupTheory>;
 let shell!: Shell;
+let sheets!: Sheets;
 /** Takes storage, when signed in. */
 const cloud = () => (client && userId !== 'local' ? { storage: supabaseTakeStorage(client as unknown as StorageClientLike), userId } : null);
 let revealed = false;
@@ -443,7 +446,8 @@ async function main() {
   metronome = setupMetronome(replica, createHost(replica, METRONOME), say, afterChange);
   await metronome.init();
   songsHost = createHost(replica, SONGS);
-  songsUi = setupSongs(songsHost, say, afterChange);
+  sheets = setupSheets();
+  songsUi = setupSongs(songsHost, say, afterChange, () => sheets.close('songs-paste'));
   earHost = createHost(replica, EAR);
   const earSeeded = await runModule(earHost, () => seedEar(earHost));
   if (!earSeeded.ok) say(`Ear training failed: ${earSeeded.error}`);
@@ -456,14 +460,16 @@ async function main() {
     const durationMs = runTakes(recHost, runId).reduce((sum, t) => sum + t.durationMs, 0);
     await record({ ok: true, value: { type: 'task-done', goalId: block.goalId, blockId: block.blockId, durationMs } });
   });
-  goalsUi = setupGoals(replica, songsHost, record, say);
+  goalsUi = setupGoals(replica, songsHost, record, say, () => sheets.close('goal-new'));
   theoryHost = createHost(replica, THEORY);
   const theorySeeded = await runModule(theoryHost, () => seedTheory(theoryHost));
   if (!theorySeeded.ok) say(`Theory cards failed: ${theorySeeded.error}`);
   theoryUi = setupTheory(theoryHost, say, afterChange);
   wire();
   $('card').dataset.started = String(Date.now());
-  shell = setupShell(() => practiceDay(Date.now(), replica.library.settings.dayStart), () => render());
+  // Leaving a screen closes its sheets (a modal left open on a hidden screen would block the page).
+  shell = setupShell(() => practiceDay(Date.now(), replica.library.settings.dayStart), () => (sheets.closeAll(), render()));
+  sheets.closeAll();
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
   if (client) await syncNow().catch((e) => say(`Offline: ${(e as Error).message}`));
   setInterval(render, 30_000);

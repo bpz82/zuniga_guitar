@@ -4,7 +4,7 @@
  * so the theme can restyle freely. Renaming or removing a hook in the HTML
  * fails test/hooks.test.ts. See docs/THEME.md.
  */
-import { BADGED, SCREENS, TABS } from './routes.ts';
+import { BADGED, SCREENS, SHEETS, TABS } from './routes.ts';
 
 export const MX_NUMBER_FIELDS = ['bpm', 'beatsPerBar', 'beatUnit', 'subdivision', 'accentHz', 'beatHz', 'master', 'countInBars', 'targetBpm', 'stepBpm', 'everyBars', 'playBars', 'muteBars', 'repBars'] as const;
 export const MX_TEXT_FIELDS = ['groove', 'sound', 'workout'] as const;
@@ -16,6 +16,8 @@ const STATIC = [
   'shell', 'topbar', 'gear', 'nav', 'screens', 'dev',
   // social-style tab bar (2026-11-01): More button and its sheet; badges generated below
   'nav-more', 'more-sheet', 'more-settings',
+  // layout redesign (2026-11-01): cards that need a name of their own; sheets are generated below
+  'today-plan', 'now', 'plan', 'mx-display', 'songs-archive', 'takes-archive', 'ear-stage', 'rec-stage',
   // today
   'today', 'today-now', 'today-start', 'today-blocks', 'today-reminder',
   // settings: quiet hours
@@ -51,6 +53,9 @@ export type Hook =
   | `tab-${(typeof TABS)[number]}`
   | `screen-${(typeof SCREENS)[number]}`
   | `nav-badge-${(typeof BADGED)[number]}`
+  | `sheet-${(typeof SHEETS)[number]}`
+  | `open-${(typeof SHEETS)[number]}`
+  | `close-${(typeof SHEETS)[number]}`
   | `mx-${MxField}`
   | `mx-vol-${(typeof MX_VOICES)[number]}`
   | `r-${(typeof RATINGS)[number]}`;
@@ -61,6 +66,7 @@ export const HOOKS: readonly Hook[] = [
   ...TABS.map((t) => `tab-${t}` as const),
   ...SCREENS.map((s) => `screen-${s}` as const),
   ...BADGED.map((b) => `nav-badge-${b}` as const),
+  ...SHEETS.flatMap((s) => [`sheet-${s}` as const, `open-${s}` as const, `close-${s}` as const]),
   ...MX_NUMBER_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_TEXT_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_VOICES.map((v) => `mx-vol-${v}` as const),

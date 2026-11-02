@@ -1,36 +1,67 @@
-/* Zuniga Guitar — v5 rustic PRISM-inspired materials */
+/* Zuniga Guitar — v6 design tokens (2026-11-01): lighter, refined, wood as an accent.
+   Every token from v5 is kept (some with new values) so older rules and pages still resolve. */
 :root {
-  --zg-color-bg: #2e1e15;
-  --zg-color-text: #ece4d4;
-  --zg-color-muted: #c4baa8;
-  --zg-color-border: #8b6f56;
-  --zg-color-accent: #d89b43;
-  --zg-color-warning: #f1b77d;
-  --zg-color-wood: #705945;
-  --zg-color-wood-mid: #62442e;
-  --zg-color-wood-dark: #513b29;
-  --zg-color-wood-seam: #2e1e15;
-  --zg-color-panel: #b0b0ab;
-  --zg-color-panel-light: #c0c0bb;
-  --zg-color-panel-dark: #86857f;
-  --zg-color-ink: #171312;
-  --zg-color-cream: #d5d5c5;
-  --zg-color-knob: #141110;
-  --zg-color-charcoal: #39322a;
-  --zg-color-amber: #ffb24a;
+  /* Surfaces: warm paper over a faint wood grain; cards a shade lighter. */
+  --zg-color-bg: #f2eadf;
+  --zg-color-surface: #fffaf3;
+  --zg-color-surface-2: #f6eee3;
+  --zg-color-surface-3: #ece1d2;
+  --zg-color-text: #2a1e16;
+  --zg-color-muted: #7b6b5d;
+  --zg-color-border: #e3d5c3;
+  --zg-color-border-strong: #cdb9a1;
+
+  /* Accent: amber-copper, as in the wood finish. */
+  --zg-color-accent: #b9752b;
+  --zg-color-accent-strong: #965a1b;
+  --zg-color-accent-soft: #f5e2c6;
+  --zg-color-on-accent: #fffaf1;
+  --zg-color-record: #b94a33;
+  --zg-color-good: #4d7a4a;
+  --zg-color-good-soft: #e3eedc;
+  --zg-color-again: #a6533b;
+  --zg-color-again-soft: #f6e0d7;
+  --zg-color-warning: #9a4a1a;
+
+  /* Wood (for the textured accents: Today, the metronome display, the tab bar's Record). */
+  --zg-color-wood: #6e4f37;
+  --zg-color-wood-mid: #5b3f2a;
+  --zg-color-wood-dark: #3e2a1c;
+  --zg-color-wood-seam: #2a1b12;
+  --zg-color-cream: #f4ead9;
+  --zg-color-amber: #f0b25a;
+
+  /* Kept from v5 (no longer used for panels). */
+  --zg-color-panel: #fffaf3;
+  --zg-color-panel-light: #fffdf8;
+  --zg-color-panel-dark: #ece1d2;
+  --zg-color-ink: #2a1e16;
+  --zg-color-knob: #2a1e16;
+  --zg-color-charcoal: #3a2f27;
+
   --zg-space-1: .25rem;
   --zg-space-2: .5rem;
   --zg-space-3: .75rem;
   --zg-space-4: 1rem;
   --zg-space-5: 1.5rem;
   --zg-space-6: 2rem;
-  --zg-page-width: 62rem;
+  --zg-page-width: 72rem;
+  --zg-content-width: 44rem;
+
   --zg-font-display: 'Zuniga Mission', 'Arial Narrow', sans-serif;
-  --zg-font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --zg-font-mono: ui-monospace, 'SFMono-Regular', monospace;
+  --zg-font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --zg-font-mono: ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --zg-font-size: 1rem;
-  --zg-line-height: 1.45;
-  --zg-radius: 6px;
+  --zg-line-height: 1.5;
+
+  --zg-radius: 14px;
+  --zg-radius-lg: 22px;
+  --zg-radius-pill: 999px;
   --zg-target: 48px;
-  --zg-panel-shadow: 0 10px 22px rgba(11, 8, 7, .34), 0 2px 5px rgba(11, 8, 7, .18);
+  --zg-shadow: 0 1px 2px rgba(58, 38, 20, .06), 0 8px 24px rgba(58, 38, 20, .08);
+  --zg-shadow-lift: 0 2px 4px rgba(58, 38, 20, .08), 0 16px 40px rgba(58, 38, 20, .16);
+  --zg-panel-shadow: var(--zg-shadow);
+  --zg-ease: cubic-bezier(.2, .8, .2, 1);
+  --zg-fast: .16s;
+  --zg-slow: .28s;
 }

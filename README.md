@@ -43,3 +43,4 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 | Theory and physics flashcards; gig memo on gig night | Built, awaiting review |
 | App shell: Today, tabs and side nav, Settings behind the gear, hash routing | Built, awaiting review |
 | Social-style tab bar: centre Record, More sheet, due badges | Built, awaiting review |
+| Layout redesign of every screen; theme v6 (lighter) | Built, awaiting review |

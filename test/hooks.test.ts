@@ -169,3 +169,33 @@ test('nav: due-count badges sit inside Practice and Cards, hidden until somethin
     assert.match(link, new RegExp(`<span data-zg="nav-badge-${b}" aria-hidden="true" hidden></span></a>$`), b);
   }
 });
+
+// --------------------------------------------- layout redesign (2026-11-01) --
+
+test('sheets: each is a labelled dialog in its own screen, closed at load, with its close button inside and its open button outside', async () => {
+  const { SHEETS, SCREENS } = await import('../harness/routes.ts');
+  for (const name of SHEETS) {
+    const open = html.indexOf(`<dialog data-zg="sheet-${name}"`);
+    assert.ok(open >= 0, `sheet-${name} is a <dialog>`);
+    const tag = html.slice(open, html.indexOf('>', open) + 1);
+    assert.ok(!/\sopen[\s>]/.test(tag), `sheet-${name} starts closed`);
+    const label = /aria-labelledby="([^"]+)"/.exec(tag)?.[1];
+    const body = html.slice(open, html.indexOf('</dialog>', open));
+    assert.ok(label && body.includes(`<h2 id="${label}">`), `sheet-${name} is labelled by its heading`);
+    assert.ok(body.includes(`data-zg="close-${name}"`), `close-${name} is inside the sheet`);
+    assert.ok(!body.includes(`data-zg="open-${name}"`), `open-${name} is outside the sheet`);
+    // Same screen: the nearest screen opened before each.
+    const screenOf = (at: number) => SCREENS.map((s) => ({ s, i: html.lastIndexOf(`data-zg="screen-${s}"`, at) })).sort((a, b) => b.i - a.i)[0]!.s;
+    assert.equal(screenOf(html.indexOf(`data-zg="open-${name}"`)), screenOf(open), `open-${name} and its sheet share a screen`);
+  }
+  assert.equal(html.split('<dialog').length - 1, SHEETS.length, 'no other dialogs');
+});
+
+test('the long forms live in sheets; each screen keeps its main action outside them', () => {
+  const inSheet = (hook: string) => {
+    const at = html.indexOf(`data-zg="${hook}"`);
+    return html.lastIndexOf('<dialog', at) > html.lastIndexOf('</dialog>', at);
+  };
+  for (const h of ['mx-groove', 'mx-workout', 'mx-vol-kick', 'mx-allowDuringQuietHours', 'songs-paste', 'improv-prompt', 'goal-what', 'goal-save']) assert.ok(inSheet(h), `${h} is in a sheet`);
+  for (const h of ['today-start', 'reveal', 'mx-start', 'mx-bpm', 'rec-start', 'improv-start', 'songs-add', 'ear-play', 'theory-topics', 'notify-all']) assert.ok(!inSheet(h), `${h} stays on its screen`);
+});

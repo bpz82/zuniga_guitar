@@ -39,6 +39,16 @@ const show = async (screen) => {
   await page.click(screen === 'settings' ? '[data-zg="gear"]' : `[data-zg="tab-${screen}"]`);
   await until((s) => !document.querySelector(`[data-zg="screen-${s}"]`).hidden, screen);
 };
+/** Bottom sheets (native dialogs): open by their button, close by theirs, and read whether one is open. */
+const sheetIsOpen = (name) => page.evaluate((n) => document.querySelector(`[data-zg="sheet-${n}"]`).open, name);
+const openSheet = async (name) => {
+  await page.click(`[data-zg="open-${name}"]`);
+  await until((n) => document.querySelector(`[data-zg="sheet-${n}"]`).open, name);
+};
+const closeSheet = async (name) => {
+  await page.click(`[data-zg="close-${name}"]`);
+  await until((n) => !document.querySelector(`[data-zg="sheet-${n}"]`).open, name);
+};
 /** Waits until a screen is really shown (its hash set and the hashchange handled). */
 const arrive = (screen) => until((s) => location.hash === `#/${s}` && !document.querySelector(`[data-zg="screen-${s}"]`).hidden, screen);
 const visibleScreens = () => page.evaluate(() => [...document.querySelectorAll('[data-zg^="screen-"]')].filter((e) => !e.hidden).map((e) => e.dataset.zg));
@@ -99,16 +109,17 @@ try {
   assert.deepEqual(await visibleScreens(), ['screen-songs'], 'one screen at a time');
   assert.equal(await page.getAttribute('[data-zg="tab-songs"]', 'aria-current'), 'page');
   assert.equal(await page.getAttribute('[data-zg="tab-practice"]', 'aria-current'), null);
-  await page.evaluate(() => window.scrollTo(0, 400));
-  assert.ok(await page.evaluate(() => window.scrollY) > 0);
   await show('ear');
-  assert.equal(await page.evaluate(() => window.scrollY), 0, 'a newly opened screen starts at the top');
   await page.goBack();
   await until(() => location.hash === '#/songs' && !document.querySelector('[data-zg="screen-songs"]').hidden);
   await page.goBack();
   await until(() => location.hash === '#/practice' && !document.querySelector('[data-zg="screen-practice"]').hidden);
+  // Practice is the long screen: scroll it, then a newly opened screen starts at the top.
+  await page.evaluate(() => window.scrollTo(0, 400));
+  assert.ok(await page.evaluate(() => window.scrollY) > 0);
   await page.goForward();
   await until(() => location.hash === '#/songs' && !document.querySelector('[data-zg="screen-songs"]').hidden);
+  assert.equal(await page.evaluate(() => window.scrollY), 0, 'a newly opened screen starts at the top');
   step('shell: tabs switch screens one at a time; back and forward work');
 
   await show('settings');
@@ -172,6 +183,7 @@ try {
   assert.deepEqual(await sheetOpen(), ['true', true]);
   assert.deepEqual(await visible(SHEET_HOOKS), [true, true, true, true], 'Ear training, Goals, Cards, Settings');
   assert.equal(await focused(), 'tab-ear', 'focus moves into the sheet');
+  await page.waitForTimeout(400); // let the opening rise finish (a CSS transition)
   const sheetBox = await page.locator('[data-zg="more-sheet"]').boundingBox();
   const navBox = await page.locator('[data-zg="nav"]').boundingBox();
   assert.ok(sheetBox.y + sheetBox.height <= navBox.y + 1 && sheetBox.height > 0, 'the sheet opens just above the bar');
@@ -226,6 +238,53 @@ try {
   const ys = await Promise.all([...BAR_HOOKS.slice(0, 4), ...SHEET_HOOKS].map((h) => page.locator(`[data-zg="${h}"]`).boundingBox().then((b) => b.y)));
   for (let i = 1; i < ys.length; i++) assert.ok(ys[i] > ys[i - 1], 'one column, top to bottom');
   step('tabs: from 800px the side nav lists every section; no More button');
+
+  // Layout redesign (2026-11-01): touch targets and bottom sheets, on a phone.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const small = [];
+  for (const screen of ['today', 'practice', 'record', 'songs', 'ear', 'goals', 'cards', 'settings']) {
+    await page.evaluate((x) => (location.hash = `#/${x}`), screen);
+    await arrive(screen);
+    small.push(...(await page.evaluate((x) => {
+      const root = document.querySelector(`[data-zg="screen-${x}"]`);
+      const controls = [...root.querySelectorAll('button, a, input, select, textarea, summary'), ...document.querySelectorAll('[data-zg="nav"] > a, [data-zg="nav"] > button, [data-zg="gear"]')];
+      return controls
+        .filter((el) => el.getClientRects().length > 0 && !el.closest('dialog'))
+        // A switch's touch target is its whole label row (a tap anywhere on it toggles the switch).
+        .map((el) => [el.dataset.zg ?? el.tagName.toLowerCase(), (el.type === 'checkbox' && el.closest('label')) || el])
+        .map(([z, target]) => [z, Math.round(target.getBoundingClientRect().height), Math.round(target.getBoundingClientRect().width)])
+        .filter(([, h, w]) => h < 44 || w < 44)
+        .map(([z, h, w]) => `${x}:${z} ${w}x${h}`);
+    }, screen)));
+  }
+  assert.deepEqual([...new Set(small)], [], 'every control on every screen is at least 44 by 44');
+  step('layout: every visible control on every screen is a 44px+ touch target on a phone');
+
+  await page.evaluate(() => (location.hash = '#/goals'));
+  await arrive('goals');
+  await openSheet('goal-new');
+  assert.equal(await page.evaluate(() => document.querySelector('[data-zg="sheet-goal-new"]').matches(':modal')), true, 'a modal sheet');
+  // A tap on the dimmed page lands on the sheet's backdrop (hit-tested as the dialog), never on the page.
+  const hit = await page.evaluate(() => [document.elementFromPoint(20, 20) === document.querySelector('[data-zg="sheet-goal-new"]'), document.elementFromPoint(40, 830)?.dataset.zg ?? null]);
+  assert.equal(hit[0], true, 'the page behind the sheet is covered');
+  assert.notEqual(hit[1], 'tab-today', 'the tab bar too');
+  await page.keyboard.press('Escape');
+  await until(() => !document.querySelector('[data-zg="sheet-goal-new"]').open);
+  await openSheet('goal-new');
+  await page.mouse.click(195, 30); // the backdrop, above the sheet
+  await until(() => !document.querySelector('[data-zg="sheet-goal-new"]').open);
+  await openSheet('goal-new');
+  await page.evaluate(() => history.back()); // leaving the screen closes its sheet
+  await until(() => !document.querySelector('[data-zg="sheet-goal-new"]').open);
+  await page.evaluate(() => (location.hash = '#/practice'));
+  await arrive('practice');
+  await openSheet('mx-settings');
+  await page.waitForTimeout(400); // let the slide-up finish (a CSS transition)
+  const sheetBox2 = await page.locator('[data-zg="sheet-mx-settings"]').boundingBox();
+  assert.ok(Math.abs(sheetBox2.y + sheetBox2.height - 844) < 2 && sheetBox2.width === 390, 'on a phone it rises from the bottom edge, full width');
+  await closeSheet('mx-settings');
+  step('sheets: modal bottom sheets close on Escape, a backdrop tap, the close button, or leaving the screen');
+  await page.setViewportSize({ width: 1280, height: 720 });
   await show('practice');
 
   await show('settings');
@@ -256,10 +315,12 @@ try {
   assert.equal(await page.evaluate(() => window.zg.metronome.player.playing), false);
   step('metronome refuses to play during quiet hours by default');
 
+  await openSheet('mx-settings');
   await page.check('[data-zg=\"mx-allowDuringQuietHours\"]');
-  await page.fill('[data-zg=\"mx-bpm\"]', '150');
   await page.selectOption('[data-zg=\"mx-groove\"]', 'rock');
   await page.fill('[data-zg=\"mx-countInBars\"]', '0');
+  await closeSheet('mx-settings');
+  await page.fill('[data-zg=\"mx-bpm\"]', '150');
   await page.click('[data-zg=\"mx-start\"]');
   await page.waitForFunction(() => window.zg.metronome.player.playing && window.zg.metronome.player.ready, null, { timeout: 15000 });
   await page.waitForFunction(() => (window.zg.metronome.player.stats?.bars ?? 0) >= 3, null, { timeout: 15000 });
@@ -269,8 +330,10 @@ try {
   assert.match(await page.textContent('[data-zg=\"mx-position\"]'), /bar \d+ · beat \d\/4 · 150 BPM/);
   step('real drum kit decodes and the lookahead scheduler plays rock at 150 BPM with no dropped clicks');
 
+  await openSheet('mx-settings'); // settings change while it plays
   await page.selectOption('[data-zg=\"mx-sound\"]', 'beep');
   await page.selectOption('[data-zg=\"mx-groove\"]', 'click');
+  await closeSheet('mx-settings');
   await page.waitForTimeout(1500);
   assert.equal((await page.evaluate(() => window.zg.metronome.player.stats)).dropped, 0);
   step('switching to synth beeps while playing');
@@ -378,9 +441,11 @@ try {
   await page.fill('[data-zg="songs-new"]', 'BLACKBIRD');
   await page.click('[data-zg="songs-add"]');
   await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('already in your songs'));
+  await openSheet('songs-paste');
   await page.fill('[data-zg="songs-paste"]', 'Little Wing\n\nblackbird\nWonderwall\n');
   await page.click('[data-zg="songs-paste-add"]');
   await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Added 2 songs; skipped 1'));
+  assert.equal(await sheetIsOpen('songs-paste'), false, 'the paste sheet closes once the songs are in');
   assert.equal(await page.locator('[data-zg="songs-list"] [data-zg="song"]').count(), 3);
   step('songs: add a title, duplicates refused, paste a list (blank lines and repeats skipped)');
 
@@ -403,6 +468,7 @@ try {
   await page.click('[data-zg="songs-list"] [data-zg="song"] >> nth=1 >> [data-zg="song-archive"]');
   await page.waitForFunction(() => document.querySelectorAll('[data-zg="songs-archived"] [data-zg="song"]').length === 1);
   assert.equal(await page.textContent('[data-zg="question"]'), 'Play: Wonderwall', 'an archived song is not served');
+  await page.click('[data-zg="songs-archive"] > summary'); // the archive is collapsed
   await page.click('[data-zg="songs-archived"] [data-zg="song-restore"]');
   await page.waitForFunction(() => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === 3);
   page.once('dialog', (d) => d.accept('Little Wing (live)'));
@@ -451,9 +517,11 @@ try {
   assert.match(await page.textContent('[data-zg="rec-status"]'), /Saved "Blues in A" .* sign in to back it up/);
   step('recorder: records a take from the microphone, saved on this device, queued for upload');
 
+  await openSheet('improv');
   await page.fill('[data-zg="improv-prompt"]', 'Blues in E');
   await page.fill('[data-zg="improv-takes"]', '2');
   await page.fill('[data-zg="improv-minutes"]', '1');
+  await closeSheet('improv');
   await page.click('[data-zg="improv-start"]');
   await until(() => document.querySelector('[data-zg="rec-timer"]').textContent.endsWith('/ 1:00'));
   await page.clock.runFor(61_000); // the 1-minute window runs out: the take stops and saves by itself
@@ -474,6 +542,7 @@ try {
   await until(() => document.querySelector('[data-zg="takes-list"]').textContent.includes('Blues in A (keeper)'));
   await page.click('[data-zg="takes-list"] [data-zg="take"] >> text=Blues in A (keeper) >> [data-zg="take-archive"]');
   await until(() => document.querySelectorAll('[data-zg="takes-archived"] [data-zg="take"]').length === 1);
+  await page.click('[data-zg="takes-archive"] > summary'); // the archive is collapsed
   await page.click('[data-zg="takes-archived"] [data-zg="take-restore"]');
   await until(() => document.querySelectorAll('[data-zg="takes-list"] [data-zg="take"]').length === 3);
   await page.click('[data-zg="takes-list"] [data-zg="take"] >> nth=0 >> [data-zg="take-play"]');
@@ -484,6 +553,7 @@ try {
 
   // Goals: "write a new record by X" with a timed task and a daily songwriting prompt (it is the morning session now).
   await show('goals');
+  await openSheet('goal-new');
   await page.selectOption('[data-zg="goal-kind"]', 'general');
   await page.fill('[data-zg="goal-what"]', 'Write a new record');
   await page.fill('[data-zg="goal-why"]', 'Ten new songs by spring');
@@ -492,6 +562,7 @@ try {
   await page.fill('[data-zg="goal-write-minutes"]', '1');
   await page.click('[data-zg="goal-save"]');
   await until(() => document.querySelectorAll('[data-zg="goals-list"] [data-zg="goal"]').length === 1);
+  assert.equal(await sheetIsOpen('goal-new'), false, 'the new-goal sheet closes once the goal is saved');
   assert.match(await page.textContent('[data-zg="goals-list"]'), /Write a new record · general · by 2027-03-01 · 11 min a day · 10 min in Chord Chemistry, Songwriting prompt/);
   const blockText = await page.textContent('[data-zg="blocks"]');
   assert.match(blockText, /10 min in Chord Chemistry · 10 min/);
@@ -515,6 +586,7 @@ try {
   step('goals: recording the songwriting prompt ticks the block off for today');
 
   await show('goals');
+  await openSheet('goal-new');
   await page.selectOption('[data-zg="goal-kind"]', 'gig');
   await page.fill('[data-zg="goal-what"]', 'Friday gig');
   await page.fill('[data-zg="goal-deadline"]', '2026-11-10');
@@ -526,6 +598,7 @@ try {
   await page.fill('[data-zg="goal-improv-ramp-days"]', '14');
   await page.click('[data-zg="goal-save"]');
   await until(() => document.querySelector('[data-zg="status"]').textContent.includes('Goal: improv ramp'));
+  assert.equal(await sheetIsOpen('goal-new'), true, 'a refused goal keeps the sheet open to fix it');
   await page.fill('[data-zg="goal-improv-ramp-to"]', '10');
   await page.click('[data-zg="goal-save"]');
   await until(() => document.querySelectorAll('[data-zg="goals-list"] [data-zg="goal"]').length === 2);
