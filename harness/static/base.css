@@ -2,78 +2,34 @@
    the hidden attribute, and that must always win. Loaded after the theme. */
 [hidden] { display: none !important; }
 
-/* App shell STRUCTURE only (Blake, 2026-10-31): where the tab bar, side nav
-   and screens sit. No colours, fonts, borders or spacing: that is the
-   theme's job. Every rule is wrapped in :where() (zero specificity), so any
-   theme rule wins even though this file loads last. */
+/* App shell STRUCTURE only (Blake, 2026-10-31; navigation 2026-11-03): where
+   the menu, its list and the page dots sit. No colours, fonts, borders or
+   spacing: that is the theme's job. Every rule is wrapped in :where() (zero
+   specificity), so any theme rule wins even though this file loads last.
+   (Superseded 2026-11-03: the bottom tab bar and the laptop side nav.) */
 
-/* Phone first: tabs in a bar fixed to the bottom; screens leave room for it. */
-:where([data-zg="nav"]) {
-  position: fixed;
-  left: 0;
+/* The top bar: the title, and the one menu button in the corner. */
+:where([data-zg="topbar"]) { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+:where([data-zg="nav"]) { position: relative; z-index: 10; }
+:where([data-zg="menu"]) { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+/* The menu's list drops down from the button, right-aligned; closed, it takes no room. */
+:where([data-zg="menu-list"]) {
+  position: absolute;
   right: 0;
-  bottom: 0;
-  z-index: 10;
-  display: flex;
-  padding-bottom: env(safe-area-inset-bottom);
-  background: Canvas; /* system colour so content never shows through; the theme replaces it */
-}
-/* Five equal slots (Today, Practice, Record, Songs, More): icon over label. */
-:where([data-zg="nav"] > a, [data-zg="nav"] > button, [data-zg="more-sheet"] > a) {
-  position: relative;
+  top: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  text-align: center;
-}
-:where([data-zg="nav"] > a, [data-zg="nav"] > button) { flex: 1 1 0; }
-/* Due-count badge on the icon's corner. */
-:where([data-zg^="nav-badge-"]) { position: absolute; top: 0; left: 55%; }
-/* The More sheet: a grid that opens just above the bar; closed, it takes no room. */
-:where([data-zg="more-sheet"]) {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   background: Canvas; /* placeholder so the page never shows through; the theme replaces it */
 }
-:where([data-zg="more-sheet"]:not([data-open])) { display: none; }
-:where([data-zg="screens"]) { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
-:where([data-zg="topbar"]) { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+:where([data-zg="menu-list"]:not([data-open])) { display: none; }
+:where([data-zg="menu-list"] > a) { display: flex; align-items: center; gap: 0.5rem; }
 
-/* Laptop: the tabs become a side column next to the screen. */
-@media (min-width: 800px) {
-  :where([data-zg="shell"]) {
-    display: grid;
-    grid-template-columns: 12rem minmax(0, 1fr);
-    grid-template-areas: "top top" "nav status" "nav main";
-    column-gap: 1.5rem;
-    align-items: start;
-  }
-  :where([data-zg="topbar"]) { grid-area: top; }
-  :where([data-zg="status"]) { grid-area: status; }
-  :where([data-zg="nav"]) {
-    grid-area: nav;
-    position: sticky;
-    top: 0;
-    flex-direction: column;
-    padding-bottom: 0;
-    background: none;
-  }
-  /* Every section in one column: no More button; the sheet's links join the nav. */
-  :where([data-zg="nav-more"]) { display: none; }
-  :where([data-zg="more-sheet"]) { position: static; display: contents; }
-  :where([data-zg="nav"] > a, [data-zg="more-sheet"] > a) {
-    flex: none;
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 0.5rem;
-    text-align: start;
-  }
-  :where([data-zg^="nav-badge-"]) { position: static; }
-  :where([data-zg="screens"]) { grid-area: main; padding-bottom: 0; }
-}
+/* The page dots under the top bar: Home and Teach, side by side. */
+:where([data-zg="pager"]) { display: flex; justify-content: center; gap: 1rem; }
+:where([data-zg="pager"] > a) { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+
+/* Home and Teach swipe sideways: the browser keeps vertical scrolling and
+   pinch-zoom there and hands horizontal strokes to the app. No sideways
+   overscroll, so a trackpad swipe never turns into the browser's Back. */
+:where([data-zg="screen-today"], [data-zg="screen-teach"]) { touch-action: pan-y pinch-zoom; }
+:where(html, body) { overscroll-behavior-x: none; }

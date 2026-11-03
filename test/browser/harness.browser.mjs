@@ -1,9 +1,10 @@
 // End-to-end check of the built harness in headless Chromium (Playwright):
 // offline-first storage, the test deck through the module contract,
 // settings and notification toggles, and the offline app shell.
-// 2026-11-02: the single-page Today (goal, breakdown, lesson), the curriculum,
-// song tabs and baselines, the sign-in popup, the device time zone and the
-// metronome's quiet-hours note.
+// 2026-11-02: the curriculum, song tabs and baselines, the sign-in popup, the
+// device time zone and the metronome's quiet-hours note. 2026-11-03: Home
+// and Teach open with their objectives popups and move into their decks;
+// one menu button replaces the tab bar; swiping between Home and Teach.
 // Run with `npm run test:browser` (needs Playwright and its Chromium).
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -38,13 +39,32 @@ const step = (name) => console.log(`ok - ${name}`);
 // The page clock is fake, so the page's own polling (waitForFunction) is not
 // re-run while real async work finishes (storage, microphone, MediaRecorder).
 // After such work, poll from here instead.
-/** Opens a screen the way a person would: its tab, or the gear for Settings. */
-const show = async (screen) => {
-  await page.click(screen === 'settings' ? '[data-zg="gear"]' : `[data-zg="tab-${screen}"]`);
-  await until((s) => !document.querySelector(`[data-zg="screen-${s}"]`).hidden, screen);
-};
 /** Bottom sheets (native dialogs): open by their button, close by theirs, and read whether one is open. */
 const sheetIsOpen = (name) => page.evaluate((n) => document.querySelector(`[data-zg="sheet-${n}"]`).open, name);
+/** A page's objectives popup, if it is up: Start, the way a person would. */
+const dismissIntro = async () => {
+  for (const [name, start] of [['objectives', 'today-start'], ['teach-objectives', 'teach-start']]) {
+    if (!(await sheetIsOpen(name))) continue;
+    await page.click(`[data-zg="${start}"]`);
+    await until((n) => !document.querySelector(`[data-zg="sheet-${n}"]`).open, name);
+  }
+};
+/** Opens a screen the way a person would: the menu, then its item; then past the page's popup if it opens. */
+const show = async (screen) => {
+  await page.click('[data-zg="menu"]');
+  await page.click(screen === 'settings' ? '[data-zg="menu-settings"]' : `[data-zg="tab-${screen}"]`);
+  await until((s) => !document.querySelector(`[data-zg="screen-${s}"]`).hidden, screen);
+  await dismissIntro();
+};
+/** After the app (re)opens: ready, then past its opening (Start on a popup, Escape on the new-goal sheet). */
+const ready = async () => {
+  await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+  await dismissIntro();
+  if (await sheetIsOpen('goal-new')) {
+    await page.keyboard.press('Escape');
+    await until(() => !document.querySelector('[data-zg="sheet-goal-new"]').open);
+  }
+};
 const openSheet = async (name) => {
   await page.click(`[data-zg="open-${name}"]`);
   await until((n) => document.querySelector(`[data-zg="sheet-${n}"]`).open, name);
@@ -70,32 +90,51 @@ try {
   assert.match(await status(), /this device only/);
   const sheets = await page.evaluate(() => [...document.styleSheets].map((x) => [x.href.split('/').pop(), x.cssRules.length > 0]));
   assert.deepEqual(sheets, [['tokens.css', true], ['theme.css', true], ['base.css', true]], 'all three stylesheets load, in order');
-  // The app opens on Today, the single page: the goal first, then today, then today's lesson.
-  assert.equal(new URL(page.url()).hash, '#/today');
+  // No goal yet: the app opens on Goals with the new-goal sheet, instead of Home's popup (no extra history entry).
+  assert.equal(new URL(page.url()).hash, '#/goals');
+  assert.equal(await sheetIsOpen('goal-new'), true);
+  assert.equal(await sheetIsOpen('objectives'), false);
+  await page.keyboard.press('Escape');
+  await until(() => !document.querySelector('[data-zg="sheet-goal-new"]').open);
+  step('opening with no goal yet: the new-goal sheet instead of the objectives popup');
+
+  // Home: the day's deck. Its objectives popup opens again from its button.
+  await show('today');
   assert.deepEqual(await visibleScreens(), ['screen-today']);
   assert.equal(await page.getAttribute('[data-zg="tab-today"]', 'aria-current'), 'page');
-  assert.equal(await page.textContent('[data-zg="goal-focus"]'), 'No goal yet');
-  assert.equal(await page.textContent('[data-zg="goal-focus-link"]'), 'Set your goal');
-  assert.match(await page.textContent('[data-zg="today-now"]'), /^After-work burst \(sound\): \d+ due, \d+ new\.$/);
-  assert.equal(await page.textContent('[data-zg="today-reminder"]'), 'Reminders are off (turn them on in Settings).');
-  assert.equal(await page.textContent('[data-zg="today-lesson"]'), 'Lesson 1 · What sound is · new today', 'the breakdown names the lesson');
+  assert.equal(await page.textContent('[data-zg="home-goal"]'), 'No goal yet. Set one in Goals and each day is planned around it.');
   for (const b of ['today', 'cards']) {
     assert.ok(await page.isHidden(`[data-zg="nav-badge-${b}"]`), `no ${b} badge with nothing due`);
     assert.equal(await page.getAttribute(`[data-zg="tab-${b}"]`, 'aria-label'), null);
   }
-  const tops = await page.evaluate(() => ['today', 'today-plan', 'lesson', 'now', 'plan', 'metronome'].map((h) => document.querySelector(`[data-zg="${h}"]`).getBoundingClientRect().top));
-  for (let i = 1; i < tops.length; i++) assert.ok(tops[i] > tops[i - 1], 'goal, today, lesson, cards, tasks, metronome: top to bottom');
-  assert.equal(await page.textContent('[data-zg="lesson-title"]'), 'Lesson 1 · What sound is (Sound itself)');
-  assert.ok(await page.evaluate(() => document.querySelector('[data-zg="lesson-reading"]').open), 'a new lesson opens with its reading');
-  assert.match(await page.textContent('[data-zg="lesson-text"]'), /^Sound is a vibration that travels\./);
+  await page.click('[data-zg="today-objectives"]');
+  await until(() => document.querySelector('[data-zg="sheet-objectives"]').open);
+  assert.equal(await page.textContent('[data-zg="goal-focus"]'), 'No goal yet');
+  assert.equal(await page.textContent('[data-zg="goal-focus-link"]'), 'Set your goal');
+  assert.match(await page.textContent('[data-zg="today-now"]'), /^After-work burst \(sound\): \d+ due, \d+ new\.$/);
+  assert.equal(await page.textContent('[data-zg="today-reminder"]'), 'Reminders are off (turn them on in Settings).');
+  const bulletsNow = () => page.evaluate(() => [...document.querySelectorAll('[data-zg="today-blocks"] > li')].map((li) => [li.dataset.zg, li.textContent]));
+  assert.deepEqual((await bulletsNow()).map(([z]) => z), ['today-objective', 'today-lesson']);
+  assert.match((await bulletsNow())[0][1], /^Today's deck: \d+ due, \d+ new$/);
+  assert.equal((await bulletsNow())[1][1], 'On Teach: Lesson 1 · What sound is (swipe left)');
+  // Only the popup shows: the backdrop is opaque and covers everything, the top bar included.
+  const cover = await page.evaluate(() => {
+    const d = document.querySelector('[data-zg="sheet-objectives"]');
+    const bg = getComputedStyle(d, '::backdrop').backgroundColor;
+    const [w, h] = [innerWidth, innerHeight];
+    const pts = [[5, 5], [w - 5, 20], [w / 2, h - 5], [5, h * 0.7]];
+    return { bg, hits: pts.map(([x, y]) => document.elementFromPoint(x, y) === d), focus: document.activeElement?.dataset.zg };
+  });
+  assert.match(cover.bg, /^rgb\(/, `opaque backdrop (${cover.bg})`);
+  assert.deepEqual(cover.hits, [true, true, true, true], 'nothing else is reachable or visible');
+  assert.equal(cover.focus, 'today-start', 'Start has the focus');
   await page.click('[data-zg="today-start"]');
-  await until(() => document.activeElement?.dataset.zg === 'lesson');
-  assert.equal(new URL(page.url()).hash, '#/today', 'the lesson is on the same page');
-  await until(() => Math.abs(document.querySelector('[data-zg="lesson"]').getBoundingClientRect().top) < 40);
-  assert.deepEqual(await visibleScreens(), ['screen-today']);
+  await until(() => !document.querySelector('[data-zg="sheet-objectives"]').open && document.activeElement?.dataset.zg === 'now');
+  assert.equal(await page.getAttribute('[data-zg="screen-today"]', 'data-enter'), 'deck', 'the deck plays its entrance');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-zg="now"]')).animationName), 'zg-deck-in');
   assert.match(await page.textContent('[data-zg=\"session\"]'), /after-work · sound/);
   assert.match(await page.textContent('[data-zg=\"question\"]'), /String \d .*which note\?|Spell /);
-  step('loads offline-first with no account: Today leads with the goal, then today, then today\'s lesson; Start moves down to it');
+  step('Home: the day\'s deck; its objectives popup (opaque, bullets, Start focused) moves into the deck with an entrance');
 
   const first = await page.getAttribute('[data-zg=\"card\"]', 'data-card');
   await page.click('[data-zg=\"reveal\"]');
@@ -108,15 +147,15 @@ try {
   step('rating a card records a review through the module contract');
 
   await page.reload();
-  await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
+  await ready();
   assert.equal(await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first), 1);
   assert.equal(await page.evaluate(() => window.zg.replica.pendingCount), pending);
   assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.keys()].filter((k) => k.startsWith('td-')).length), 102, 'seeding again added nothing');
   assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 132, 'plus the metronome\'s Free practice exercise, the 4 level-1 ear skills, lesson 1 (8 cards) and the 17 Extras (off)');
   step('the review survives a reload (IndexedDB), still queued to sync');
 
-  // App shell routing.
-  assert.equal(new URL(page.url()).hash, '#/today', 'a reload stays on the same screen');
+  // App shell routing. (Reloading on Home with no goal reopened Goals; back to Home.)
+  await show('today');
   assert.deepEqual(await visibleScreens(), ['screen-today']);
   await show('songs');
   assert.equal(new URL(page.url()).hash, '#/songs');
@@ -134,10 +173,10 @@ try {
   await page.goForward();
   await until(() => location.hash === '#/songs' && !document.querySelector('[data-zg="screen-songs"]').hidden);
   assert.equal(await page.evaluate(() => window.scrollY), 0, 'a newly opened screen starts at the top');
-  step('shell: tabs switch screens one at a time; back and forward work');
+  step('shell: the menu switches screens one at a time; back and forward work');
 
   await show('settings');
-  assert.equal(await page.getAttribute('[data-zg="gear"]', 'aria-current'), 'page');
+  assert.equal(await page.getAttribute('[data-zg="menu-settings"]', 'aria-current'), 'page');
   assert.ok(await page.isVisible('[data-zg="notify-all"]') && await page.isVisible('[data-zg="sign-out"]') && await page.isVisible('[data-zg="quiet-start"]'));
   assert.ok(await page.isHidden('[data-zg="cfg-url"]') && await page.isHidden('[data-zg="settings"]'), 'setup and raw settings are tucked away');
   const historyBefore = await page.evaluate(() => history.length);
@@ -145,120 +184,81 @@ try {
   await until(() => location.hash === '#/settings');
   assert.deepEqual(await visibleScreens(), ['screen-settings'], 'a bad link changes nothing');
   assert.equal(await page.evaluate(() => history.length), historyBefore + 1, 'and is replaced, not kept in history');
-  step('shell: Settings behind the gear (setup tucked away); a bad link is ignored');
+  step('shell: Settings in the menu (setup tucked away); a bad link is ignored');
 
   await show('cards');
   await page.goto(url); // reopen the app without a hash
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  assert.equal(new URL(page.url()).hash, '#/today', 'opening the app always shows the goal first');
-  assert.deepEqual(await visibleScreens(), ['screen-today']);
-  await page.goto(`${url}#/practice`); // an old link to the merged Practice screen
+  assert.equal(new URL(page.url()).hash, '#/goals', 'opening the app with no goal: the new-goal sheet (Home and its popup once there is a goal)');
+  await ready();
+  await page.goto('about:blank'); // a fresh open (a hash-only change would not reload)
+  await page.goto(`${url}#/practice`); // an old link to the merged Practice screen: Home, so the same opening
   await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  assert.equal(new URL(page.url()).hash, '#/today');
+  assert.equal(new URL(page.url()).hash, '#/goals');
+  await page.goto('about:blank');
   await page.goto(`${url}#/cards`);
-  await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  assert.deepEqual(await visibleScreens(), ['screen-cards'], 'a link opens its screen');
-  await page.goto(`${url}#/today`);
-  await page.waitForFunction(() => document.querySelector('[data-zg=\"status\"]').textContent.includes('Ready'));
-  step('shell: opening the app shows Today (the goal first); old Practice links land there; links open their screen');
+  await ready();
+  assert.deepEqual(await visibleScreens(), ['screen-cards'], 'a link opens its screen, no popup');
+  assert.equal(await sheetIsOpen('objectives'), false);
+  step('shell: opening the app goes to Home (with no goal, the new-goal sheet); links open their screen');
 
-  const layout = () => page.evaluate(() => {
-    const nav = getComputedStyle(document.querySelector('[data-zg="nav"]'));
-    return { position: nav.position, direction: nav.flexDirection, bottom: nav.bottom };
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  assert.deepEqual(await layout(), { position: 'fixed', direction: 'row', bottom: '0px' }, 'phone: a tab bar along the bottom');
-  await page.setViewportSize({ width: 1280, height: 720 });
-  assert.deepEqual((({ position, direction }) => ({ position, direction }))(await layout()), { position: 'sticky', direction: 'column' }, 'laptop: a side nav');
-  step('shell: bottom tab bar on a phone, side nav on a laptop');
-
-  // Social-style tab bar on a phone (2026-11-01).
-  await page.setViewportSize({ width: 390, height: 844 });
-  const visible = async (hooks) => Promise.all(hooks.map((h) => page.isVisible(`[data-zg="${h}"]`)));
-  const BAR_HOOKS = ['tab-today', 'tab-goals', 'tab-record', 'tab-songs', 'nav-more'];
-  const SHEET_HOOKS = ['tab-ear', 'tab-cards', 'more-settings'];
-  assert.deepEqual(await visible(BAR_HOOKS), [true, true, true, true, true], 'five slots in the bar');
-  assert.deepEqual(await visible(SHEET_HOOKS), [false, false, false], 'the rest wait in the closed sheet');
-  const boxes = await Promise.all(BAR_HOOKS.map((h) => page.locator(`[data-zg="${h}"]`).boundingBox()));
-  // Structure only: the theme's global button style still pads the More button (see THEME.md), so sizes are not compared.
-  const midY = (b) => b.y + b.height / 2;
-  for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i].x > boxes[i - 1].x && Math.abs(midY(boxes[i]) - midY(boxes[0])) < 10, 'one row, left to right');
-  assert.ok(boxes.every((b) => b.x >= 0 && b.x + b.width <= 391), 'all five fit on a 390px screen');
-  const icon = (h) => page.evaluate((h) => document.querySelector(`[data-zg="${h}"] svg`).getBoundingClientRect().width, h);
-  assert.ok((await icon('tab-record')) > (await icon('tab-today')), 'Record is the larger button');
-  step('tabs: five slots on a phone: Today, Goals, Record (larger, centre), Songs, More');
-
-  const sheetOpen = () => page.evaluate(() => [document.querySelector('[data-zg="nav-more"]').getAttribute('aria-expanded'), document.querySelector('[data-zg="more-sheet"]').hasAttribute('data-open')]);
+  // Navigation (2026-11-03): one menu button in the top corner; no tab bar, no side nav, no gear.
+  const menuOpen = () => page.evaluate(() => [document.querySelector('[data-zg="menu"]').getAttribute('aria-expanded'), document.querySelector('[data-zg="menu-list"]').hasAttribute('data-open')]);
   const focused = () => page.evaluate(() => document.activeElement?.dataset.zg ?? null);
-  await page.click('[data-zg="nav-more"]');
-  assert.deepEqual(await sheetOpen(), ['true', true]);
-  assert.deepEqual(await visible(SHEET_HOOKS), [true, true, true], 'Ear training, Cards, Settings');
-  assert.equal(await focused(), 'tab-ear', 'focus moves into the sheet');
-  await page.waitForTimeout(400); // let the opening rise finish (a CSS transition)
-  const sheetBox = await page.locator('[data-zg="more-sheet"]').boundingBox();
-  const navBox = await page.locator('[data-zg="nav"]').boundingBox();
-  assert.ok(sheetBox.y + sheetBox.height <= navBox.y + 1 && sheetBox.height > 0, 'the sheet opens just above the bar');
+  const MENU_HOOKS = ['tab-today', 'tab-teach', 'tab-record', 'tab-songs', 'tab-ear', 'tab-goals', 'tab-cards', 'menu-settings'];
+  const visible = async (hooks) => Promise.all(hooks.map((h) => page.isVisible(`[data-zg="${h}"]`)));
+  for (const [w, h] of [[390, 844], [1280, 720]]) {
+    await page.setViewportSize({ width: w, height: h });
+    const box = await page.locator('[data-zg="menu"]').boundingBox();
+    assert.ok(box.width >= 44 && box.height >= 44, `${w}px: the menu button is at least 44 by 44`);
+    assert.ok(box.y < 60, `${w}px: at the top`);
+    const right = await page.evaluate(() => document.querySelector('[data-zg="topbar"]').getBoundingClientRect().right);
+    assert.ok(Math.abs(box.x + box.width - right) <= 4, `${w}px: in the corner (${box.x + box.width} vs ${right})`);
+    assert.deepEqual(await visible(MENU_HOOKS), Array(8).fill(false), `${w}px: no tab bar or side nav; every item waits in the closed menu`);
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-zg="nav"]')).position), 'relative', 'nothing fixed to the screen edge');
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.click('[data-zg="menu"]');
+  assert.deepEqual(await menuOpen(), ['true', true]);
+  assert.deepEqual(await visible(MENU_HOOKS), Array(8).fill(true), 'Home, Teach, Record, Songs, Ear training, Goals, Cards, Settings');
+  assert.equal(await focused(), 'tab-today', 'focus moves into the list');
+  const labels = await page.evaluate(() => [...document.querySelectorAll('[data-zg="menu-list"] > a')].map((a) => a.textContent.trim()));
+  assert.deepEqual(labels, ['Home', 'Teach', 'Record', 'Songs', 'Ear training', 'Goals', 'Cards', 'Settings']);
+  const ys = await Promise.all(MENU_HOOKS.map((h) => page.locator(`[data-zg="${h}"]`).boundingBox().then((b) => [b.y, b.height, b.x + b.width])));
+  for (let i = 1; i < ys.length; i++) assert.ok(ys[i][0] > ys[i - 1][0], 'one column, top to bottom');
+  assert.ok(ys.every(([, hgt, r]) => hgt >= 44 && r <= 391), 'each item a 44px+ row, inside the screen');
+  assert.equal(await page.getAttribute('[data-zg="tab-cards"]', 'aria-current'), 'page', 'the screen shown is marked');
   await page.keyboard.press('Escape');
-  assert.deepEqual(await sheetOpen(), ['false', false], 'Escape closes it');
-  assert.equal(await focused(), 'nav-more', 'and returns focus to More');
-  await page.click('[data-zg="nav-more"]');
+  assert.deepEqual(await menuOpen(), ['false', false], 'Escape closes it');
+  assert.equal(await focused(), 'menu', 'and returns focus to the button');
+  await page.click('[data-zg="menu"]');
   await page.click('h1');
-  assert.deepEqual(await sheetOpen(), ['false', false], 'a tap outside closes it');
-  await page.click('[data-zg="nav-more"]');
-  await page.click('[data-zg="nav-more"]');
-  assert.deepEqual(await sheetOpen(), ['false', false], 'More toggles');
-  await page.click('[data-zg="nav-more"]');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
-  assert.deepEqual(await sheetOpen(), ['false', false], 'tabbing past the last item closes it');
-  step('more: the sheet opens above the bar and closes on Escape, a tap outside, More again, or tabbing away');
-
-  const at = () => page.evaluate(() => [location.hash, [...document.querySelectorAll('[data-zg^="screen-"]')].filter((e) => !e.hidden).map((e) => e.dataset.zg)]);
-  await page.click('[data-zg="tab-songs"]');
-  await arrive('songs');
-  await page.click('[data-zg="nav-more"]');
-  await page.click('[data-zg="tab-cards"]');
-  await arrive('cards');
-  assert.deepEqual(await at(), ['#/cards', ['screen-cards']]);
-  assert.deepEqual(await sheetOpen(), ['false', false], 'choosing a screen closes the sheet');
-  assert.equal(await page.getAttribute('[data-zg="tab-cards"]', 'aria-current'), 'page');
-  assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), '', 'More shows that the screen lives in its sheet');
-  await page.goBack();
-  await arrive('songs');
-  assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), null);
-  await page.goForward();
-  await arrive('cards');
-  await page.click('[data-zg="nav-more"]');
-  await page.click('[data-zg="more-settings"]');
-  await arrive('settings');
-  for (const h of ['more-settings', 'gear']) assert.equal(await page.getAttribute(`[data-zg="${h}"]`, 'aria-current'), 'page', h);
-  await page.click('[data-zg="nav-more"]');
-  await page.click('[data-zg="tab-ear"]');
-  await arrive('ear');
-  assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), '');
-  await page.click('[data-zg="tab-goals"]');
-  await arrive('goals');
-  assert.equal(await page.getAttribute('[data-zg="nav-more"]', 'data-current'), null, 'Goals is in the bar');
+  assert.deepEqual(await menuOpen(), ['false', false], 'a tap outside closes it');
+  await page.click('[data-zg="menu"]');
+  await page.click('[data-zg="menu"]');
+  assert.deepEqual(await menuOpen(), ['false', false], 'the button toggles');
+  await page.click('[data-zg="menu"]');
+  for (let i = 0; i < 9; i++) await page.keyboard.press('Tab');
+  assert.deepEqual(await menuOpen(), ['false', false], 'tabbing past the last item closes it');
+  await page.click('[data-zg="menu"]');
   await page.click('[data-zg="tab-record"]');
   await arrive('record');
-  assert.ok(await page.isVisible('[data-zg="rec-start"]'), 'the centre button opens the Recorder, Record button ready');
-  step('more: sheet screens route with back and forward and mark More as current; Goals sits in the bar; the centre button opens the Recorder');
-
-  await page.setViewportSize({ width: 1280, height: 720 });
-  assert.deepEqual(await visible([...BAR_HOOKS.slice(0, 4), ...SHEET_HOOKS]), Array(7).fill(true), 'the side nav shows every section');
-  assert.equal(await page.isVisible('[data-zg="nav-more"]'), false, 'no More button on a laptop');
-  const ys = await Promise.all([...BAR_HOOKS.slice(0, 4), ...SHEET_HOOKS].map((h) => page.locator(`[data-zg="${h}"]`).boundingBox().then((b) => b.y)));
-  for (let i = 1; i < ys.length; i++) assert.ok(ys[i] > ys[i - 1], 'one column, top to bottom');
-  step('tabs: from 800px the side nav lists every section; no More button');
+  assert.deepEqual(await menuOpen(), ['false', false], 'choosing a screen closes the list');
+  assert.ok(await page.isVisible('[data-zg="rec-start"]'));
+  await page.goBack();
+  await arrive('cards');
+  step('menu: one 44px+ button in the top corner on phone and laptop (no tab bar, no side nav); its list opens Home, Teach, Record, Songs, Ear training, Goals, Cards, Settings and closes on Escape, a tap outside, the button, tabbing away or a choice');
 
   // Layout redesign (2026-11-01): touch targets and bottom sheets, on a phone.
   await page.setViewportSize({ width: 390, height: 844 });
   const small = [];
-  for (const screen of ['today', 'record', 'songs', 'ear', 'goals', 'cards', 'settings']) {
+  for (const screen of ['today', 'teach', 'record', 'songs', 'ear', 'goals', 'cards', 'settings']) {
     await page.evaluate((x) => (location.hash = `#/${x}`), screen);
     await arrive(screen);
+    await dismissIntro();
     small.push(...(await page.evaluate((x) => {
       const root = document.querySelector(`[data-zg="screen-${x}"]`);
-      const controls = [...root.querySelectorAll('button, a, input, select, textarea, summary'), ...document.querySelectorAll('[data-zg="nav"] > a, [data-zg="nav"] > button, [data-zg="gear"]')];
+      const controls = [...root.querySelectorAll('button, a, input, select, textarea, summary'), document.querySelector('[data-zg="menu"]'), ...document.querySelectorAll('[data-zg="pager"] > a')];
       return controls
         .filter((el) => el.getClientRects().length > 0 && !el.closest('dialog'))
         // A switch's touch target is its whole label row (a tap anywhere on it toggles the switch).
@@ -278,7 +278,7 @@ try {
   // A tap on the dimmed page lands on the sheet's backdrop (hit-tested as the dialog), never on the page.
   const hit = await page.evaluate(() => [document.elementFromPoint(20, 20) === document.querySelector('[data-zg="sheet-goal-new"]'), document.elementFromPoint(40, 830)?.dataset.zg ?? null]);
   assert.equal(hit[0], true, 'the page behind the sheet is covered');
-  assert.notEqual(hit[1], 'tab-today', 'the tab bar too');
+  assert.notEqual(hit[1], null, 'the bottom of the screen too');
   await page.keyboard.press('Escape');
   await until(() => !document.querySelector('[data-zg="sheet-goal-new"]').open);
   await openSheet('goal-new');
@@ -754,7 +754,7 @@ try {
   // look a day later, in the work-hours burst.
   await page.clock.setSystemTime(new Date('2026-11-11T13:05:00Z'));
   await page.clock.runFor(30_000);
-  for (const [b, label] of [['today', 'Today'], ['cards', 'Cards']]) {
+  for (const [b, label] of [['today', 'Home'], ['cards', 'Cards']]) {
     await until((b) => !document.querySelector(`[data-zg="nav-badge-${b}"]`).hidden, b);
     const n = await page.textContent(`[data-zg="nav-badge-${b}"]`);
     assert.match(n, /^\d+$/, `${b} badge shows a count`);
@@ -766,7 +766,7 @@ try {
     return [...lib.cards.values()].filter((c) => lib.items.get(c.itemId)?.module === 'theory' && (lib.reviews.get(c.id) ?? []).some((r) => r.rating === 'again')).length;
   });
   assert.ok(Number(await page.textContent('[data-zg="nav-badge-cards"]')) >= cardsDue, 'Cards counts the theory cards due');
-  step('badges: Today and Cards show their due counts once something is due');
+  step('badges: Home and Cards, in the menu, show their due counts once something is due');
   step('theory: the silent work-hours burst serves lesson 1\'s Q/A and multiple-choice cards, no sources shown, through the contract');
 
   // The course on the Cards screen: chapters, lesson 1 learning, the rest locked; the Extras switch.
@@ -802,10 +802,91 @@ try {
     await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
   }
   assert.deepEqual((await lessonRows()).slice(0, 3), ['graduated', 'current', 'locked'], 'right again on later days unlocks lesson 2');
-  await show('today');
-  assert.equal(await page.textContent('[data-zg="lesson-title"]'), 'Lesson 2 · Frequency, period and pitch (Sound itself)');
-  assert.equal(await page.textContent('[data-zg="today-lesson"]'), 'Lesson 2 · Frequency, period and pitch · new today');
   step('theory: the course by lesson; lesson 2 unlocks only when lesson 1 graduates (right again on a later day); Extras switch');
+
+  // Teach (2026-11-03): the same flow as Home. Its popup lists today's objectives from the current chapter, then its deck.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => (location.hash = '#/today'));
+  await arrive('today');
+  assert.equal(await sheetIsOpen('objectives'), true, 'Home opens with its popup the first time');
+  assert.equal(await page.textContent('[data-zg="today-lesson"]'), 'On Teach: Lesson 2 · Frequency, period and pitch (swipe left)');
+  await dismissIntro();
+  assert.ok(await page.isVisible('[data-zg="pager"]'), 'the page dots show on Home');
+  assert.equal(await page.getAttribute('[data-zg="pager-today"]', 'aria-current'), 'page');
+  await page.click('[data-zg="pager-teach"]'); // the visible way to the page beside Home
+  await arrive('teach');
+  assert.equal(await page.getAttribute('[data-zg="screen-teach"]', 'data-enter'), 'from-right', 'Teach slides in from the right');
+  assert.equal(await sheetIsOpen('teach-objectives'), true, 'Teach opens with its popup, as Home does');
+  assert.equal(await page.textContent('[data-zg="teach-chapter"]'), 'Chapter 1 · Sound itself · lesson 2 of 6');
+  assert.equal(await page.textContent('[data-zg="teach-lesson"]'), 'Lesson 2 · Frequency, period and pitch');
+  const teachBullets = await page.evaluate(() => [...document.querySelectorAll('[data-zg="teach-goals"] > [data-zg="teach-objective"]')].map((li) => li.textContent));
+  assert.equal(teachBullets[0], 'Read the lesson: Frequency, period and pitch');
+  assert.ok(teachBullets.includes('Learn 8 new cards'), teachBullets.join(' | '));
+  assert.equal(teachBullets.at(-1), 'Make all 8 cards solid to unlock Lesson 3 · Amplitude and loudness (0 of 8 so far)');
+  assert.match(await page.evaluate(() => getComputedStyle(document.querySelector('[data-zg="sheet-teach-objectives"]'), '::backdrop').backgroundColor), /^rgb\(/, 'opaque, like Home');
+  await page.click('[data-zg="teach-start"]');
+  await until(() => !document.querySelector('[data-zg="sheet-teach-objectives"]').open && document.activeElement?.dataset.zg === 'lesson');
+  assert.equal(await page.getAttribute('[data-zg="screen-teach"]', 'data-enter'), 'deck');
+  assert.equal(await page.textContent('[data-zg="lesson-title"]'), 'Lesson 2 · Frequency, period and pitch (Sound itself)', 'a new lesson starts with its reading');
+  // The deck: answer the card on show; the review lands through the module contract.
+  const teachCard = await page.getAttribute('[data-zg="teach-card"]', 'data-card');
+  assert.match(teachCard, /^th-l0[12]-/);
+  const tc = await page.evaluate((id) => window.zg.theory.content(id), teachCard);
+  if (tc.type === 'qa') {
+    await page.click('[data-zg="teach-reveal"]');
+    assert.equal(await page.textContent('[data-zg="teach-answer"]'), tc.answer);
+    await page.click('[data-zg="teach-r-good"]');
+  } else {
+    await page.click(`[data-zg="teach-choice"] >> text="${tc.answer}"`);
+    await until(() => document.querySelector('[data-zg="teach-feedback"]').textContent.startsWith('✓'));
+  }
+  await until((id) => (window.zg.replica.library.reviews.get(id) ?? []).some((r) => r.details.lesson >= 1 && r.at >= Date.now() - 60_000), teachCard);
+  assert.notEqual(await page.getAttribute('[data-zg="teach-card"]', 'data-card'), teachCard, 'the next card');
+  step('Teach: a popup of today\'s objectives from the current chapter (opaque, like Home), then the reading and the lesson deck; answers go through the contract');
+
+  // Swiping: touch strokes and trackpad gestures move between Home and Teach; the dots mark the page.
+  const stroke = async (from, to) => {
+    await page.dispatchEvent('[data-zg="screens"]', 'pointerdown', { pointerType: 'touch', pointerId: 7, clientX: from, clientY: 400, isPrimary: true, bubbles: true });
+    await page.dispatchEvent('[data-zg="screens"]', 'pointerup', { pointerType: 'touch', pointerId: 7, clientX: to, clientY: 410, isPrimary: true, bubbles: true });
+  };
+  await stroke(100, 320); // finger to the right: back to Home
+  await arrive('today');
+  assert.equal(await page.getAttribute('[data-zg="screen-today"]', 'data-enter'), 'from-left');
+  assert.equal(await page.getAttribute('[data-zg="pager-today"]', 'aria-current'), 'page');
+  assert.equal(await sheetIsOpen('objectives'), false, 'each page opens with its popup once');
+  await stroke(320, 100); // finger to the left: Teach
+  await arrive('teach');
+  await stroke(320, 100); // nothing past the last page
+  await page.waitForTimeout(150);
+  assert.equal(new URL(page.url()).hash, '#/teach');
+  await stroke(300, 280); // a nudge is not a swipe
+  await page.waitForTimeout(150);
+  assert.equal(new URL(page.url()).hash, '#/teach');
+  await page.mouse.move(195, 500);
+  await page.mouse.wheel(-150, 0); // two fingers moving right on a trackpad: Home
+  await arrive('today');
+  await page.waitForTimeout(300); // the gesture ends
+  await page.mouse.wheel(150, 0); // and left: Teach
+  await arrive('teach');
+  await page.waitForTimeout(300);
+  await page.mouse.wheel(0, 300); // scrolling down is just scrolling
+  await page.waitForTimeout(150);
+  assert.equal(new URL(page.url()).hash, '#/teach');
+  await page.goBack();
+  await arrive('today');
+  step('swipe: touch and trackpad move between Home and Teach (back works, nothing past the ends, nudges and scrolling ignored); the page dots show where you are');
+
+  // Reduced motion: the same flow, no entrances.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.click('[data-zg="today-objectives"]');
+  await until(() => document.querySelector('[data-zg="sheet-objectives"]').open);
+  await page.click('[data-zg="today-start"]');
+  await until(() => document.activeElement?.dataset.zg === 'now');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-zg="now"]')).animationName), 'none', 'no entrance under reduced motion');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-zg="sheet-objectives"]')).transitionDuration), '0s');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  step('reduced motion: the popups and the move into the deck happen without animation');
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.clock.setSystemTime(new Date('2026-11-03T07:40:00Z'));
 
   await show('settings');
@@ -879,10 +960,30 @@ try {
   await signin.fill('[data-zg="email"]', 'blake@example.com');
   await signin.click('[data-zg="sign-in"]');
   await signin.waitForFunction(() => document.querySelector('[data-zg="signin-note"]').textContent.startsWith('Check your email'));
+  assert.equal(await signin.evaluate(() => document.querySelector('[data-zg="sheet-goal-new"]').open), true, 'on top of the opening (no goal yet: the new-goal sheet)');
   await signin.click('[data-zg="signin-later"]');
   await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-signin"]').open);
-  assert.equal(await signin.evaluate(() => location.hash), '#/today', 'and the app carries on, goal first');
-  step('sign-in: signed out with a connection set up, the popup opens at launch; Not now keeps this device only');
+  assert.deepEqual(await signin.evaluate(() => [location.hash, document.querySelector('[data-zg="sheet-goal-new"]').open]), ['#/goals', true], 'and the opening carries on underneath');
+  step('sign-in: signed out with a connection set up, the popup opens at launch, on top of the opening; Not now keeps this device only');
+
+  // The first goal, from the opening's new-goal sheet: once saved, Home opens with its popup for it.
+  await signin.fill('[data-zg="goal-what"]', 'Open mic');
+  await signin.fill('[data-zg="goal-deadline"]', '2026-12-01');
+  await signin.fill('[data-zg="goal-tasks"]', '10 min on the opener');
+  await signin.click('[data-zg="goal-save"]');
+  await signin.waitForFunction(() => location.hash === '#/today' && document.querySelector('[data-zg="sheet-objectives"]').open);
+  assert.equal(await signin.textContent('[data-zg="goal-focus"]'), 'Open mic');
+  assert.match(await signin.evaluate(() => document.querySelector('[data-zg="today-blocks"]').textContent), /10 min on the opener · \d+ min/);
+  await signin.click('[data-zg="today-start"]');
+  await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-objectives"]').open);
+  // Opening again with a goal: Home's popup, nothing else.
+  await signin.goto(url);
+  await signin.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+  assert.deepEqual(await signin.evaluate(() => [location.hash, document.querySelector('[data-zg="sheet-objectives"]').open, document.querySelector('[data-zg="sheet-signin"]').open]), ['#/today', true, true], 'Home\'s popup, with sign-in on top while signed out');
+  await signin.click('[data-zg="signin-later"]');
+  await signin.click('[data-zg="today-start"]');
+  await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-objectives"]').open);
+  step('first goal: saving it from the opening sheet opens Home with its popup; opening the app again shows that popup first');
 
   // Signed in: no popup; a tab added here is backed up to the user's own folder on sync.
   await signin.evaluate(() => localStorage.setItem('fake-session', '1'));
@@ -910,6 +1011,9 @@ try {
   await nyPage.goto(url);
   await nyPage.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes("Using this device's time zone (America/New_York)"));
   assert.equal(await nyPage.evaluate(() => window.zg.replica.library.settings.dayStart.timeZone), 'America/New_York');
+  await nyPage.keyboard.press('Escape'); // no goal yet: past the new-goal sheet, to Home's deck
+  await nyPage.evaluate(() => (location.hash = '#/today'));
+  await nyPage.waitForFunction(() => !document.querySelector('[data-zg="screen-today"]').hidden && !document.querySelector('dialog[open]'));
   await nyPage.click('[data-zg="mx-start"]');
   await nyPage.waitForFunction(() => window.zg.metronome.player.playing && window.zg.metronome.player.ready, null, { timeout: 15000 });
   assert.equal(await nyPage.textContent('[data-zg="mx-note"]'), '', 'no quiet-hours refusal at 7:30am');

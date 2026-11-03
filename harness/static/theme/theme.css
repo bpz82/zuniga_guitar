@@ -29,13 +29,13 @@ code { font-family: var(--zg-font-mono); font-size: .9em; }
 
 /* ---------------------------------------------------------------- shell */
 [data-zg="topbar"] { padding: 6px 2px 10px; }
-[data-zg="gear"] {
-  display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--zg-radius-pill);
-  color: var(--zg-color-wood-dark); text-decoration: none; font-size: 1.3rem;
+/* The menu button (2026-11-03): one control in the top corner, at least 44 by 44. */
+[data-zg="menu"] {
+  min-width: 48px; min-height: 48px; margin: 0; padding: 8px 16px 8px 12px; border-radius: var(--zg-radius-pill);
+  color: var(--zg-color-wood-dark); font: 650 .95rem/1 var(--zg-font-body);
   background: var(--zg-color-surface); box-shadow: var(--zg-shadow);
-  transition: background var(--zg-fast), transform var(--zg-fast);
 }
-[data-zg="gear"][aria-current="page"] { background: var(--zg-color-accent-soft); }
+[data-zg="menu"][aria-expanded="true"] { background: var(--zg-color-accent-soft); color: var(--zg-color-accent-strong); }
 [data-zg="status"] {
   margin: 0 0 14px; padding: 8px 14px; border-radius: var(--zg-radius-pill);
   background: rgba(255, 250, 243, .7); color: var(--zg-color-muted);
@@ -72,7 +72,8 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* The one primary action on each screen (and in each sheet). */
 [data-zg="today-start"], [data-zg="reveal"], [data-zg="rec-start"], [data-zg="songs-add"], [data-zg="ear-play"],
-[data-zg="open-goal-new"], [data-zg="goal-save"], [data-zg="songs-paste-add"], [data-zg="ear-next"], [data-zg="practice"] {
+[data-zg="open-goal-new"], [data-zg="goal-save"], [data-zg="songs-paste-add"], [data-zg="ear-next"], [data-zg="practice"],
+[data-zg="teach-reveal"], [data-zg="teach-start"] {
   border-color: transparent; background: var(--zg-color-accent); color: var(--zg-color-on-accent);
   box-shadow: 0 6px 16px rgba(150, 90, 27, .28);
 }
@@ -163,23 +164,23 @@ audio { width: 100%; margin: 0 0 12px; }
 
 /* -------------------------------------------------------------- Practice */
 [data-zg="session"] { color: var(--zg-color-muted); font-size: .85rem; }
-[data-zg="card"] {
+[data-zg="card"], [data-zg="teach-card"] {
   margin-top: 8px; padding: 20px; border-radius: var(--zg-radius-lg);
   background: var(--zg-color-surface-2); border: 1px solid var(--zg-color-border);
 }
-[data-zg="question"] { font-size: 1.3rem; font-weight: 700; line-height: 1.35; }
-[data-zg="answer"]:not(:empty) { padding: 12px 14px; border-radius: var(--zg-radius); background: var(--zg-color-surface); font-size: 1.1rem; }
-[data-zg="card-feedback"]:not(:empty) { padding: 10px 14px; border-radius: var(--zg-radius); background: var(--zg-color-accent-soft); }
-[data-zg="answer"]:empty, [data-zg="card-feedback"]:empty { margin: 0; }
-[data-zg="reveal"], [data-zg="practice"] { width: 100%; min-height: 56px; margin: 4px 0 0; }
-[data-zg="rate"] { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
-[data-zg="rate"] button { margin: 0; padding: 10px 4px; min-height: 56px; border-radius: var(--zg-radius); }
-[data-zg="r-again"] { background: var(--zg-color-again-soft); border-color: transparent; color: var(--zg-color-again); }
-[data-zg="r-hard"] { background: var(--zg-color-surface); }
-[data-zg="r-good"] { background: var(--zg-color-good-soft); border-color: transparent; color: var(--zg-color-good); }
-[data-zg="r-easy"] { background: var(--zg-color-good); border-color: transparent; color: #fff; }
-[data-zg="mc-choices"], [data-zg="ear-choices"] { display: grid; gap: 8px; margin: 4px 0 12px; }
-[data-zg="mc-choice"], [data-zg="ear-choice"] { justify-content: flex-start; width: 100%; margin: 0; padding: 12px 16px; border-radius: var(--zg-radius); text-align: left; background: var(--zg-color-surface); }
+[data-zg="question"], [data-zg="teach-question"] { font-size: 1.3rem; font-weight: 700; line-height: 1.35; }
+[data-zg="answer"]:not(:empty), [data-zg="teach-answer"]:not(:empty) { padding: 12px 14px; border-radius: var(--zg-radius); background: var(--zg-color-surface); font-size: 1.1rem; }
+[data-zg="card-feedback"]:not(:empty), [data-zg="teach-feedback"]:not(:empty) { padding: 10px 14px; border-radius: var(--zg-radius); background: var(--zg-color-accent-soft); }
+[data-zg="answer"]:empty, [data-zg="card-feedback"]:empty, [data-zg="teach-answer"]:empty, [data-zg="teach-feedback"]:empty { margin: 0; }
+[data-zg="reveal"], [data-zg="practice"], [data-zg="teach-reveal"] { width: 100%; min-height: 56px; margin: 4px 0 0; }
+[data-zg="rate"], [data-zg="teach-rate"] { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+[data-zg="rate"] button, [data-zg="teach-rate"] button { margin: 0; padding: 10px 4px; min-height: 56px; border-radius: var(--zg-radius); }
+[data-zg="r-again"], [data-zg="teach-r-again"] { background: var(--zg-color-again-soft); border-color: transparent; color: var(--zg-color-again); }
+[data-zg="r-hard"], [data-zg="teach-r-hard"] { background: var(--zg-color-surface); }
+[data-zg="r-good"], [data-zg="teach-r-good"] { background: var(--zg-color-good-soft); border-color: transparent; color: var(--zg-color-good); }
+[data-zg="r-easy"], [data-zg="teach-r-easy"] { background: var(--zg-color-good); border-color: transparent; color: #fff; }
+[data-zg="mc-choices"], [data-zg="ear-choices"], [data-zg="teach-choices"] { display: grid; gap: 8px; margin: 4px 0 12px; }
+[data-zg="mc-choice"], [data-zg="ear-choice"], [data-zg="teach-choice"] { justify-content: flex-start; width: 100%; margin: 0; padding: 12px 16px; border-radius: var(--zg-radius); text-align: left; background: var(--zg-color-surface); }
 [data-zg="block-done"] { color: var(--zg-color-good); }
 [data-zg="played"] { margin: 4px 0 0; }
 
@@ -277,48 +278,39 @@ dialog header h2 { margin: 0; font-size: 1.3rem; }
 [data-zg="goal-save"] { width: 100%; min-height: 56px; margin: 8px 0 0; }
 [data-zg="songs-paste-add"] { width: 100%; margin: 0; }
 
-/* ------------------------------------------------------- the bottom bar */
-[data-zg="nav"] {
-  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
-  background: rgba(255, 250, 243, .92);
-  -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px);
-  border-top: 1px solid var(--zg-color-border);
-  box-shadow: 0 -6px 24px rgba(58, 38, 20, .08);
-}
-[data-zg="nav"] > a, [data-zg="nav"] > button, [data-zg="more-sheet"] > a {
-  gap: 3px; min-height: 52px; margin: 0; padding: 4px 2px; border: 0; border-radius: var(--zg-radius);
-  background: none; box-shadow: none; color: var(--zg-color-muted);
-  font: 650 .7rem/1.1 var(--zg-font-body); letter-spacing: .01em; text-decoration: none; white-space: nowrap; overflow-wrap: normal;
-  transition: color var(--zg-fast), background var(--zg-fast);
-}
-[data-zg="nav"] > a:active, [data-zg="nav"] > button:active { transform: scale(.95); }
-[data-zg="nav"] [aria-current="page"], [data-zg="nav-more"][data-current], [data-zg="nav-more"][aria-expanded="true"] { color: var(--zg-color-accent-strong); }
-[data-zg="nav"] > a[aria-current="page"] svg, [data-zg="nav-more"][data-current] svg { filter: drop-shadow(0 2px 4px rgba(150, 90, 27, .25)); }
-/* The centre Record: a raised round button with a wood ring. */
-[data-zg="tab-record"] { color: var(--zg-color-cream); }
-[data-zg="tab-record"] svg {
-  width: 52px; height: 52px; margin-top: -22px; padding: 10px; border-radius: 50%;
-  color: #fff; background: var(--zg-color-record);
-  box-shadow: 0 0 0 4px var(--zg-color-surface), 0 0 0 7px var(--zg-color-wood-mid), 0 8px 18px rgba(58, 38, 20, .3);
-}
-[data-zg="tab-record"] span { color: var(--zg-color-muted); }
-[data-zg="tab-record"][aria-current="page"] span { color: var(--zg-color-accent-strong); }
-[data-zg^="nav-badge-"] {
-  min-width: 18px; height: 18px; margin-top: 2px; padding: 0 5px; border-radius: var(--zg-radius-pill);
-  background: var(--zg-color-record); color: #fff; font: 700 .66rem/18px var(--zg-font-body); text-align: center;
-  box-shadow: 0 0 0 2px var(--zg-color-surface);
-}
-/* The More sheet: a rounded panel of large tiles above the bar, page dimmed behind it. */
-[data-zg="more-sheet"] {
-  gap: 8px; margin: 0 8px 10px; padding: 12px; border-radius: var(--zg-radius-lg);
-  background: var(--zg-color-surface); border: 1px solid var(--zg-color-border);
-  box-shadow: 0 -4px 30px rgba(42, 27, 16, .18), 0 0 0 100vmax rgba(32, 20, 11, .35);
-  /* Opens with a short rise (@starting-style); closes at once, so a closed sheet never lingers. */
+/* --------------------------------------------- the menu list (2026-11-03) */
+[data-zg="menu-list"] {
+  width: min(18rem, calc(100vw - 32px)); margin-top: 8px; padding: 8px; gap: 2px;
+  border: 1px solid var(--zg-color-border); border-radius: var(--zg-radius-lg);
+  background: var(--zg-color-surface);
+  box-shadow: 0 12px 36px rgba(42, 27, 16, .22), 0 0 0 100vmax rgba(32, 20, 11, .28);
+  /* Opens with a short drop (@starting-style); closes at once, so a closed list never lingers. */
   transition: opacity var(--zg-fast), transform var(--zg-slow) var(--zg-ease);
 }
-@starting-style { [data-zg="more-sheet"][data-open] { opacity: 0; transform: translateY(16px); } }
-[data-zg="more-sheet"] > a { min-height: 76px; border-radius: var(--zg-radius); background: var(--zg-color-surface-2); font-size: .85rem; color: var(--zg-color-text); }
-[data-zg="more-sheet"] > a[aria-current="page"] { background: var(--zg-color-accent-soft); color: var(--zg-color-accent-strong); }
+@starting-style { [data-zg="menu-list"][data-open] { opacity: 0; transform: translateY(-8px); } }
+[data-zg="menu-list"] > a {
+  min-height: 48px; padding: 8px 12px; border-radius: var(--zg-radius);
+  color: var(--zg-color-text); font: 600 1rem/1.2 var(--zg-font-body); text-decoration: none;
+  transition: background var(--zg-fast);
+}
+[data-zg="menu-list"] > a:hover { background: var(--zg-color-surface-2); }
+[data-zg="menu-list"] > a[aria-current="page"] { background: var(--zg-color-accent-soft); color: var(--zg-color-accent-strong); }
+[data-zg="menu-list"] svg { flex: none; color: var(--zg-color-wood); }
+[data-zg="tab-record"] svg { color: var(--zg-color-record); }
+[data-zg^="nav-badge-"] {
+  min-width: 22px; height: 22px; margin-left: auto; padding: 0 7px; border-radius: var(--zg-radius-pill);
+  background: var(--zg-color-record); color: #fff; font: 700 .72rem/22px var(--zg-font-body); text-align: center;
+}
+
+/* ------------------------------------------- the page dots (2026-11-03) */
+[data-zg="pager"] { margin: -4px 0 10px; }
+[data-zg="pager"] > a {
+  min-width: 44px; min-height: 44px; padding: 0 10px; border-radius: var(--zg-radius-pill);
+  color: var(--zg-color-muted); font: 650 .85rem/1 var(--zg-font-body); text-decoration: none;
+}
+[data-zg="pager"] > a > span { width: 9px; height: 9px; border-radius: 50%; background: var(--zg-color-border-strong); transition: background var(--zg-fast), transform var(--zg-fast); }
+[data-zg="pager"] > a[aria-current="page"] { color: var(--zg-color-accent-strong); }
+[data-zg="pager"] > a[aria-current="page"] > span { background: var(--zg-color-accent); transform: scale(1.25); }
 
 /* --------------------------------------------------------------- laptop */
 @media (min-width: 800px) {
@@ -326,20 +318,7 @@ dialog header h2 { margin: 0; font-size: 1.3rem; }
   [data-zg="topbar"] { padding: 4px 4px 18px; }
   h1 { font-size: 1.6rem; }
   section { padding: 26px 28px; }
-  [data-zg="nav"] { padding: 8px; border: 1px solid var(--zg-color-border); border-radius: var(--zg-radius-lg); background: var(--zg-color-surface); box-shadow: var(--zg-shadow); -webkit-backdrop-filter: none; backdrop-filter: none; }
-  [data-zg="nav"] > a, [data-zg="more-sheet"] > a {
-    min-height: 44px; margin: 0; padding: 8px 12px; background: none; border-radius: var(--zg-radius);
-    font-size: .95rem; color: var(--zg-color-text);
-  }
-  [data-zg="nav"] > a:hover, [data-zg="more-sheet"] > a:hover { background: var(--zg-color-surface-2); }
-  [data-zg="nav"] a[aria-current="page"] { background: var(--zg-color-accent-soft); color: var(--zg-color-accent-strong); }
-  [data-zg="nav"] svg { width: 22px; height: 22px; }
-  [data-zg="tab-record"] svg { width: 22px; height: 22px; margin: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; color: var(--zg-color-record); }
-  [data-zg="tab-record"] span { color: inherit; }
-  [data-zg="more-sheet"] { margin: 0; padding: 0; border: 0; box-shadow: none; background: none; }
-  /* No More button here: base.css hides it, but the theme's own button display would win. */
-  [data-zg="nav-more"] { display: none; }
-  [data-zg^="nav-badge-"] { margin: 0 0 0 auto; }
+  body { max-width: 48rem; }
   dialog { inset: 0; margin: auto; max-height: 80vh; border-radius: 24px; }
   dialog > div { max-height: 80vh; }
   dialog > div::before { display: none; } /* no drag handle on a centred sheet */
@@ -352,7 +331,7 @@ dialog header h2 { margin: 0; font-size: 1.3rem; }
 /* ------------------------------------------------------- reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, dialog::backdrop { animation: none !important; transition: none !important; }
-  button:active, [data-zg="nav"] > a:active { transform: none; }
+  button:active { transform: none; }
 }
 
 /* -------------------------------------------------------------------------
@@ -397,13 +376,13 @@ section h2 { letter-spacing: .052em; text-wrap: pretty; }
 [data-zg="today-now"] { color: #f0e5d4; }
 [data-zg="today-reminder"] { color: #dfccba; }
 /* Quiet paper beneath the question, without changing visibility or sizing. */
-[data-zg="card"], [data-zg="ear-stage"], [data-zg="rec-stage"] {
+[data-zg="card"], [data-zg="teach-card"], [data-zg="ear-stage"], [data-zg="rec-stage"] {
   background-color: var(--zg-color-surface-2);
   background-image: linear-gradient(155deg, rgba(255,255,255,.66), rgba(246,231,212,.22) 70%, rgba(196,162,122,.10));
   border: 1px solid rgba(173,145,115,.36);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 4px 12px rgba(68,44,23,.055);
 }
-[data-zg="answer"]:not(:empty), [data-zg="ear-feedback"]:not(:empty), [data-zg="card-feedback"]:not(:empty) {
+[data-zg="answer"]:not(:empty), [data-zg="ear-feedback"]:not(:empty), [data-zg="card-feedback"]:not(:empty), [data-zg="teach-answer"]:not(:empty), [data-zg="teach-feedback"]:not(:empty) {
   border: 1px solid rgba(188,151,110,.24);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
 }
@@ -433,41 +412,32 @@ input:not([type="checkbox"]):not([type="range"]):not([type="file"]):focus, selec
   box-shadow: 0 0 0 3px var(--zg-color-accent-soft), inset 0 1px 2px rgba(75,48,27,.055);
 }
 input::placeholder, textarea::placeholder { color: #9d8874; opacity: 1; }
-/* A small machined-wood settings control, not a generic raised tile. */
-[data-zg="gear"] {
+/* The menu button: a small machined-wood control, not a generic raised tile. */
+[data-zg="menu"] {
   color: #62412b;
   background: linear-gradient(150deg, #fffbf4, #e9d9c5);
   border: 1px solid #cbb49a;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 3px 9px rgba(66,42,21,.13);
   text-shadow: 0 1px 0 rgba(255,255,255,.7);
 }
-[data-zg="gear"][aria-current="page"] { border-color: #bc8d55; background: linear-gradient(145deg, #fbebd3, #ecd3ae); }
+[data-zg="menu"][aria-expanded="true"] { border-color: #bc8d55; background: linear-gradient(145deg, #fbebd3, #ecd3ae); }
 /* Preserve amber actions, with matte hardware-like definition. */
 [data-zg="today-start"], [data-zg="reveal"], [data-zg="songs-add"], [data-zg="ear-play"],
 [data-zg="open-goal-new"], [data-zg="goal-save"], [data-zg="songs-paste-add"],
-[data-zg="ear-next"], [data-zg="practice"] {
+[data-zg="ear-next"], [data-zg="practice"], [data-zg="teach-reveal"], [data-zg="teach-start"] {
   background-image: linear-gradient(175deg, rgba(255,235,188,.18), rgba(110,63,19,.08));
   box-shadow: inset 0 1px 0 rgba(255,236,196,.3), 0 5px 13px rgba(115,68,22,.19);
 }
 [data-zg="today-start"] { background-color: var(--zg-color-amber); }
 /* Record remains red, never amber. */
-[data-zg="rec-start"], [data-zg="tab-record"] svg { background-color: var(--zg-color-record); }
+[data-zg="rec-start"] { background-color: var(--zg-color-record); }
 [data-zg="rec-start"] { background-image: linear-gradient(165deg, rgba(255,209,191,.16), rgba(60,11,7,.15)); }
 /* Sheets retain their dimensions and animations, but read as paper stationery. */
-dialog, dialog header, [data-zg="more-sheet"] {
+dialog, dialog header, [data-zg="menu-list"] {
   background-color: var(--zg-color-surface);
   background-image: linear-gradient(160deg, #fffdf8, #f8efe3 78%, #f2e6d6);
 }
 dialog header { box-shadow: 0 1px 0 rgba(255,255,255,.8); }
-/* Mobile navigation remains opaque, soft and highly legible. */
-[data-zg="nav"] {
-  background: rgba(255,250,242,.96);
-  border-top-color: #d7c5ae;
-  box-shadow: 0 -5px 22px rgba(66,42,21,.10), inset 0 1px 0 rgba(255,255,255,.85);
-}
-@media(min-width:800px) {
-  [data-zg="nav"] { background: linear-gradient(165deg,#fffdf8,#f8efe4); }
-}
 
 
 /* -------------------------------------------------------------------------
@@ -541,3 +511,68 @@ pre[data-zg="songtab-content"] {
 [data-zg="signin-note"]:empty { margin: 0; }
 [data-zg="signin-note"]:not(:empty) { padding: 10px 14px; border-radius: var(--zg-radius); background: var(--zg-color-accent-soft); }
 [data-zg="signin-later"] { width: 100%; margin-top: 8px; }
+
+/* -------------------------------------------------------------------------
+   HOME, MENU AND TEACH — 2026-11-03 (engineering builder, Blake's changes).
+   On opening, Home and Teach each show only a popup of today's objectives
+   (an opaque backdrop: nothing behind it shows); closing it plays the deck's
+   entrance. Home and Teach slide sideways into each other.
+   ------------------------------------------------------------------------- */
+[data-zg="sheet-objectives"], [data-zg="sheet-teach-objectives"] {
+  inset: 0; width: calc(100% - 32px); max-width: 30rem; max-height: 90dvh; margin: auto; border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(42, 27, 16, .22);
+}
+[data-zg="sheet-objectives"]:not([open]), [data-zg="sheet-teach-objectives"]:not([open]) { transform: translateY(16px) scale(.98); }
+@starting-style { [data-zg="sheet-objectives"][open], [data-zg="sheet-teach-objectives"][open] { transform: translateY(16px) scale(.98); } }
+[data-zg="sheet-objectives"] > div, [data-zg="sheet-teach-objectives"] > div { max-height: 90dvh; }
+[data-zg="sheet-objectives"] > div::before, [data-zg="sheet-teach-objectives"] > div::before { display: none; }
+[data-zg="sheet-objectives"] header, [data-zg="sheet-teach-objectives"] header { padding-top: 16px; }
+/* Opaque from the first frame: the page never shows behind these two. */
+[data-zg="sheet-objectives"]::backdrop, [data-zg="sheet-teach-objectives"]::backdrop {
+  background-color: var(--zg-color-bg);
+  background-image: linear-gradient(rgba(242, 234, 223, .9), rgba(242, 234, 223, .95)), url('./img/wood.webp');
+  background-size: auto, 640px;
+}
+@starting-style {
+  [data-zg="sheet-objectives"][open]::backdrop, [data-zg="sheet-teach-objectives"][open]::backdrop { background-color: var(--zg-color-bg); }
+}
+/* The goal, on wood, inside Home's popup. */
+[data-zg="sheet-objectives"] [data-zg="today"] { margin: 0 0 14px; padding: 18px 20px; border-radius: var(--zg-radius-lg); }
+[data-zg="goal-focus"] {
+  margin: 0 0 8px; font: 400 1.9rem/1.05 var(--zg-font-display); letter-spacing: .04em; text-transform: none;
+  color: var(--zg-color-cream); text-shadow: 0 1px 2px rgba(0,0,0,.28);
+}
+/* Today's objectives: real bullet points. */
+[data-zg="today-blocks"], [data-zg="teach-goals"] { list-style: disc; margin: 4px 0 12px; padding: 0 0 0 1.3em; }
+[data-zg="today-blocks"] > li, [data-zg="teach-goals"] > li {
+  display: list-item; padding: 6px 0; border: 0; line-height: 1.45; font-weight: 550; color: var(--zg-color-text);
+}
+[data-zg="today-blocks"] > li::marker, [data-zg="teach-goals"] > li::marker { color: var(--zg-color-accent); }
+[data-zg="today-blocks"] > li[data-done], [data-zg="teach-goals"] > li[data-done] { color: var(--zg-color-good); }
+[data-zg="today-blocks"] > [data-zg="today-lesson"] { border: 0; color: var(--zg-color-accent-strong); }
+[data-zg="sheet-objectives"] [data-zg="today-plan"] [data-zg="today-now"] { margin: 0 0 4px; }
+[data-zg="today-start"], [data-zg="teach-start"] { display: flex; width: 100%; min-height: 56px; margin: 8px 0 0; font-family: var(--zg-font-display); font-size: 1.15rem; letter-spacing: .06em; }
+[data-zg="teach-start"] { background-color: var(--zg-color-amber); color: var(--zg-color-wood-seam); border-color: transparent; }
+[data-zg="teach-chapter"] { margin: 0 0 4px; font-size: .8rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--zg-color-wood); }
+[data-zg="teach-lesson"] { margin: 0 0 10px; font: 400 1.5rem/1.15 var(--zg-font-display); letter-spacing: .04em; text-transform: none; color: var(--zg-color-text); }
+/* The heads of Home and Teach: what the deck is for, and the popup again. */
+[data-zg="home"], [data-zg="teach"] { padding: 16px 20px; }
+[data-zg="home"] h2, [data-zg="teach"] h2 { margin-bottom: 6px; }
+[data-zg="home-goal"], [data-zg="teach-progress"] { color: var(--zg-color-muted); }
+[data-zg="today-objectives"], [data-zg="teach-objectives"] { margin: 0; }
+[data-zg="now"]:focus, [data-zg="teach-deck"]:focus { outline: none; }
+[data-zg="teach-status"] { color: var(--zg-color-muted); font-size: .85rem; }
+/* Into the deck after a popup: the cards rise in, one after another. */
+@keyframes zg-deck-in { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+[data-zg^="screen-"][data-enter="deck"] > section { animation: zg-deck-in .5s var(--zg-ease) both; }
+[data-zg^="screen-"][data-enter="deck"] > section:nth-child(2) { animation-delay: .07s; }
+[data-zg^="screen-"][data-enter="deck"] > section:nth-child(3) { animation-delay: .14s; }
+[data-zg^="screen-"][data-enter="deck"] > section:nth-child(n+4) { animation-delay: .21s; }
+/* Home and Teach slide sideways into each other, like pages. */
+@keyframes zg-from-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes zg-from-left { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+[data-zg^="screen-"][data-enter="from-right"] { animation: zg-from-right var(--zg-slow) var(--zg-ease); }
+[data-zg^="screen-"][data-enter="from-left"] { animation: zg-from-left var(--zg-slow) var(--zg-ease); }
+@media (prefers-reduced-motion: reduce) {
+  [data-zg^="screen-"][data-enter] > section, [data-zg^="screen-"][data-enter] { animation: none !important; }
+}

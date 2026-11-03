@@ -93,9 +93,9 @@ test('app shell: one container per screen; every section sits inside exactly one
     const tag = main.slice(at, main.indexOf('>', at) + 1);
     assert.equal(/\shidden[\s>]/.test(tag), s !== 'today', `screen-${s} starts ${s === 'today' ? 'visible' : 'hidden'}`);
   }
-  // Each tab and the gear link to their screen's hash.
+  // Each menu item links to its screen's hash.
   for (const s of SCREENS) {
-    const hook = s === 'settings' ? 'gear' : `tab-${s}`;
+    const hook = s === 'settings' ? 'menu-settings' : `tab-${s}`;
     assert.match(html, new RegExp(`<a href="#/${s}" data-zg="${hook}"`), hook);
   }
 });
@@ -103,7 +103,8 @@ test('app shell: one container per screen; every section sits inside exactly one
 test('base.css: the protected hidden rule, then structure only, all at zero specificity so the theme wins', () => {
   const css = read('harness/static/base.css').replace(/\/\*[\s\S]*?\*\//g, '');
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1]!.trim(), body: m[2]! }));
-  const STRUCTURAL = new Set(['position', 'left', 'right', 'top', 'bottom', 'z-index', 'display', 'flex', 'flex-direction', 'min-width', 'text-align', 'align-items', 'justify-content', 'gap', 'column-gap', 'grid-template-columns', 'grid-template-areas', 'grid-area', 'padding-bottom', 'background']);
+  // touch-action and overscroll-behavior-x (2026-11-03) are behavior, not look: they let Home and Teach swipe.
+  const STRUCTURAL = new Set(['position', 'left', 'right', 'top', 'bottom', 'z-index', 'display', 'flex', 'flex-direction', 'min-width', 'text-align', 'align-items', 'justify-content', 'gap', 'column-gap', 'grid-template-columns', 'grid-template-areas', 'grid-area', 'padding-bottom', 'background', 'touch-action', 'overscroll-behavior-x']);
   for (const { selector, body } of rules) {
     if (selector === '[hidden]') continue;
     assert.match(selector, /^:where\(/, `${selector} is wrapped in :where()`);
@@ -117,38 +118,37 @@ test('base.css: the protected hidden rule, then structure only, all at zero spec
 
 // ------------------------------------------ social-style tab bar (2026-11-01) --
 
-test('nav: the five phone slots in order, then the More sheet with Ear training, Cards, Settings', async () => {
-  const { BAR, MORE } = await import('../harness/routes.ts');
-  const nav = html.slice(html.indexOf('<nav data-zg="nav"'), html.indexOf('</nav>'));
-  const at = (hook: string) => nav.indexOf(`data-zg="${hook}"`);
-  const slots = BAR.map((b) => (b === 'more' ? 'nav-more' : `tab-${b}`));
-  for (let i = 1; i < slots.length; i++) assert.ok(at(slots[i - 1]!) >= 0 && at(slots[i - 1]!) < at(slots[i]!), `${slots[i - 1]} before ${slots[i]}`);
-  const sheet = nav.slice(at('more-sheet'), nav.lastIndexOf('</div>'));
-  assert.ok(at('more-sheet') > at('nav-more'), 'the sheet follows the More button');
-  const items = MORE.map((m) => (m === 'settings' ? 'more-settings' : `tab-${m}`));
+test('menu: one button in the top bar; its list holds Home, Teach, Record, Songs, Ear training, Goals, Cards, Settings, in that order', async () => {
+  const { MENU } = await import('../harness/routes.ts');
+  const top = html.slice(html.indexOf('<header data-zg="topbar">'), html.indexOf('</header>'));
+  assert.ok(top.includes('<nav data-zg="nav"'), 'the menu lives in the top bar');
+  const list = top.slice(top.indexOf('data-zg="menu-list"'));
+  const items = MENU.map((m) => (m === 'settings' ? 'menu-settings' : `tab-${m}`));
   for (let i = 0; i < items.length; i++) {
-    assert.ok(sheet.includes(`data-zg="${items[i]}"`), `${items[i]} is in the sheet`);
-    if (i > 0) assert.ok(sheet.indexOf(`data-zg="${items[i - 1]}"`) < sheet.indexOf(`data-zg="${items[i]}"`));
+    assert.ok(list.includes(`data-zg="${items[i]}"`), `${items[i]} is in the list`);
+    if (i > 0) assert.ok(list.indexOf(`data-zg="${items[i - 1]}"`) < list.indexOf(`data-zg="${items[i]}"`));
   }
-  for (const s of slots.filter((x) => x !== 'nav-more')) assert.ok(!sheet.includes(`data-zg="${s}"`), `${s} is in the bar, not the sheet`);
-  assert.match(html, /<a href="#\/settings" data-zg="more-settings"/);
+  assert.equal((top.match(/<button /g) ?? []).length, 1, 'one button: the menu');
+  // Removed 2026-11-03: the bottom tab bar, its More sheet, the side nav, the gear.
+  for (const gone of ['nav-more', 'more-sheet', 'more-settings', 'gear']) assert.ok(!html.includes(`data-zg="${gone}"`), gone);
+  assert.ok(!html.slice(html.indexOf('</header>')).includes('data-zg="tab-'), 'no tab links outside the menu');
 });
 
-test('nav: the More button is a disclosure for the sheet, closed at load', () => {
-  const button = /<button ([^>]*)data-zg="nav-more"([^>]*)>/.exec(html);
-  assert.ok(button, 'More is a button');
+test('menu: the button is a disclosure for its list, closed at load', () => {
+  const button = /<button ([^>]*)data-zg="menu"([^>]*)>/.exec(html);
+  assert.ok(button, 'Menu is a button');
   const attrs = button![0];
   assert.match(attrs, /type="button"/);
   assert.match(attrs, /aria-expanded="false"/);
   const controls = /aria-controls="([^"]+)"/.exec(attrs)?.[1];
-  assert.ok(controls && new RegExp(`<div id="${controls}" data-zg="more-sheet">`).test(html), 'aria-controls names the sheet');
-  assert.ok(!/data-zg="more-sheet"[^>]*data-open/.test(html), 'the sheet starts closed');
+  assert.ok(controls && new RegExp(`<div id="${controls}" data-zg="menu-list">`).test(html), 'aria-controls names the list');
+  assert.ok(!/data-zg="menu-list"[^>]*data-open/.test(html), 'the list starts closed');
 });
 
-test('nav: every item is an inline SVG icon (currentColor, hidden from screen readers) plus a short label', () => {
+test('menu: every item is an inline SVG icon (currentColor, hidden from screen readers) plus a short label', () => {
   const nav = html.slice(html.indexOf('<nav data-zg="nav"'), html.indexOf('</nav>'));
-  const items = [...nav.matchAll(/<(a|button) [^>]*data-zg="(tab-[a-z]+|nav-more|more-settings)"[^>]*>([\s\S]*?)<\/\1>/g)];
-  assert.equal(items.length, 8, 'Today, Goals, Record, Songs, More, Ear training, Cards, Settings');
+  const items = [...nav.matchAll(/<(a|button) [^>]*data-zg="(tab-[a-z]+|menu|menu-settings)"[^>]*>([\s\S]*?)<\/\1>/g)];
+  assert.equal(items.length, 9, 'Menu, then Home, Teach, Record, Songs, Ear training, Goals, Cards, Settings');
   for (const [, , hook, inner] of items) {
     const svg = /^<svg ([^>]*)>/.exec(inner!);
     assert.ok(svg, `${hook} starts with its icon`);
@@ -159,15 +159,23 @@ test('nav: every item is an inline SVG icon (currentColor, hidden from screen re
     const label = /<\/svg><span>([^<]+)<\/span>/.exec(inner!)?.[1];
     assert.ok(label && label.length <= 12, `${hook} has a short label (${label})`);
   }
-  assert.match(nav, /data-zg="tab-record"><svg width="32" height="32"/, 'Record is the larger centre icon');
 });
 
-test('nav: due-count badges sit inside Today and Cards, hidden until something is due', async () => {
+test('menu: due-count badges sit inside Home and Cards in the list, hidden until something is due', async () => {
   const { BADGED } = await import('../harness/routes.ts');
+  const list = html.slice(html.indexOf('data-zg="menu-list"'), html.indexOf('</nav>'));
   for (const b of BADGED) {
-    const link = new RegExp(`data-zg="tab-${b}">[\\s\\S]*?</a>`).exec(html)?.[0] ?? '';
+    const link = new RegExp(`data-zg="tab-${b}">[\\s\\S]*?</a>`).exec(list)?.[0] ?? '';
     assert.match(link, new RegExp(`<span data-zg="nav-badge-${b}" aria-hidden="true" hidden></span></a>$`), b);
   }
+});
+
+test('page dots: Home and Teach links, under the top bar, hidden until a page shows', async () => {
+  const { PAGES } = await import('../harness/routes.ts');
+  const pager = html.slice(html.indexOf('<nav data-zg="pager"'), html.indexOf('</nav>', html.indexOf('<nav data-zg="pager"')));
+  assert.match(pager, /^<nav data-zg="pager" aria-label="[^"]+" hidden>/);
+  for (const p of PAGES) assert.match(pager, new RegExp(`<a href="#/${p}" data-zg="pager-${p}">`));
+  assert.ok(html.indexOf('data-zg="pager"') > html.indexOf('</header>') && html.indexOf('data-zg="pager"') < html.indexOf('<main'));
 });
 
 // --------------------------------------------- layout redesign (2026-11-01) --
@@ -207,13 +215,34 @@ test('sheets: each is a labelled dialog in its own screen, closed at load, with 
   for (const h of ['email', 'sign-in', 'code', 'verify', 'signin-note', 'signin-later']) assert.ok(signin.includes(`data-zg="${h}"`), `${h} is in the sign-in popup`);
 });
 
-test('Today is the single page: the goal, then today, then the lesson (reading, cards, goal tasks, metronome), in that order', () => {
-  const today = html.slice(html.indexOf('<div data-zg="screen-today">'), html.indexOf('<div data-zg="screen-songs"'));
-  const order = ['today', 'goal-focus', 'today-plan', 'today-now', 'today-blocks', 'today-start', 'lesson', 'lesson-reading', 'now', 'card', 'plan', 'blocks', 'metronome', 'mx-start', 'mx-note'];
-  const at = order.map((h) => today.indexOf(`data-zg="${h}"`));
-  at.forEach((i, k) => assert.ok(i >= 0, `${order[k]} is on Today`));
+test('Home is the deck: what it works toward and the popup again, then cards and songs, goal tasks, metronome', () => {
+  const home = html.slice(html.indexOf('<div data-zg="screen-today">'), html.indexOf('<div data-zg="screen-teach"'));
+  const order = ['home', 'home-goal', 'today-objectives', 'now', 'card', 'plan', 'blocks', 'metronome', 'mx-start', 'mx-note'];
+  const at = order.map((h) => home.indexOf(`data-zg="${h}"`));
+  at.forEach((i, k) => assert.ok(i >= 0, `${order[k]} is on Home`));
   for (let k = 1; k < at.length; k++) assert.ok(at[k - 1]! < at[k]!, `${order[k - 1]} before ${order[k]}`);
   assert.ok(!html.includes('data-zg="card-source"'), 'no sources on the cards (Blake, 2026-11-02)');
+});
+
+test("Home's objectives popup holds the goal, the session, the bullets and Start; Teach's holds the chapter, the lesson, the bullets and Start", () => {
+  const popup = (name: string) => html.slice(html.indexOf(`<dialog data-zg="sheet-${name}"`), html.indexOf('</dialog>', html.indexOf(`<dialog data-zg="sheet-${name}"`)));
+  const home = popup('objectives');
+  const order = ['close-objectives', 'today', 'goal-focus', 'goal-focus-when', 'goal-focus-why', 'goal-focus-link', 'today-plan', 'today-now', 'today-blocks', 'today-reminder', 'today-start'];
+  for (let k = 1; k < order.length; k++) assert.ok(home.indexOf(`data-zg="${order[k - 1]}"`) < home.indexOf(`data-zg="${order[k]}"`), `${order[k - 1]} before ${order[k]}`);
+  assert.match(home, /<ul data-zg="today-blocks"><\/ul>/, 'the objectives are a bullet list');
+  const teach = popup('teach-objectives');
+  const torder = ['close-teach-objectives', 'teach-chapter', 'teach-lesson', 'teach-goals', 'teach-start'];
+  for (let k = 1; k < torder.length; k++) assert.ok(teach.indexOf(`data-zg="${torder[k - 1]}"`) < teach.indexOf(`data-zg="${torder[k]}"`), `${torder[k - 1]} before ${torder[k]}`);
+  assert.match(teach, /<ul data-zg="teach-goals"><\/ul>/);
+  for (const start of ['today-start', 'teach-start']) assert.match(html, new RegExp(`data-zg="${start}" autofocus>Start<`), `${start} takes the focus`);
+});
+
+test('Teach: the heading and the popup again, then the reading, then the lesson deck with its own card', () => {
+  const teach = html.slice(html.indexOf('<div data-zg="screen-teach"'), html.indexOf('<div data-zg="screen-songs"'));
+  const order = ['teach', 'teach-progress', 'teach-objectives', 'lesson', 'lesson-reading', 'lesson-title', 'lesson-text', 'teach-deck', 'teach-status', 'teach-card', 'teach-question', 'teach-answer', 'teach-choices', 'teach-feedback', 'teach-reveal', 'teach-rate', 'teach-r-again', 'teach-r-easy'];
+  const at = order.map((h) => teach.indexOf(`data-zg="${h}"`));
+  at.forEach((i, k) => assert.ok(i >= 0, `${order[k]} is on Teach`));
+  for (let k = 1; k < at.length; k++) assert.ok(at[k - 1]! < at[k]!, `${order[k - 1]} before ${order[k]}`);
 });
 
 test('the long forms live in sheets; each screen keeps its main action outside them', () => {
@@ -222,5 +251,5 @@ test('the long forms live in sheets; each screen keeps its main action outside t
     return html.lastIndexOf('<dialog', at) > html.lastIndexOf('</dialog>', at);
   };
   for (const h of ['mx-groove', 'mx-workout', 'mx-vol-kick', 'mx-allowDuringQuietHours', 'songs-paste', 'improv-prompt', 'goal-what', 'goal-save']) assert.ok(inSheet(h), `${h} is in a sheet`);
-  for (const h of ['today-start', 'reveal', 'mx-start', 'mx-bpm', 'rec-start', 'improv-start', 'songs-add', 'ear-play', 'theory-lessons', 'baseline-list', 'notify-all', 'open-signin']) assert.ok(!inSheet(h), `${h} stays on its screen`);
+  for (const h of ['reveal', 'mx-start', 'mx-bpm', 'rec-start', 'improv-start', 'songs-add', 'ear-play', 'theory-lessons', 'baseline-list', 'notify-all', 'open-signin', 'teach-reveal', 'today-objectives', 'teach-objectives']) assert.ok(!inSheet(h), `${h} stays on its screen`);
 });

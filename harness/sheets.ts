@@ -21,6 +21,8 @@ export interface Sheets {
   isOpen(name: SheetName): boolean;
   /** Runs when a sheet closes, however it was closed. */
   onClose(name: SheetName, fn: () => void): void;
+  /** Whether any sheet is open. */
+  anyOpen(): boolean;
 }
 
 export function setupSheets(): Sheets {
@@ -42,6 +44,7 @@ export function setupSheets(): Sheets {
     onClose(name, fn) {
       dialog(name).addEventListener('close', fn);
     },
+    anyOpen: () => all.some((name) => dialog(name).open),
   };
   for (const name of SHEETS) hook<HTMLButtonElement>(`open-${name}` as Hook).addEventListener('click', () => api.open(name));
   for (const name of all) {

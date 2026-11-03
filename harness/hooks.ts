@@ -4,7 +4,7 @@
  * so the theme can restyle freely. Renaming or removing a hook in the HTML
  * fails test/hooks.test.ts. See docs/THEME.md.
  */
-import { APP_SHEETS, BADGED, SCREENS, SHEETS, TABS } from './routes.ts';
+import { APP_SHEETS, BADGED, PAGES, SCREENS, SHEETS, TABS } from './routes.ts';
 
 export const MX_NUMBER_FIELDS = ['bpm', 'beatsPerBar', 'beatUnit', 'subdivision', 'accentHz', 'beatHz', 'master', 'countInBars', 'targetBpm', 'stepBpm', 'everyBars', 'playBars', 'muteBars', 'repBars'] as const;
 export const MX_TEXT_FIELDS = ['groove', 'sound', 'workout'] as const;
@@ -12,15 +12,22 @@ export const MX_VOICES = ['kick', 'snare', 'rim', 'hihat', 'hihatOpen', 'ride', 
 export const RATINGS = ['again', 'hard', 'good', 'easy'] as const;
 
 const STATIC = [
-  // app shell (2026-10-31): screens and tabs are generated below from routes.ts
-  'shell', 'topbar', 'gear', 'nav', 'screens', 'dev',
-  // social-style tab bar (2026-11-01): More button and its sheet; badges generated below
-  'nav-more', 'more-sheet', 'more-settings',
+  // app shell (2026-10-31): screens and menu items are generated below from routes.ts
+  'shell', 'topbar', 'nav', 'screens', 'dev',
+  // the menu (2026-11-03): one button in the top corner and its list (the More sheet's button and sheet, renamed);
+  // badges and the page dots are generated below
+  'menu', 'menu-list', 'menu-settings', 'pager',
   // layout redesign (2026-11-01): cards that need a name of their own; sheets are generated below
   'today-plan', 'now', 'plan', 'mx-display', 'songs-archive', 'takes-archive', 'ear-stage', 'rec-stage',
-  // today: the single-page flow (2026-11-02): goal, today's breakdown, today's lesson
+  // Home's objectives popup (2026-11-03; the goal and breakdown of 2026-11-02, moved into it)
   'today', 'today-now', 'today-start', 'today-blocks', 'today-reminder',
-  'goal-focus', 'goal-focus-when', 'goal-focus-why', 'goal-focus-link', 'lesson', 'lesson-reading', 'lesson-title', 'lesson-text',
+  'goal-focus', 'goal-focus-when', 'goal-focus-why', 'goal-focus-link',
+  // Home: the deck (2026-11-03)
+  'home', 'home-goal', 'today-objectives',
+  // Teach (2026-11-03): the reading (moved from Today), the lesson deck, its objectives popup
+  'teach', 'teach-progress', 'teach-objectives', 'lesson', 'lesson-reading', 'lesson-title', 'lesson-text',
+  'teach-deck', 'teach-status', 'teach-card', 'teach-question', 'teach-answer', 'teach-choices', 'teach-feedback', 'teach-reveal', 'teach-rate',
+  'teach-chapter', 'teach-lesson', 'teach-goals', 'teach-start',
   // settings: quiet hours
   'quiet-start', 'quiet-end', 'save-quiet',
   // practice now
@@ -64,7 +71,9 @@ export type Hook =
   | `close-${(typeof APP_SHEETS)[number]}`
   | `mx-${MxField}`
   | `mx-vol-${(typeof MX_VOICES)[number]}`
-  | `r-${(typeof RATINGS)[number]}`;
+  | `r-${(typeof RATINGS)[number]}`
+  | `teach-r-${(typeof RATINGS)[number]}`
+  | `pager-${(typeof PAGES)[number]}`;
 
 /** Hooks that must each appear exactly once in index.html. */
 export const HOOKS: readonly Hook[] = [
@@ -78,12 +87,16 @@ export const HOOKS: readonly Hook[] = [
   ...MX_TEXT_FIELDS.map((f) => `mx-${f}` as const),
   ...MX_VOICES.map((v) => `mx-vol-${v}` as const),
   ...RATINGS.map((r) => `r-${r}` as const),
+  ...RATINGS.map((r) => `teach-r-${r}` as const),
+  ...PAGES.map((p) => `pager-${p}` as const),
 ];
 
 /** Hooks the code puts on elements it creates (lists, per-row buttons). */
 export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-window', 'song', 'song-rename', 'song-archive', 'song-restore', 'ear-choice', 'take', 'take-play', 'take-rename', 'take-archive', 'take-restore', 'goal-song', 'goal', 'goal-checkin', 'goal-checkin-save', 'goal-archive', 'block-record', 'mc-choice', 'today-block',
   // 2026-11-02: the lesson row in today's breakdown, curriculum lessons, baseline ratings, song tabs
-  'today-lesson', 'theory-chapter', 'theory-lesson', 'baseline-song', 'baseline-rate', 'song-tab', 'song-tab-attach', 'songtab-content'] as const;
+  'today-lesson', 'theory-chapter', 'theory-lesson', 'baseline-song', 'baseline-rate', 'song-tab', 'song-tab-attach', 'songtab-content',
+  // 2026-11-03: objectives bullets (Home and Teach); the Teach deck's multiple-choice options
+  'today-objective', 'teach-objective', 'teach-choice'] as const;
 
 /** Finds a hooked element; throws if it is missing, so a broken page fails loudly. */
 export function hook<T extends HTMLElement = HTMLInputElement>(name: Hook, root: ParentNode = document): T {

@@ -1,10 +1,10 @@
 /** App shell routing (pure parts): hashes and the start screen. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { APP_SHEETS, BADGED, badgeText, BAR, DEFAULT_SCREEN, hashOf, inMore, MAX_BADGE, MORE, parseHash, SCREENS, SHEETS, startScreen, TABS } from '../harness/routes.ts';
+import { APP_SHEETS, BADGED, badgeText, DEFAULT_SCREEN, hashOf, isPage, MAX_BADGE, MENU, MENU_LABEL, PAGES, pageAfter, parseHash, SCREENS, SHEETS, startScreen, TABS } from '../harness/routes.ts';
 
-test('the screens: Today first (the single page, 2026-11-02), the module tabs, Settings behind the gear', () => {
-  assert.deepEqual([...TABS], ['today', 'songs', 'ear', 'record', 'goals', 'cards']);
+test('the screens: Home ("today") first, Teach, the module screens, Settings', () => {
+  assert.deepEqual([...TABS], ['today', 'teach', 'songs', 'ear', 'record', 'goals', 'cards']);
   assert.deepEqual([...SCREENS], [...TABS, 'settings']);
   assert.equal(DEFAULT_SCREEN, 'today');
   assert.ok(!(SCREENS as readonly string[]).includes('practice'), 'Practice is part of Today now');
@@ -31,24 +31,25 @@ test('start screen with no hash (opening the app): always Today, so the goal com
 
 // ------------------------------------------------ social-style bar (2026-11-01) --
 
-test('phone bar: Today, Goals, Record in the centre, Songs, More', () => {
-  assert.deepEqual([...BAR], ['today', 'goals', 'record', 'songs', 'more']);
-  assert.equal(BAR[Math.floor(BAR.length / 2)], 'record', 'Record is the centre slot');
+test('menu (2026-11-03): Home, Teach, Record, Songs, Ear training, Goals, Cards, Settings; every screen exactly once', () => {
+  assert.deepEqual([...MENU], ['today', 'teach', 'record', 'songs', 'ear', 'goals', 'cards', 'settings']);
+  assert.deepEqual([...MENU].sort(), [...SCREENS].sort());
+  assert.deepEqual(MENU.map((m) => MENU_LABEL[m]), ['Home', 'Teach', 'Record', 'Songs', 'Ear training', 'Goals', 'Cards', 'Settings']);
 });
 
-test('More sheet: Ear training, Cards, Settings; every screen is reachable on a phone exactly once', () => {
-  assert.deepEqual([...MORE], ['ear', 'cards', 'settings']);
-  const reachable = [...BAR.filter((b) => b !== 'more'), ...MORE];
-  assert.deepEqual([...reachable].sort(), [...SCREENS].sort());
-  assert.equal(new Set(reachable).size, reachable.length);
-  for (const s of SCREENS) assert.equal(inMore(s), (MORE as readonly string[]).includes(s), s);
+test('pages: Home then Teach; a swipe left goes to the page on the right and back; nothing past the ends or off the pages', () => {
+  assert.deepEqual([...PAGES], ['today', 'teach']);
+  assert.equal(pageAfter('today', 'left'), 'teach');
+  assert.equal(pageAfter('teach', 'right'), 'today');
+  assert.equal(pageAfter('today', 'right'), null);
+  assert.equal(pageAfter('teach', 'left'), null);
+  for (const s of ['songs', 'record', 'settings'] as const) {
+    assert.equal(isPage(s), false);
+    assert.equal(pageAfter(s, 'left'), null);
+  }
 });
 
-test('screens in the More sheet still route', () => {
-  for (const s of MORE) assert.equal(parseHash(hashOf(s)), s);
-});
-
-test('badges: on Today and Cards; nothing when none due, the count, then 99+', () => {
+test('badges: on Home and Cards (in the menu); nothing when none due, the count, then 99+', () => {
   assert.deepEqual([...BADGED], ['today', 'cards']);
   for (const b of BADGED) assert.ok((TABS as readonly string[]).includes(b));
   assert.equal(badgeText(0), null);
@@ -60,8 +61,8 @@ test('badges: on Today and Cards; nothing when none due, the count, then 99+', (
   assert.equal(badgeText(4.7), '4');
 });
 
-test('sheets: four screen sheets, and two app sheets (sign-in, tab viewer) with their own names', () => {
+test('sheets: four screen sheets, and four app sheets (sign-in, tab viewer, the two objectives popups) with their own names', () => {
   assert.deepEqual([...SHEETS], ['mx-settings', 'songs-paste', 'improv', 'goal-new']);
-  assert.deepEqual([...APP_SHEETS], ['signin', 'songtab']);
-  assert.equal(new Set([...SHEETS, ...APP_SHEETS]).size, 6);
+  assert.deepEqual([...APP_SHEETS], ['signin', 'songtab', 'objectives', 'teach-objectives']);
+  assert.equal(new Set([...SHEETS, ...APP_SHEETS]).size, 8);
 });

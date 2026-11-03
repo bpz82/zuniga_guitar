@@ -5,10 +5,13 @@
  * push reminders. The values it asks for (project URL, publishable key,
  * VAPID public key) are public by design; no secret ever goes in the app.
  *
- * Single-page flow (Blake, 2026-11-02): Today opens with the current goal,
- * then what today holds for it, then today's lesson (the curriculum reading,
- * the cards and songs due, the goal's tasks, the metronome). Signed out with
- * a connection set up: the sign-in popup shows at launch.
+ * Home and Teach (Blake, 2026-11-03): opening the app shows only a popup of
+ * today's objectives for the current goal; closing it moves smoothly into the
+ * day's deck (cards and songs, the goal's tasks, the metronome). No goal yet:
+ * the new-goal sheet opens instead. Teach, a swipe away, does the same for
+ * the curriculum: its objectives from the current chapter, then the lesson's
+ * reading and deck. One menu button reaches everything else. Signed out with
+ * a connection set up: the sign-in popup opens too, on top.
  */
 import {
   adoptDeviceTimeZone,
@@ -17,7 +20,6 @@ import {
   dueToday,
   nudgesBetween,
   practiceDay,
-  todayBlocks,
   planNudges,
   prompt,
   rateSong,
@@ -61,7 +63,12 @@ import { EAR, seedEar } from '../src/modules/ear/practice.ts';
 import { skillOf } from '../src/modules/ear/core.ts';
 import { hook, RATINGS } from './hooks.ts';
 import type { Hook } from './hooks.ts';
-import { blocksForFocus, focusGoal, goalWhen } from './today.ts';
+import { focusGoal, goalWhen, homeObjectives } from './today.ts';
+import type { Objective } from './today.ts';
+import { chapterLine, teachDeck, teachObjectives } from './teach.ts';
+import { setupSwipe } from './swipe.ts';
+import { hashOf, isPage, PAGES, pageAfter, startScreen } from './routes.ts';
+import type { Page, Screen } from './routes.ts';
 
 interface Config {
   supabaseUrl?: string;
@@ -114,8 +121,19 @@ const cloud = () => (client && userId !== 'local' ? { storage: supabaseTakeStora
 /** Tab storage, when signed in. */
 const tabCloud = () => (client && userId !== 'local' ? { storage: supabaseBucketStorage(client as unknown as StorageClientLike, TABS_BUCKET), userId } : null);
 let revealed = false;
+/** Teach's deck: the answer shown for the card on show. */
+let teachRevealed = false;
 /** A connection is set up and it answered: nobody is signed in on this device. */
 let signedOut = false;
+/** The sign-in popup is still to open (once, at launch, over the first page's popup). */
+let signInPending = false;
+/** Pages whose objectives popup has shown since the app opened (each opens with it once). */
+const introduced = new Set<Page>();
+/** No goal at launch: the new-goal sheet opens on Goals; once saved, Home opens with its popup. */
+let goalSheetOnArrival = false;
+let firstGoalPending = false;
+/** The screen shown before the current one (for the page slide). */
+let lastScreen: Screen | null = null;
 
 function say(text: string) {
   $('status').textContent = `${new Date().toLocaleTimeString()} ${text}`;
@@ -181,17 +199,31 @@ const WINDOW_LABEL: Record<string, string> = {
   'after-work': 'After-work burst',
 };
 
+/** Bullets for an objectives popup. */
+function bullets(items: readonly Objective[], where: 'today' | 'teach'): HTMLLIElement[] {
+  return items.map((o) => {
+    const li = document.createElement('li');
+    if (where === 'teach') li.dataset.zg = 'teach-objective';
+    else if (o.kind === 'block') li.dataset.zg = 'today-block';
+    else if (o.kind === 'lesson') li.dataset.zg = 'today-lesson';
+    else li.dataset.zg = 'today-objective';
+    li.dataset.kind = o.kind;
+    if (o.done) li.dataset.done = '';
+    li.textContent = o.text;
+    return li;
+  });
+}
+
 /**
- * Today, the single page (2026-11-02): the goal first, then what today holds
- * for it (the session, the goal's blocks, the current lesson), then the lesson
- * itself (drawn by render()).
+ * Home (2026-11-03): its objectives popup (the goal, the session open now,
+ * today's objectives as bullets, the next reminder) and the line over the deck.
  */
-function renderToday() {
+function renderHome() {
   const lib = replica.library;
   const now = Date.now();
   const today = practiceDay(now, lib.settings.dayStart);
 
-  // 1. The goal.
+  // The goal.
   const focus = focusGoal(lib, today);
   $('goal-focus').textContent = focus ? focus.goal.what : 'No goal yet';
   $('goal-focus-when').textContent = focus
@@ -200,31 +232,17 @@ function renderToday() {
   $('goal-focus-why').textContent = focus?.goal.why ?? '';
   $('goal-focus-why').hidden = !focus?.goal.why;
   $('goal-focus-link').textContent = focus ? 'All goals' : 'Set your goal';
+  $('home-goal').textContent = focus ? `Working toward ${focus.goal.what} · ${goalWhen(focus.goal, today)}` : 'No goal yet. Set one in Goals and each day is planned around it.';
 
-  // 2. What today holds for it.
+  // Today's objectives for it.
   const s = sessionFor(lib, now);
   const review = s.segments.find((x) => x.kind === 'review');
   const due = review && review.kind === 'review' ? review.due.length : 0;
   const fresh = review && review.kind === 'review' ? review.fresh.length : 0;
   const where = `${WINDOW_LABEL[s.windowId ?? ''] ?? 'Practice'} (${s.mode}${s.quiet ? ', quiet hours' : ''})`;
   $('today-now').textContent = s.empty ? `${where}: nothing due right now.` : `${where}: ${due} due, ${fresh} new.`;
-  const goalName = (id: string) => lib.goals.get(id)?.what ?? 'another goal';
-  const rows = blocksForFocus(todayBlocks(lib, now), focus?.goal.id ?? null).map(({ seg, focus: mine }) => {
-    const li = document.createElement('li');
-    li.dataset.zg = 'today-block';
-    li.textContent = `${seg.block.label} · ${seg.block.minutes} min${seg.done ? ' ✓' : ''}${mine ? '' : ` · for ${goalName(seg.block.goalId)}`}`;
-    return li;
-  });
   const lesson = theoryUi.current();
-  if (lesson) {
-    const li = document.createElement('li');
-    li.dataset.zg = 'today-lesson';
-    li.textContent = `${lessonHeading(lesson)} · ${lesson.started === 0 ? 'new today' : `${lesson.ready} of ${lesson.total} cards solid`}`;
-    rows.push(li);
-  }
-  $('today-blocks').replaceChildren(...rows);
-  if (rows.length === 0) $('today-blocks').textContent = 'No goal blocks today.';
-  $('today-start').textContent = s.empty ? 'Open today\'s lesson' : 'Start today\'s lesson';
+  $('today-blocks').replaceChildren(...bullets(homeObjectives(lib, now, lesson ? lessonHeading(lesson) : null), 'today'));
   const zone = lib.settings.dayStart.timeZone;
   const next = nudgesBetween(lib, now, now + 7 * 24 * 60 * 60 * 1000)[0];
   $('today-reminder').textContent = !lib.settings.notifications
@@ -232,14 +250,87 @@ function renderToday() {
     : next
       ? `Next reminder: ${WINDOW_LABEL[next.windowId] ?? next.windowId}, ${new Date(next.at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: zone })}.`
       : 'No reminders in the next 7 days.';
-
-  // 3. Today's lesson opens with the current curriculum lesson's reading.
-  theoryUi.renderReading();
 }
 
-const BADGE_LABEL = { today: 'Today', cards: 'Cards' } as const;
+/**
+ * Teach (2026-11-03): its objectives popup from the current unlocked chapter,
+ * the lesson's reading, and the day's lesson deck (one card at a time).
+ */
+function renderTeach() {
+  const lib = replica.library;
+  const state = theoryUi.current();
+  const deck = teachDeck(lib, Date.now(), THEORY.id);
+  $('teach-chapter').textContent = state ? chapterLine(state) : 'The course';
+  $('teach-lesson').textContent = state ? lessonHeading(state) : 'Every lesson has graduated';
+  $('teach-goals').replaceChildren(...bullets(teachObjectives(state, { due: deck.due.length, fresh: deck.fresh.length }), 'teach'));
+  $('teach-progress').textContent = !theoryHost.enabled
+    ? `Theory cards switched off: ${theoryHost.disabledReason}`
+    : state
+      ? `${chapterLine(state)}. ${lessonHeading(state)}: ${state.ready} of ${state.total} cards solid.`
+      : 'Every lesson has graduated. Reviews keep them fresh.';
+  theoryUi.renderReading();
+  $('teach-status').textContent = `${deck.due.length} due, ${deck.fresh.length} new`;
+  const next = theoryHost.enabled ? (deck.due[0] ?? deck.fresh[0]) : undefined;
+  const started = () => Number($('teach-card').dataset.started ?? Date.now());
+  if (!next || !theoryUi.showCard(next, teachRevealed, started, 'teach')) {
+    $('teach-card').dataset.card = '';
+    $('teach-question').textContent = state && state.ready < state.total
+      ? 'Nothing due right now. These cards come back on a later day; getting them right then is what unlocks the next lesson.'
+      : 'Nothing due right now.';
+    $('teach-answer').textContent = '';
+    $('teach-choices').replaceChildren();
+    $('teach-reveal').hidden = $('teach-rate').hidden = true;
+  }
+}
 
-/** Due-count badges: Today = due in the session open now; Cards = theory cards due today. */
+/**
+ * After a page's objectives popup: move smoothly into its deck. The page
+ * plays its entrance (the theme animates [data-enter], and does nothing under
+ * reduced motion), scrolls to the deck and puts focus there.
+ */
+function enterDeck(page: Page) {
+  if (shell.current() !== page) return; // closed by leaving the page
+  const target = page === 'today' ? $('now') : theoryUi.current()?.started === 0 ? $('lesson') : $('teach-deck');
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  play(page, 'deck');
+  target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+  target.focus({ preventScroll: true });
+}
+
+/** An entrance for a screen: "deck" (after its popup), "from-right" or "from-left" (a page slide). */
+function play(screen: Screen, entrance: 'deck' | 'from-right' | 'from-left') {
+  const el = $(`screen-${screen}` as Hook);
+  el.setAttribute('data-enter', entrance);
+  window.setTimeout(() => el.getAttribute('data-enter') === entrance && el.removeAttribute('data-enter'), 900);
+}
+
+/**
+ * Arriving on a screen (after it is shown). A page opens with its objectives
+ * popup the first time it is shown after the app opens. The sign-in popup,
+ * if due, opens last, on top.
+ */
+function arrive(screen: Screen) {
+  if (lastScreen && lastScreen !== screen && isPage(lastScreen) && isPage(screen)) {
+    play(screen, PAGES.indexOf(screen) > PAGES.indexOf(lastScreen) ? 'from-right' : 'from-left');
+  }
+  lastScreen = screen;
+  if (screen === 'goals' && goalSheetOnArrival) {
+    goalSheetOnArrival = false;
+    sheets.open('goal-new');
+  } else if (isPage(screen) && !introduced.has(screen)) {
+    // (Opening the app on Home with no goal goes to Goals instead: see main().)
+    introduced.add(screen);
+    sheets.open(screen === 'today' ? 'objectives' : 'teach-objectives');
+  }
+  if (signInPending) {
+    signInPending = false;
+    sheets.open('signin');
+  }
+}
+
+const BADGE_LABEL = { today: 'Home', cards: 'Cards' } as const;
+
+/** Due-count badges in the menu: Home = due in the session open now; Cards = theory cards due today. */
 function renderBadges(dueNow: number) {
   const counts: Record<'today' | 'cards', number> = { today: dueNow, cards: dueToday(replica.library, Date.now()).get(THEORY.id) ?? 0 };
   for (const [tab, count] of Object.entries(counts) as ['today' | 'cards', number][]) {
@@ -255,7 +346,8 @@ function renderBadges(dueNow: number) {
 }
 
 function render() {
-  renderToday();
+  renderHome();
+  renderTeach();
   const lib = replica.library;
   const now = Date.now();
   const s = sessionFor(lib, now);
@@ -406,16 +498,26 @@ async function enableNotifications() {
   say('Notifications on for this device.');
 }
 
-/** Moves down to today's lesson: smoothly, unless the user asked for less motion. */
-function goToLesson() {
-  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const lesson = $('lesson');
-  lesson.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
-  lesson.focus({ preventScroll: true });
-}
-
 function wire() {
-  $('today-start').onclick = goToLesson;
+  // The objectives popups: Start (or any close) moves into the page's deck; the page's button opens them again.
+  $('today-start').onclick = () => sheets.close('objectives');
+  $('teach-start').onclick = () => sheets.close('teach-objectives');
+  sheets.onClose('objectives', () => enterDeck('today'));
+  sheets.onClose('teach-objectives', () => enterDeck('teach'));
+  $('today-objectives').onclick = () => (renderHome(), sheets.open('objectives'));
+  $('teach-objectives').onclick = () => (renderTeach(), sheets.open('teach-objectives'));
+  // Teach's deck: Show answer and the four ratings for its Q/A cards (multiple choice answers itself).
+  $('teach-reveal').onclick = () => ((teachRevealed = true), renderTeach());
+  for (const rating of RATINGS as readonly Rating[]) {
+    $(`teach-r-${rating}`).onclick = async () => {
+      const cardId = $('teach-card').dataset.card!;
+      const started = Number($('teach-card').dataset.started ?? Date.now());
+      teachRevealed = false;
+      await theoryUi.rate(cardId, rating, Math.max(0, Date.now() - started), 'teach');
+      $('teach-card').dataset.started = String(Date.now());
+      await afterChange();
+    };
+  }
   $('reveal').onclick = () => ((revealed = true), render());
   for (const rating of RATINGS as readonly Rating[]) {
     $(`r-${rating}`).onclick = async () => {
@@ -528,7 +630,15 @@ async function main() {
     const durationMs = runTakes(recHost, runId).reduce((sum, t) => sum + t.durationMs, 0);
     await record({ ok: true, value: { type: 'task-done', goalId: block.goalId, blockId: block.blockId, durationMs } });
   });
-  goalsUi = setupGoals(replica, songsHost, record, say, () => sheets.close('goal-new'));
+  goalsUi = setupGoals(replica, songsHost, record, say, () => {
+    sheets.close('goal-new');
+    // The first goal, asked for at launch: now Home opens with its objectives.
+    if (firstGoalPending) {
+      firstGoalPending = false;
+      introduced.delete('today');
+      shell.go('today');
+    }
+  });
   theoryHost = createHost(replica, THEORY);
   const dayStart = () => replica.library.settings.dayStart;
   const theorySeeded = await runModule(theoryHost, () => seedTheory(theoryHost, dayStart()));
@@ -536,13 +646,28 @@ async function main() {
   theoryUi = setupTheory(theoryHost, say, afterChange, dayStart);
   wire();
   $('card').dataset.started = String(Date.now());
-  // Leaving a screen closes its sheets (a modal left open on a hidden screen would block the page).
-  shell = setupShell(() => (sheets.closeAll(), render()));
-  sheets.closeAll();
+  $('teach-card').dataset.started = String(Date.now());
+  // Signed out but able to sign in: ask straight away (Blake, 2026-11-02), on top of the first popup. "Not now" keeps this device only.
+  signInPending = signedOut;
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
+  // Opening on Home with no goal yet: Goals instead, with the new-goal sheet (no extra history entry).
+  if (startScreen(location.hash).screen === 'today' && !focusGoal(replica.library, practiceDay(Date.now(), replica.library.settings.dayStart))) {
+    history.replaceState(null, '', hashOf('goals'));
+    introduced.add('today');
+    goalSheetOnArrival = firstGoalPending = true;
+  }
+  // Leaving a screen closes its sheets (a modal left open on a hidden screen would block the page); arriving may open a page's popup.
+  shell = setupShell((screen) => (sheets.closeAll(), render(), arrive(screen)));
+  // Swipe between Home and Teach (touch and trackpad); the page dots do the same.
+  setupSwipe(
+    $('screens'),
+    () => !isPage(shell.current()) || sheets.anyOpen() || shell.menuOpen(),
+    (swipe) => {
+      const to = pageAfter(shell.current(), swipe);
+      if (to) shell.go(to);
+    },
+  );
   (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, tabs: tabBlobs, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) }, shell, sheets };
-  // Signed out but able to sign in: ask straight away (Blake, 2026-11-02). "Not now" keeps this device only.
-  if (signedOut) sheets.open('signin');
   const synced = client ? await syncNow().then(() => true, (e) => (say(`Offline: ${(e as Error).message}`), false)) : true;
   // Settings never set (on any synced device): use this device's time zone instead of the UTC default.
   if (synced) {

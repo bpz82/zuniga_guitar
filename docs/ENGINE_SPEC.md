@@ -107,6 +107,15 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
   6. *Curriculum:* one course from both books replaces the topic deck: 24 lessons in five chapters from absolute basics, every term defined before use, each lesson locked until the one before graduates (every card right last time with FSRS stability of 7+ days). The old deck's book cards are retired (history kept); its general cards are Extras, off by default.
   7. *Single-page flow:* Today leads with the current goal, then today's breakdown for it, then today's lesson (reading, cards and songs, goal tasks, metronome). The Practice screen is merged into Today; Goals takes its tab-bar slot. Songs, Record, Cards, Ear and Settings stay reachable. Opening the app always shows Today (the remembered last tab is superseded).
 
+- **Home, menu and Teach (Blake, 2026-11-03):**
+  1. *Home opens with a popup only:* on app open, Home shows a popup (opaque backdrop: nothing behind it shows) of today's objectives as bullet points. The goal summary and the day's breakdown moved into it; Home itself is the day's deck.
+  2. *Objectives from the current goal:* the live goal with the nearest deadline, tied to what the plan covers now: its blocks for today, its songs in the session, the rest of the deck, other goals' blocks, the lesson on Teach.
+  3. *Into the deck:* closing the popup (Start, the close button, Escape or a backdrop tap) moves smoothly into the deck (an entrance animation, a scroll to the deck, focus there); none of the animation under reduced motion. Opening on Home with no goal yet opens the new-goal sheet on Goals instead; saving that first goal returns to Home with its popup.
+  4. *No tab bar:* the bottom bar, its More sheet, the laptop side nav and the gear are gone. No screen is removed.
+  5. *One menu button* in the top corner (at least 44 by 44) lists Home, Teach, Record, Songs, Ear training, Goals, Cards, Settings, with the due-count badges (Home, Cards). It reuses the More sheet's disclosure logic and hooks, renamed (`menu`, `menu-list`, `menu-settings`).
+  6. *Swipe between Home and Teach* by touch (a quick, mostly sideways stroke) and trackpad (horizontal wheel scrolling, once per gesture); the page dots (Home, Teach) are the visible, accessible way to do the same. Back and forward work as for any screen.
+  7. *Teach* uses Home's flow: a popup of today's objectives from the current unlocked chapter, then the reading and the day's lesson deck (theory cards from the same scheduler, whatever the practice window). Chapter locking and graduation are unchanged.
+
 ## Knowingly NOT doing (v0.1)
 
 | Requirement | Why not |
@@ -164,5 +173,9 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Theory (2026-11-02): lesson readings with diagrams or audio | Text first. Copyright rules out reproducing the books' figures; original diagrams could come later. |
 | Tabs (2026-11-02): more than one file per song, editing a text tab in the app, a full PDF viewer | One tab per song, as asked. PDFs show in a frame (iOS shows the first page) with "Open full size" for the browser's own viewer. |
 | Single page (2026-11-02): ear training and recording inside today's lesson | They keep their own screens; a goal block's Record and an ear card's Practise hand off to them, as before. |
+| Home (2026-11-03): closing the objectives popup by itself after a few seconds | Text that disappears on a timer is hard to read at your own pace (and an accessibility problem). The popup waits for Start; everything after Start is automatic. Easy to add if wanted. |
+| Teach (2026-11-03): a due-count badge on Teach in the menu | The Cards badge already counts the theory cards due; two badges for the same cards would be noise. |
+| Teach (2026-11-03): keeping theory cards out of Home's deck | Home's deck is the session as the scheduler builds it (theory cards are silent cards, served in pocket bursts). Changing the session builder is outside these items. |
+| Swipe (2026-11-03): swiping from or to screens other than Home and Teach | Asked for Home and Teach only; the menu reaches the rest. |
 | Layout: dark mode | The theme is light only now (Blake asked for lighter). A dark variant can come back as tokens under `prefers-color-scheme: dark`. |
 | Layout: swipe gestures (swipe a sheet down, swipe between tabs) | Sheets close by Escape, backdrop tap, close button or leaving the screen. Swipe needs touch-gesture code; not asked for. |

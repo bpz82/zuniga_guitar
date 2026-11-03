@@ -49,9 +49,20 @@ function lessonRow(s: LessonState): HTMLElement {
   return li;
 }
 
+/**
+ * Where a theory card is drawn (2026-11-03): Home's deck (the Now card, shared
+ * with every module) or Teach's lesson deck. Each has its own hooks and its
+ * own feedback line.
+ */
+export type Slot = 'home' | 'teach';
+const SLOTS: Readonly<Record<Slot, { card: Hook; question: Hook; answer: Hook; choices: Hook; feedback: Hook; reveal: Hook; rate: Hook }>> = {
+  home: { card: 'card', question: 'question', answer: 'answer', choices: 'mc-choices', feedback: 'card-feedback', reveal: 'reveal', rate: 'rate' },
+  teach: { card: 'teach-card', question: 'teach-question', answer: 'teach-answer', choices: 'teach-choices', feedback: 'teach-feedback', reveal: 'teach-reveal', rate: 'teach-rate' },
+};
+
 export function setupTheory(host: ModuleHost, say: (s: string) => void, afterChange: () => Promise<void>, dayStart: () => DayStart) {
-  /** The last multiple-choice result, shown until the next answer. */
-  let feedback = '';
+  /** The last multiple-choice result in each deck, shown until the next answer there. */
+  const feedback: Record<Slot, string> = { home: '', teach: '' };
   /** Lesson whose reading is drawn (redrawn only when it changes, so an open/closed choice sticks). */
   let drawn = -1;
 
@@ -65,34 +76,40 @@ export function setupTheory(host: ModuleHost, say: (s: string) => void, afterCha
   };
 
   return {
-    /** Draws a theory card in the Now card. Returns false if the card is not a theory card. */
-    showCard(cardId: string, revealed: boolean, startedAt: () => number): boolean {
+    /**
+     * Draws a theory card in a deck (Home's Now card by default). Returns
+     * false if the card is not a theory card (the deck is then cleared of
+     * theory content and left to its caller).
+     */
+    showCard(cardId: string, revealed: boolean, startedAt: () => number, where: Slot = 'home'): boolean {
+      const h = SLOTS[where];
       const card = contentOf(host, cardId);
-      $('mc-choices').replaceChildren();
-      $('card-feedback').textContent = feedback;
+      $(h.choices).replaceChildren();
+      $(h.feedback).textContent = feedback[where];
       if (!card) return false;
-      $('question').textContent = card.question;
-      $('card').dataset.card = cardId;
+      $(h.question).textContent = card.question;
+      $(h.card).dataset.card = cardId;
       if (card.type === 'qa') {
-        $('answer').textContent = revealed ? card.answer : '';
-        $('rate').hidden = !revealed;
-        $('reveal').hidden = revealed;
+        $(h.answer).textContent = revealed ? card.answer : '';
+        $(h.rate).hidden = !revealed;
+        $(h.reveal).hidden = revealed;
         return true;
       }
-      $('answer').textContent = '';
-      $('rate').hidden = $('reveal').hidden = true;
-      const seed = Number($('card').dataset.started ?? 1) || 1;
-      $('mc-choices').replaceChildren(
+      $(h.answer).textContent = '';
+      $(h.rate).hidden = $(h.reveal).hidden = true;
+      const seed = Number($(h.card).dataset.started ?? 1) || 1;
+      $(h.choices).replaceChildren(
         ...optionsFor(card, seed).map((option) => {
           const b = document.createElement('button');
-          b.dataset.zg = 'mc-choice';
+          if (where === 'home') b.dataset.zg = 'mc-choice';
+          else b.dataset.zg = 'teach-choice';
           b.textContent = option;
           b.onclick = async () => {
             const r = await runModule(host, () => answerMc(host, cardId, option, Date.now() - startedAt()));
             if (!r.ok) say(`Theory cards switched off: ${r.error}`);
             else if (!r.value.ok) say(`Theory: ${r.value.error}`);
-            else feedback = `${r.value.value.correct ? '✓' : `✗ The answer: ${card.answer}.`} ${card.why}`;
-            $('card').dataset.started = String(Date.now());
+            else feedback[where] = `${r.value.value.correct ? '✓' : `✗ The answer: ${card.answer}.`} ${card.why}`;
+            $(h.card).dataset.started = String(Date.now());
             await unlock();
             await afterChange();
           };
@@ -101,22 +118,22 @@ export function setupTheory(host: ModuleHost, say: (s: string) => void, afterCha
       );
       return true;
     },
-    /** Rates a Q/A theory card. */
-    async rate(cardId: string, rating: Rating, durationMs: number): Promise<void> {
-      feedback = '';
+    /** Rates a Q/A theory card (from either deck). */
+    async rate(cardId: string, rating: Rating, durationMs: number, where: Slot = 'home'): Promise<void> {
+      feedback[where] = '';
       const r = await runModule(host, () => rateQa(host, cardId, rating, durationMs));
       if (!r.ok) say(`Theory cards switched off: ${r.error}`);
       else if (!r.value.ok) say(`Theory: ${r.value.error}`);
       await unlock();
     },
-    clearFeedback() {
-      feedback = '';
+    clearFeedback(where: Slot = 'home') {
+      feedback[where] = '';
     },
     /** The current lesson, for today's breakdown (null when the course is done or the module is off). */
     current(): LessonState | null {
       return host.enabled ? currentLesson(host, dayStart()) : null;
     },
-    /** Today's lesson: the current curriculum lesson's reading. */
+    /** Teach: the current curriculum lesson's reading. */
     renderReading() {
       const s = host.enabled ? currentLesson(host, dayStart()) : null;
       $('lesson-reading').hidden = s === null;

@@ -3,13 +3,15 @@
  * URL hash ("#/songs"), so the phone's back and forward buttons work and a
  * screen can be linked to. Pure functions only; the DOM side is shell.ts.
  *
- * Single-page flow (Blake, 2026-11-02): Today is the app. It opens with the
- * current goal, then today's breakdown, then today's lesson (what used to be
- * the Practice screen, now part of Today). Opening the app with no hash
- * always shows Today, so the goal comes first. (Superseded: the last tab was
- * remembered for the practice day, 2026-10-31.)
+ * Home (Blake, 2026-11-02 and 2026-11-03): the screen "today" is Home. On app
+ * open it shows only a popup of today's objectives, then moves into the day's
+ * deck. Opening the app with no hash always shows Home. (Superseded: the last
+ * tab was remembered for the practice day, 2026-10-31.)
+ *
+ * Teach (Blake, 2026-11-03): the curriculum's daily page, beside Home. Swipe
+ * between the two (PAGES, left to right) or use the page dots.
  */
-export const TABS = ['today', 'songs', 'ear', 'record', 'goals', 'cards'] as const;
+export const TABS = ['today', 'teach', 'songs', 'ear', 'record', 'goals', 'cards'] as const;
 export type Tab = (typeof TABS)[number];
 /** Every screen: the tabs, plus Settings behind the gear. */
 export const SCREENS = [...TABS, 'settings'] as const;
@@ -37,21 +39,44 @@ export function startScreen(hash: string): { screen: Screen; replace: boolean } 
   return { screen: DEFAULT_SCREEN, replace: true };
 }
 
-// ------------------------------------------------ navigation (2026-11-01) --
+// ------------------------------------------------ navigation (2026-11-03) --
 
 /**
- * The phone's bottom bar, left to right, social-app style: Record is the
- * larger centre action; More opens a sheet with the rest. From 800px the
- * side nav shows everything (the More button is not needed there).
- * 2026-11-02: Practice merged into Today; Goals takes its slot.
+ * One menu button in the top corner (Blake, 2026-11-03) replaces the bottom
+ * tab bar and the laptop side nav. Its list, top to bottom: Home, Teach,
+ * Record, Songs, Ear training, Goals, Cards, Settings. (Superseded: the
+ * five-slot bar and its More sheet, 2026-11-01.)
  */
-export const BAR = ['today', 'goals', 'record', 'songs', 'more'] as const;
-/** In the More sheet on phones, in the side nav on laptops. */
-export const MORE = ['ear', 'cards', 'settings'] as const;
-export type MoreScreen = (typeof MORE)[number];
-export const inMore = (screen: Screen): screen is MoreScreen => (MORE as readonly string[]).includes(screen);
+export const MENU = ['today', 'teach', 'record', 'songs', 'ear', 'goals', 'cards', 'settings'] as const;
+/** The menu's label for each screen. */
+export const MENU_LABEL: Readonly<Record<Screen, string>> = {
+  today: 'Home',
+  teach: 'Teach',
+  record: 'Record',
+  songs: 'Songs',
+  ear: 'Ear training',
+  goals: 'Goals',
+  cards: 'Cards',
+  settings: 'Settings',
+};
 
-/** Tabs that show a due-count badge: Today (due in the session open now) and Cards (theory cards due today). */
+/** The swipeable pages, left to right: Home, then Teach. */
+export const PAGES = ['today', 'teach'] as const;
+export type Page = (typeof PAGES)[number];
+export const isPage = (screen: Screen): screen is Page => (PAGES as readonly string[]).includes(screen);
+
+/**
+ * The page a horizontal swipe leads to. A swipe to the left (finger moving
+ * left, like turning a page) shows the page on the right; to the right, the
+ * page on the left. Null at either end, or off the pages.
+ */
+export function pageAfter(screen: Screen, swipe: 'left' | 'right'): Page | null {
+  if (!isPage(screen)) return null;
+  const i = PAGES.indexOf(screen) + (swipe === 'left' ? 1 : -1);
+  return PAGES[i] ?? null;
+}
+
+/** Menu items that show a due-count badge: Home (due in the session open now) and Cards (theory cards due today). */
 export const BADGED = ['today', 'cards'] as const;
 export const MAX_BADGE = 99;
 
@@ -73,8 +98,9 @@ export const SHEETS = ['mx-settings', 'songs-paste', 'improv', 'goal-new'] as co
 /**
  * Sheets that belong to the whole app rather than one screen (2026-11-02),
  * so they sit outside the screens and the code opens them: the sign-in
- * popup (shown at launch when signed out) and the tab viewer (from a song's
- * row or the song being practised). Hooks `sheet-<name>` and `close-<name>`.
+ * popup (shown at launch when signed out), the tab viewer (from a song's
+ * row or the song being practised), and (2026-11-03) the objectives popups
+ * that open Home and Teach. Hooks `sheet-<name>` and `close-<name>`.
  */
-export const APP_SHEETS = ['signin', 'songtab'] as const;
+export const APP_SHEETS = ['signin', 'songtab', 'objectives', 'teach-objectives'] as const;
 export type SheetName = (typeof SHEETS)[number] | (typeof APP_SHEETS)[number];

@@ -16,45 +16,33 @@
   <div data-zg="shell">
     <header data-zg="topbar">
       <h1>Zuniga Guitar</h1>
-      <a href="#/settings" data-zg="gear" aria-label="Settings">⚙</a>
+      <nav data-zg="nav" aria-label="Main">
+        <button type="button" data-zg="menu" aria-expanded="false" aria-controls="zg-menu-list"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span></button>
+        <div id="zg-menu-list" data-zg="menu-list">
+          <a href="#/today" data-zg="tab-today"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span>Home</span><span data-zg="nav-badge-today" aria-hidden="true" hidden></span></a>
+          <a href="#/teach" data-zg="tab-teach"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 12h5"/></svg><span>Teach</span></a>
+          <a href="#/record" data-zg="tab-record"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg><span>Record</span></a>
+          <a href="#/songs" data-zg="tab-songs"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8" cy="17" r="3"/><path d="M11 17V4l6 3"/></svg><span>Songs</span></a>
+          <a href="#/ear" data-zg="tab-ear"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 9a5 5 0 0 1 10 0c0 3.5-3.5 4.5-3.5 8a3 3 0 0 1-6 0"/><path d="M10 9a2 2 0 0 1 4 0c0 1.5-2 2-2 3.5"/></svg><span>Ear training</span></a>
+          <a href="#/goals" data-zg="tab-goals"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4.5L17 13H5"/></svg><span>Goals</span></a>
+          <a href="#/cards" data-zg="tab-cards"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="13" height="14" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/></svg><span>Cards</span><span data-zg="nav-badge-cards" aria-hidden="true" hidden></span></a>
+          <a href="#/settings" data-zg="menu-settings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Settings</span></a>
+        </div>
+      </nav>
     </header>
     <p data-zg="status">Loading…</p>
-    <nav data-zg="nav" aria-label="Main">
-      <a href="#/today" data-zg="tab-today"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span>Today</span><span data-zg="nav-badge-today" aria-hidden="true" hidden></span></a>
-      <a href="#/goals" data-zg="tab-goals"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4.5L17 13H5"/></svg><span>Goals</span></a>
-      <a href="#/record" data-zg="tab-record"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg><span>Record</span></a>
-      <a href="#/songs" data-zg="tab-songs"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8" cy="17" r="3"/><path d="M11 17V4l6 3"/></svg><span>Songs</span></a>
-      <button type="button" data-zg="nav-more" aria-expanded="false" aria-controls="zg-more-sheet"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg><span>More</span></button>
-      <div id="zg-more-sheet" data-zg="more-sheet">
-        <a href="#/ear" data-zg="tab-ear"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 9a5 5 0 0 1 10 0c0 3.5-3.5 4.5-3.5 8a3 3 0 0 1-6 0"/><path d="M10 9a2 2 0 0 1 4 0c0 1.5-2 2-2 3.5"/></svg><span>Ear training</span></a>
-        <a href="#/cards" data-zg="tab-cards"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="13" height="14" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/></svg><span>Cards</span><span data-zg="nav-badge-cards" aria-hidden="true" hidden></span></a>
-        <a href="#/settings" data-zg="more-settings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Settings</span></a>
-      </div>
+    <nav data-zg="pager" aria-label="Home and Teach (or swipe)" hidden>
+      <a href="#/today" data-zg="pager-today"><span aria-hidden="true"></span>Home</a>
+      <a href="#/teach" data-zg="pager-teach"><span aria-hidden="true"></span>Teach</a>
     </nav>
     <main data-zg="screens">
       <div data-zg="screen-today">
-        <section data-zg="today" aria-labelledby="zg-goal-focus">
-          <p>Your goal</p>
-          <h2 id="zg-goal-focus" data-zg="goal-focus"></h2>
-          <p data-zg="goal-focus-when"></p>
-          <p data-zg="goal-focus-why"></p>
-          <a href="#/goals" data-zg="goal-focus-link">All goals</a>
+        <section data-zg="home" aria-labelledby="zg-home-heading">
+          <h2 id="zg-home-heading">Today's deck</h2>
+          <p data-zg="home-goal"></p>
+          <button type="button" data-zg="today-objectives">Today's objectives</button>
         </section>
-        <section data-zg="today-plan">
-          <h2>Today</h2>
-          <p data-zg="today-now"></p>
-          <ul data-zg="today-blocks"></ul>
-          <p data-zg="today-reminder"></p>
-          <button type="button" data-zg="today-start">Start today's lesson</button>
-        </section>
-        <section data-zg="lesson" tabindex="-1" aria-labelledby="zg-lesson-heading">
-          <h2 id="zg-lesson-heading">Today's lesson</h2>
-          <details data-zg="lesson-reading" open>
-            <summary data-zg="lesson-title"></summary>
-            <div data-zg="lesson-text"></div>
-          </details>
-        </section>
-        <section data-zg="now">
+        <section data-zg="now" tabindex="-1">
           <h3>Cards and songs</h3>
           <p data-zg="session"></p>
           <div data-zg="card">
@@ -136,6 +124,34 @@
               <p><small>Drum samples: Virtuosity Drums by Versilian Studios (CC0).</small></p>
             </div>
           </dialog>
+        </section>
+      </div>
+      <div data-zg="screen-teach" hidden>
+        <section data-zg="teach" aria-labelledby="zg-teach-heading">
+          <h2 id="zg-teach-heading">Teach</h2>
+          <p data-zg="teach-progress"></p>
+          <button type="button" data-zg="teach-objectives">Today's objectives</button>
+        </section>
+        <section data-zg="lesson" tabindex="-1" aria-labelledby="zg-lesson-heading">
+          <h2 id="zg-lesson-heading">The reading</h2>
+          <details data-zg="lesson-reading" open>
+            <summary data-zg="lesson-title"></summary>
+            <div data-zg="lesson-text"></div>
+          </details>
+        </section>
+        <section data-zg="teach-deck" tabindex="-1">
+          <h3>Lesson cards</h3>
+          <p data-zg="teach-status"></p>
+          <div data-zg="teach-card">
+            <p data-zg="teach-question"></p>
+            <p data-zg="teach-answer"></p>
+            <div data-zg="teach-choices"></div>
+            <p data-zg="teach-feedback"></p>
+            <button data-zg="teach-reveal">Show answer</button>
+            <div data-zg="teach-rate" hidden>
+              <button data-zg="teach-r-again">Again</button><button data-zg="teach-r-hard">Hard</button><button data-zg="teach-r-good">Good</button><button data-zg="teach-r-easy">Easy</button>
+            </div>
+          </div>
         </section>
       </div>
       <div data-zg="screen-songs" hidden>
@@ -318,6 +334,39 @@
         </details>
       </div>
     </main>
+    <dialog data-zg="sheet-objectives" aria-labelledby="zg-sheet-objectives-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-objectives-title">Today</h2>
+          <button type="button" data-zg="close-objectives" aria-label="Close">×</button>
+        </header>
+        <div data-zg="today">
+          <p>Your goal</p>
+          <h3 data-zg="goal-focus"></h3>
+          <p data-zg="goal-focus-when"></p>
+          <p data-zg="goal-focus-why"></p>
+          <a href="#/goals" data-zg="goal-focus-link">All goals</a>
+        </div>
+        <div data-zg="today-plan">
+          <p data-zg="today-now"></p>
+          <ul data-zg="today-blocks"></ul>
+          <p data-zg="today-reminder"></p>
+        </div>
+        <button type="button" data-zg="today-start" autofocus>Start</button>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-teach-objectives" aria-labelledby="zg-sheet-teach-objectives-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-teach-objectives-title">Teach</h2>
+          <button type="button" data-zg="close-teach-objectives" aria-label="Close">×</button>
+        </header>
+        <p data-zg="teach-chapter"></p>
+        <h3 data-zg="teach-lesson"></h3>
+        <ul data-zg="teach-goals"></ul>
+        <button type="button" data-zg="teach-start" autofocus>Start</button>
+      </div>
+    </dialog>
     <dialog data-zg="sheet-signin" aria-labelledby="zg-sheet-signin-title">
       <div>
         <header>
