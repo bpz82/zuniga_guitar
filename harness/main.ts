@@ -48,6 +48,7 @@ import { acceptInvite, bandRole, inviteFromUrl, isSharedSongEvent, MEMBER_WRITES
 import type { BandRole, EventBody, ModuleHost, Rating, SupabaseLike, Validation, WindowId } from '../src/index.ts';
 import { databaseName, indexedDbStore } from '../src/stores/indexeddb.ts';
 import { setupBand } from './band-ui.ts';
+import { installGuide, offerInstall, platformOf } from './install.ts';
 import { METRONOME, ladderParams } from '../src/modules/metronome/practice.ts';
 import { setupMetronome } from './metronome-ui.ts';
 import { setupSongs } from './songs-ui.ts';
@@ -618,6 +619,35 @@ function renderMember() {
   $('session').textContent = `${replica.pendingCount} waiting to sync`;
 }
 
+/**
+ * Putting the app on a band member's phone (2026-11-03): the walk-through
+ * for this device, its button in Settings, and opening it by itself once
+ * per account on this device when he is in a browser (not the Home Screen
+ * app). Called once the app is up, so nothing closes it straight away.
+ */
+function setupInstall(member: boolean) {
+  const nav = navigator as Navigator & { standalone?: boolean };
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true;
+  const guide = installGuide(platformOf(nav.userAgent, nav.maxTouchPoints), location.origin + location.pathname);
+  $('install-intro').textContent = guide.intro;
+  $('install-steps').replaceChildren(
+    ...guide.steps.map((text) => {
+      const li = document.createElement('li');
+      li.dataset.zg = 'install-step';
+      li.textContent = text;
+      return li;
+    }),
+  );
+  $('install-open').hidden = !member || standalone;
+  $('install-open').onclick = () => sheets.open('install');
+  $('install-done').onclick = () => sheets.close('install');
+  const key = `zg-install-offered-${userId}`;
+  if (offerInstall({ member, standalone, offeredBefore: localStorage.getItem(key) !== null })) {
+    localStorage.setItem(key, '1');
+    sheets.open('install');
+  }
+}
+
 /** Opens the app for a band member (or a member whose access was removed). */
 async function startMember() {
   const member = role.role === 'member' ? role : null;
@@ -641,6 +671,7 @@ async function startMember() {
   (window as unknown as { zg: unknown }).zg = { replica, songs: songsHost, tabs: tabBlobs, shell, sheets, role };
   say(member ? 'Ready (band member)' : 'Ready (band access removed)');
   if (bandNotice) say(bandNotice);
+  setupInstall(member !== null);
   const synced = await syncNow().then(() => true, (e) => (say(`Offline: ${(e as Error).message}`), false));
   if (synced && member) {
     const zone = adoptDeviceTimeZone(replica.library, Intl.DateTimeFormat().resolvedOptions().timeZone);

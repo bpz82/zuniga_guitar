@@ -1143,8 +1143,8 @@ try {
       };
     }`;
   /** A browser context (one person's device) on the shared fake server, signed in as `who` (or signed out). */
-  const device = async (who, timezoneId = 'UTC') => {
-    const ctx = await browser.newContext({ timezoneId });
+  const device = async (who, timezoneId = 'UTC', userAgent = undefined) => {
+    const ctx = await browser.newContext({ timezoneId, ...(userAgent ? { userAgent } : {}) });
     await ctx.exposeFunction('fakeSupabase', (op, p) => server.handle(op, p));
     await ctx.route('https://esm.sh/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_BAND_SUPABASE }));
     await ctx.addInitScript((id) => {
@@ -1157,7 +1157,11 @@ try {
     return { ctx, p };
   };
   /** ZG_SHOTS=<folder>: also save screenshots of the band screens there, to look at. */
-  const shot = (p, name) => (process.env.ZG_SHOTS ? p.screenshot({ path: join(process.env.ZG_SHOTS, `${name}.png`), fullPage: true }) : null);
+  const shot = async (p, name) => {
+    if (!process.env.ZG_SHOTS) return;
+    await p.waitForTimeout(800); // past any opening animation
+    await p.screenshot({ path: join(process.env.ZG_SHOTS, `${name}.png`) });
+  };
   const openSheetIn = (p, n) => p.waitForFunction((x) => document.querySelector(`[data-zg="sheet-${x}"]`).open, n);
   const go = async (p, screen) => {
     await p.evaluate((s) => (location.hash = `#/${s}`), screen);
@@ -1204,7 +1208,8 @@ try {
   step('band: Blake makes a single-use invite link in Settings, sees his invites, and revokes one');
 
   // Mike opens the link on his phone, signed out: the token leaves the address bar; he signs in with a new email and joins.
-  const mike = await device(null, 'America/New_York'); // his own time zone: his one settings event
+  const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+  const mike = await device(null, 'America/New_York', IPHONE); // his own time zone (his one settings event), on an iPhone
   await mike.p.goto(link);
   await mike.p.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
   assert.equal(new URL(mike.p.url()).search, '', 'the token is out of the address');
@@ -1218,6 +1223,19 @@ try {
   assert.equal(new URL(mike.p.url()).hash, '#/songs', 'his app opens on Songs');
   assert.match(await mike.p.textContent('[data-zg="account"]'), /mike@example\.com \(band member\)$/);
   step('band: Mike opens the link signed out, signs in with a new email, and joins as a band member');
+
+  // Right after, a popup walks him through putting the app on his iPhone (once; again from Settings).
+  await openSheetIn(mike.p, 'install');
+  const steps = await mike.p.$$eval('[data-zg="install-steps"] > [data-zg="install-step"]', (li) => li.map((x) => x.textContent));
+  assert.equal(steps.length, 3);
+  assert.match(steps[0], /Share button/);
+  assert.match(steps[1], /Add to Home Screen, then tap Add/);
+  assert.match(steps[2], /sign in again with the same email/);
+  assert.equal(await mike.p.evaluate(() => document.activeElement.dataset.zg), 'install-done');
+  await shot(mike.p, 'band-install-iphone');
+  await mike.p.click('[data-zg="install-done"]');
+  await mike.p.waitForFunction(() => !document.querySelector('[data-zg="sheet-install"]').open);
+  step('band: right after joining, a popup walks Mike through adding the app to his iPhone (sign in again there)');
 
   // Only Songs and Settings, in the menu and by URL.
   await mike.p.click('[data-zg="menu"]');
@@ -1265,7 +1283,11 @@ try {
   for (const h of ['settings-notify', 'settings-times', 'dev', 'band-manage']) assert.equal(await mike.p.isHidden(`[data-zg="${h}"]`), true, `${h} hidden`);
   assert.match(await mike.p.textContent('[data-zg="band-role"]'), /^You're a band member/);
   for (const h of ['sign-out', 'sync', 'export']) assert.equal(await mike.p.isVisible(`[data-zg="${h}"]`), true, h);
-  step('band: Mike\'s Settings: his account, sign-out, sync and backup only');
+  await mike.p.click('[data-zg="install-open"]');
+  await openSheetIn(mike.p, 'install');
+  await mike.p.click('[data-zg="close-install"]');
+  await mike.p.waitForFunction(() => !document.querySelector('[data-zg="sheet-install"]').open);
+  step('band: Mike\'s Settings: his account, sign-out, sync and backup only, and the phone steps again');
 
   // Blake sees Mike in his band, never his ratings; removes him; Mike's app is cut off on its next sync.
   await go(blake.p, 'settings');
@@ -1319,6 +1341,7 @@ try {
   await sam.p.waitForFunction(() => /Synced/.test(document.querySelector('[data-zg="status"]').textContent));
   assert.equal(await sam.p.evaluate(() => window.zg.shell.current()), 'goals', 'an owner app: no goal yet, so Goals');
   assert.equal(server.members.has(NEWBIE), false, 'a sign-up without a link stays an owner');
+  assert.deepEqual(await sam.p.evaluate(() => [document.querySelector('[data-zg="sheet-install"]').open, document.querySelector('[data-zg="install-open"]').hidden]), [false, true], 'owners: no phone popup, as before');
   // Blake opening an invite link on his own, signed-in phone: nothing joins, nothing is kept.
   await blake.p.goto(`${url}?invite=${'e'.repeat(64)}`);
   await blake.p.waitForFunction(() => window.zg?.replica && /Synced/.test(document.querySelector('[data-zg="status"]').textContent));

@@ -597,3 +597,8 @@ pre[data-zg="songtab-content"] {
 [data-zg="band-invite"], [data-zg="band-invite-copy"] { width: 100%; margin: 0 0 8px; }
 [data-zg="band-member-delete"], [data-zg="band-delete-confirm"] { border-color: var(--zg-color-again); color: var(--zg-color-again); background: var(--zg-color-again-soft); }
 [data-zg="band-delete-confirm"], [data-zg="band-delete-cancel"] { width: 100%; margin: 0 0 8px; }
+/* Putting the app on a band member's phone: numbered steps, then one clear button. */
+[data-zg="install-steps"] { margin: 0 0 12px; padding-left: 1.4em; }
+[data-zg="install-step"] { margin: 0 0 10px; line-height: 1.45; }
+[data-zg="install-done"] { width: 100%; margin: 0 0 8px; }
+[data-zg="install-open"] { margin-top: 4px; }

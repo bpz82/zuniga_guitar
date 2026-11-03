@@ -62,6 +62,8 @@ const STATIC = [
   'signin-invite', 'songs-new-label', 'songs-band', 'songs-band-title', 'songs-band-note', 'settings-notify', 'settings-times',
   'band', 'band-role', 'band-manage', 'band-invite-note', 'band-invite', 'band-invite-made', 'band-invite-link', 'band-invite-copy',
   'band-note', 'band-invites', 'band-members', 'band-delete-who', 'band-delete-confirm', 'band-delete-cancel',
+  // putting the app on a band member's phone (2026-11-03): the popup's text, steps and button, and its button in Settings
+  'install-intro', 'install-steps', 'install-done', 'install-open',
 ] as const;
 
 export type MxField = (typeof MX_NUMBER_FIELDS)[number] | (typeof MX_TEXT_FIELDS)[number];
@@ -104,7 +106,9 @@ export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-win
   // 2026-11-03: objectives bullets (Home and Teach); the Teach deck's multiple-choice options
   'today-objective', 'teach-objective', 'teach-choice',
   // 2026-11-03 (band members): a member's song row (when it is next due for him, his ratings); invites and members in Settings
-  'song-due', 'song-rate', 'band-invite-row', 'band-invite-revoke', 'band-member-row', 'band-member-remove', 'band-member-delete'] as const;
+  'song-due', 'song-rate', 'band-invite-row', 'band-invite-revoke', 'band-member-row', 'band-member-remove', 'band-member-delete',
+  // 2026-11-03: each step of the walk-through for putting the app on a phone
+  'install-step'] as const;
 
 /** Finds a hooked element; throws if it is missing, so a broken page fails loudly. */
 export function hook<T extends HTMLElement = HTMLInputElement>(name: Hook, root: ParentNode = document): T {

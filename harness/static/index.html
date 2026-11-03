@@ -313,6 +313,7 @@
           <p data-zg="account">Not connected (this device only)</p>
           <button type="button" data-zg="open-signin">Sign in</button>
           <p><button data-zg="sync">Sync now</button> <button data-zg="sign-out">Sign out</button></p>
+          <button type="button" data-zg="install-open" hidden>Put the app on your phone</button>
         </section>
         <section data-zg="band">
           <h2>Band</h2>
@@ -424,6 +425,18 @@
         <p>This deletes their ratings and settings from the server for good. It can't be undone. Your songs, tabs and practice are not touched.</p>
         <button type="button" data-zg="band-delete-confirm">Delete their data</button>
         <button type="button" data-zg="band-delete-cancel" autofocus>Keep it</button>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-install" aria-labelledby="zg-sheet-install-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-install-title">Put Zuniga Guitar on your phone</h2>
+          <button type="button" data-zg="close-install" aria-label="Close">×</button>
+        </header>
+        <p data-zg="install-intro"></p>
+        <ol data-zg="install-steps"></ol>
+        <p><small>You can find these steps again in Settings.</small></p>
+        <button type="button" data-zg="install-done" autofocus>Got it</button>
       </div>
     </dialog>
   </div>

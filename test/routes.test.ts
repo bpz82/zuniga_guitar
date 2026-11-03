@@ -61,10 +61,10 @@ test('badges: on Home and Cards (in the menu); nothing when none due, the count,
   assert.equal(badgeText(4.7), '4');
 });
 
-test('sheets: four screen sheets, and five app sheets (sign-in, tab viewer, the two objectives popups, the band-delete confirm) with their own names', () => {
+test('sheets: four screen sheets, and six app sheets (sign-in, tab viewer, the two objectives popups, the band-delete confirm, the phone walk-through) with their own names', () => {
   assert.deepEqual([...SHEETS], ['mx-settings', 'songs-paste', 'improv', 'goal-new']);
-  assert.deepEqual([...APP_SHEETS], ['signin', 'songtab', 'objectives', 'teach-objectives', 'band-delete']);
-  assert.equal(new Set([...SHEETS, ...APP_SHEETS]).size, 9);
+  assert.deepEqual([...APP_SHEETS], ['signin', 'songtab', 'objectives', 'teach-objectives', 'band-delete', 'install']);
+  assert.equal(new Set([...SHEETS, ...APP_SHEETS]).size, 10);
 });
 
 // ---------------------------------------------------- roles (2026-11-03) --

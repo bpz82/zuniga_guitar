@@ -279,4 +279,12 @@ test('band members: what a member does not get is wrapped so it hides whole; the
   const confirm = html.slice(html.indexOf('<dialog data-zg="sheet-band-delete"'), html.indexOf('</dialog>', html.indexOf('<dialog data-zg="sheet-band-delete"')));
   for (const h of ['band-delete-who', 'band-delete-confirm', 'band-delete-cancel']) assert.ok(confirm.includes(`data-zg="${h}"`), h);
   assert.match(confirm, /data-zg="band-delete-cancel" autofocus>Keep it</, 'the safe choice has the focus');
+  // The phone walk-through: its text and steps, then one button; reopened from Account in Settings (hidden until the code shows it).
+  const install = html.slice(html.indexOf('<dialog data-zg="sheet-install"'), html.indexOf('</dialog>', html.indexOf('<dialog data-zg="sheet-install"')));
+  const order = ['close-install', 'install-intro', 'install-steps', 'install-done'];
+  for (let k = 1; k < order.length; k++) assert.ok(install.indexOf(`data-zg="${order[k - 1]}"`) < install.indexOf(`data-zg="${order[k]}"`), `${order[k - 1]} before ${order[k]}`);
+  assert.match(install, /<ol data-zg="install-steps"><\/ol>/, 'numbered steps');
+  assert.match(install, /data-zg="install-done" autofocus>Got it</);
+  assert.ok(inside('account', 'install-open', '</section>') || html.indexOf('data-zg="install-open"') < html.indexOf('data-zg="band"'), 'the button sits with the account');
+  assert.match(html, /<button type="button" data-zg="install-open" hidden>/);
 });
