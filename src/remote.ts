@@ -12,15 +12,18 @@ import type { Library } from './project.ts';
 
 type Result<T> = PromiseLike<{ data: T | null; error: { message: string } | null }>;
 
+/** "After seq N, oldest first, at most L rows". */
+interface Range {
+  gt(column: string, value: number): {
+    order(column: string, options: { ascending: boolean }): { limit(n: number): Result<{ seq: number; event: unknown }[]> };
+  };
+}
+
 /** The slice of the supabase-js query builder this file uses. */
 export interface SupabaseLike {
   from(table: string): {
     upsert(rows: object[], options: { onConflict: string; ignoreDuplicates: boolean }): Result<unknown>;
-    select(columns: string): {
-      gt(column: string, value: number): {
-        order(column: string, options: { ascending: boolean }): { limit(n: number): Result<{ seq: number; event: unknown }[]> };
-      };
-    };
+    select(columns: string): Range & { eq(column: string, value: string): Range };
   };
   rpc(fn: string, args: object): Result<unknown>;
 }
@@ -31,7 +34,15 @@ async function check<T>(r: Result<T>): Promise<T | null> {
   return data;
 }
 
-export function supabaseRemote(client: SupabaseLike): Remote {
+/**
+ * Sync with the server. `stream` names whose events to pull (2026-11-03): a
+ * user's own id, or (a band member's shared layer) his owner's. Each user's
+ * events reach the server in seq order (a per-user lock), but two users'
+ * events can commit out of order, so one cursor must only ever follow one
+ * user's stream. Without it, everything row-level security allows is pulled.
+ * Push always writes the signed-in user's own rows.
+ */
+export function supabaseRemote(client: SupabaseLike, stream?: string): Remote {
   return {
     async push(events: readonly EngineEvent[]) {
       if (events.length === 0) return;
@@ -39,7 +50,9 @@ export function supabaseRemote(client: SupabaseLike): Remote {
       await check(client.from('events').upsert(events.map((e) => ({ id: e.id, event: e })), { onConflict: 'user_id,id', ignoreDuplicates: true }));
     },
     async pull(afterSeq: number, limit: number) {
-      const rows = await check(client.from('events').select('seq,event').gt('seq', afterSeq).order('seq', { ascending: true }).limit(limit));
+      const select = client.from('events').select('seq,event');
+      const range = stream === undefined ? select : select.eq('user_id', stream);
+      const rows = await check(range.gt('seq', afterSeq).order('seq', { ascending: true }).limit(limit));
       return rows ?? [];
     },
   };

@@ -56,6 +56,12 @@ const STATIC = [
   // the sign-in popup (2026-11-02): email, sign-in, code and verify live in it
   'open-signin', 'signin-note', 'signin-later',
   'export', 'import',
+  // band members (2026-11-03): the invite note in the sign-in popup; Songs for a band member (the add controls'
+  // label, so they hide together; the band note); Settings sections a band member doesn't get; the Band section;
+  // the confirm before deleting a member's data
+  'signin-invite', 'songs-new-label', 'songs-band', 'songs-band-title', 'songs-band-note', 'settings-notify', 'settings-times',
+  'band', 'band-role', 'band-manage', 'band-invite-note', 'band-invite', 'band-invite-made', 'band-invite-link', 'band-invite-copy',
+  'band-note', 'band-invites', 'band-members', 'band-delete-who', 'band-delete-confirm', 'band-delete-cancel',
 ] as const;
 
 export type MxField = (typeof MX_NUMBER_FIELDS)[number] | (typeof MX_TEXT_FIELDS)[number];
@@ -96,7 +102,9 @@ export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-win
   // 2026-11-02: the lesson row in today's breakdown, curriculum lessons, baseline ratings, song tabs
   'today-lesson', 'theory-chapter', 'theory-lesson', 'baseline-song', 'baseline-rate', 'song-tab', 'song-tab-attach', 'songtab-content',
   // 2026-11-03: objectives bullets (Home and Teach); the Teach deck's multiple-choice options
-  'today-objective', 'teach-objective', 'teach-choice'] as const;
+  'today-objective', 'teach-objective', 'teach-choice',
+  // 2026-11-03 (band members): a member's song row (when it is next due for him, his ratings); invites and members in Settings
+  'song-due', 'song-rate', 'band-invite-row', 'band-invite-revoke', 'band-member-row', 'band-member-remove', 'band-member-delete'] as const;
 
 /** Finds a hooked element; throws if it is missing, so a broken page fails loudly. */
 export function hook<T extends HTMLElement = HTMLInputElement>(name: Hook, root: ParentNode = document): T {

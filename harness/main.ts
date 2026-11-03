@@ -12,6 +12,13 @@
  * the curriculum: its objectives from the current chapter, then the lesson's
  * reading and deck. One menu button reaches everything else. Signed out with
  * a connection set up: the sign-in popup opens too, on top.
+ *
+ * Band members (Blake, 2026-11-03): an invite link (?invite=...) is kept
+ * until its person signs in, then used before anything else happens, so the
+ * new account becomes a band member before it holds any data. A band
+ * member's app is Songs (the owner's list, read only, rated privately) and
+ * his own Settings, nothing else: no module is set up, nothing is seeded,
+ * and other screens can't be reached. The server enforces the same.
  */
 import {
   adoptDeviceTimeZone,
@@ -37,8 +44,10 @@ import {
   uploadNudges,
   uploadPendingTabs,
 } from '../src/index.ts';
-import type { EventBody, ModuleHost, Rating, SupabaseLike, Validation, WindowId } from '../src/index.ts';
-import { indexedDbStore } from '../src/stores/indexeddb.ts';
+import { acceptInvite, bandRole, inviteFromUrl, isSharedSongEvent, MEMBER_WRITES, parseRole } from '../src/index.ts';
+import type { BandRole, EventBody, ModuleHost, Rating, SupabaseLike, Validation, WindowId } from '../src/index.ts';
+import { databaseName, indexedDbStore } from '../src/stores/indexeddb.ts';
+import { setupBand } from './band-ui.ts';
 import { METRONOME, ladderParams } from '../src/modules/metronome/practice.ts';
 import { setupMetronome } from './metronome-ui.ts';
 import { setupSongs } from './songs-ui.ts';
@@ -55,7 +64,7 @@ import { THEORY, contentOf, seedTheory } from '../src/modules/theory/practice.ts
 import { improvFor, memoFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
 import { runTakes } from '../src/modules/recorder/takes.ts';
 import { RECORDER, uploadPending } from '../src/modules/recorder/takes.ts';
-import { indexedDbBlobStore } from '../src/modules/recorder/blobs.ts';
+import { blobDatabaseName, indexedDbBlobStore, memoryBlobStore } from '../src/modules/recorder/blobs.ts';
 import type { BlobStore } from '../src/modules/recorder/blobs.ts';
 import { supabaseBucketStorage, supabaseTakeStorage, TABS_BUCKET } from '../src/modules/recorder/storage.ts';
 import type { StorageClientLike } from '../src/modules/recorder/storage.ts';
@@ -116,10 +125,18 @@ let theoryHost!: ModuleHost;
 let theoryUi!: ReturnType<typeof setupTheory>;
 let shell!: Shell;
 let sheets!: Sheets;
+let bandUi!: ReturnType<typeof setupBand>;
+/** Owner, band member, or a member whose access was removed (2026-11-03). Signed out or local: owner. */
+let role: BandRole = { role: 'owner' };
+/** Shown once the app is ready (an invite link opened on a device already signed in). */
+let bandNotice: string | null = null;
 /** Takes storage, when signed in. */
 const cloud = () => (client && userId !== 'local' ? { storage: supabaseTakeStorage(client as unknown as StorageClientLike), userId } : null);
-/** Tab storage, when signed in. */
-const tabCloud = () => (client && userId !== 'local' ? { storage: supabaseBucketStorage(client as unknown as StorageClientLike, TABS_BUCKET), userId } : null);
+/** Tab storage, when signed in: the user's own folder, or for a band member his owner's (read only). */
+const tabCloud = () => {
+  if (!client || userId === 'local' || role.role === 'removed') return null;
+  return { storage: supabaseBucketStorage(client as unknown as StorageClientLike, TABS_BUCKET), userId: role.role === 'member' ? role.ownerId : userId };
+};
 let revealed = false;
 /** Teach's deck: the answer shown for the card on show. */
 let teachRevealed = false;
@@ -175,7 +192,8 @@ async function connect() {
 
 async function syncNow() {
   if (!client) return say('Not connected');
-  const report = await replica.sync(supabaseRemote(client));
+  if (role.role !== 'owner') return memberSync();
+  const report = await replica.sync(supabaseRemote(client, userId));
   await uploadNudges(client, planNudges(replica.library, Date.now()));
   const c = cloud();
   const up = c ? await uploadPending(recHost, recBlobs, c.storage, c.userId) : null;
@@ -183,7 +201,7 @@ async function syncNow() {
   const tabsUp = t ? await runModule(songsHost, () => uploadPendingTabs(songsHost, tabBlobs, t.storage, t.userId)) : null;
   const tabs = tabsUp?.ok ? tabsUp.value : null;
   // Marking takes and tabs uploaded wrote new events: send them too.
-  if ((up && up.uploaded > 0) || (tabs && tabs.uploaded > 0)) await replica.sync(supabaseRemote(client));
+  if ((up && up.uploaded > 0) || (tabs && tabs.uploaded > 0)) await replica.sync(supabaseRemote(client, userId));
   say(
     `Synced: sent ${report.pushed}, received ${report.pulled}${report.rejected.length ? `, ${report.rejected.length} bad rows set aside` : ''}` +
       (up ? `; takes uploaded ${up.uploaded}${up.failed.length ? `, ${up.failed.length} waiting (${up.failed[0]!.error})` : ''}` : '') +
@@ -346,6 +364,8 @@ function renderBadges(dueNow: number) {
 }
 
 function render() {
+  if (role.role !== 'owner') return renderMember();
+  bandUi.render();
   renderHome();
   renderTeach();
   const lib = replica.library;
@@ -484,6 +504,153 @@ function render() {
 
 const prompt_ = (q: string) => window.prompt(q) ?? '';
 
+// ------------------------------------------------- band members (2026-11-03) --
+
+/** An invite link's token, kept on this device until its person signs in (then used, or dropped, at once). */
+const INVITE_KEY = 'zg-invite';
+/** The last role the server gave this account on this device, so the app opens offline. */
+const roleKey = (id: string) => `zg-band-role-${id}`;
+const cachedRole = (id: string): BandRole | null => {
+  const r = parseRole(read<unknown>(roleKey(id), null));
+  return r.ok ? r.value : null;
+};
+const cacheRole = (id: string, r: BandRole) =>
+  localStorage.setItem(roleKey(id), JSON.stringify(r.role === 'member' ? { role: 'member', owner_id: r.ownerId } : { role: r.role }));
+/** This device's copy of the owner's songs and tabs (a band member's): its own databases, never his own data. */
+const bandStoreId = (id: string) => `${id}-band`;
+
+/** An invite link was opened: take the token out of the address (and history) straight away. */
+function takeInviteFromUrl(): string | null {
+  const { token, rest } = inviteFromUrl(location.href);
+  if (rest !== null) history.replaceState(null, '', rest);
+  return token;
+}
+
+const withTimeout = <T>(p: Promise<T>, ms: number) =>
+  Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new Error('the server took too long')), ms))]);
+
+/**
+ * Signed in: settle who this account is before anything opens. A pending
+ * invite is used first (the account is brand new, so it becomes a band
+ * member before it holds any data); if the server refuses it, this device
+ * signs out again and says why, so no owner account is set up by mistake.
+ * Otherwise the server says, and the answer is kept for opening offline.
+ * An owner, once known, opens without waiting; a band member is checked
+ * each time (his access may have been removed).
+ */
+async function settleRole(): Promise<string | null> {
+  const c = client!;
+  const pending = localStorage.getItem(INVITE_KEY);
+  if (pending) {
+    localStorage.removeItem(INVITE_KEY);
+    try {
+      role = await withTimeout(acceptInvite(c, pending), 10_000);
+      cacheRole(userId, role);
+      bandNotice = 'Welcome to the band. Here are your band leader\'s songs: rate each one; your ratings are yours alone.';
+      return null;
+    } catch (e) {
+      await c.auth.signOut().catch(() => undefined);
+      client = null;
+      userId = 'local';
+      signedOut = true;
+      $('account').textContent = 'Not signed in';
+      return `${(e as Error).message} You are not signed in.`;
+    }
+  }
+  const known = cachedRole(userId);
+  if (known?.role === 'owner') {
+    role = known;
+    return null;
+  }
+  try {
+    role = await withTimeout(bandRole(c), 5_000);
+    cacheRole(userId, role);
+  } catch {
+    role = known ?? { role: 'owner' }; // offline: the last answer here; never asked: an owner, as before band members
+  }
+  return null;
+}
+
+/** Deletes this device's copy of the owner's songs and tabs (access removed). The member's own data is not touched. */
+async function clearBandCopy(id: string) {
+  const drop = (name: string) =>
+    new Promise<void>((resolve) => {
+      const r = indexedDB.deleteDatabase(name);
+      r.onsuccess = r.onerror = r.onblocked = () => resolve();
+    });
+  await drop(databaseName(bandStoreId(id)));
+  await drop(blobDatabaseName(bandStoreId(id), 'tabs'));
+}
+
+/**
+ * A band member's sync: check he is still a member (if not, reopen as what
+ * he is now), send his ratings to his own rows, then fetch his owner's
+ * songs into the shared copy. No reminders, takes or tab uploads.
+ */
+async function memberSync() {
+  if (!client) return say('Not connected');
+  const now = await bandRole(client);
+  const changed = now.role !== role.role || (now.role === 'member' && role.role === 'member' && now.ownerId !== role.ownerId);
+  if (changed) {
+    cacheRole(userId, now);
+    location.reload();
+    return;
+  }
+  if (role.role !== 'member') return say('Your access to the band\'s songs was removed.');
+  const own = await replica.sync(supabaseRemote(client, userId));
+  const shared = await replica.syncShared(supabaseRemote(client, role.ownerId));
+  const bad = own.rejected.length + shared.rejected.length;
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  say(`Synced: sent ${n(own.pushed, 'rating', 'ratings')}, received ${n(shared.pulled, 'song update', 'song updates')}${bad ? `, ${bad} bad rows set aside` : ''}`);
+  render();
+}
+
+/** A band member's screens: Songs (read only, his ratings) and Settings. */
+function renderMember() {
+  bandUi.render();
+  songsUi.render();
+  const removed = role.role === 'removed';
+  $('songs-band').hidden = false;
+  $('songs-band-title').textContent = removed ? 'Access removed' : "Your band's songs";
+  $('songs-band-note').textContent = removed
+    ? "Your band leader removed your access to their songs. Your own ratings stay on this device; export them in Settings."
+    : 'Shared with you by your band leader, read only: open a tab to see or download it. Your ratings are yours alone; nobody else sees them.';
+  $('session').textContent = `${replica.pendingCount} waiting to sync`;
+}
+
+/** Opens the app for a band member (or a member whose access was removed). */
+async function startMember() {
+  const member = role.role === 'member' ? role : null;
+  if (!member) await clearBandCopy(userId);
+  replica = await Replica.open(await indexedDbStore(userId), deviceId, {
+    writable: MEMBER_WRITES,
+    ...(member ? { shared: { store: await indexedDbStore(bandStoreId(userId)), accept: isSharedSongEvent } } : {}),
+  });
+  songsHost = createHost(replica, SONGS);
+  sheets = setupSheets();
+  bandUi = setupBand({ client: () => client, role: () => role, appUrl: () => location.origin + location.pathname, sheets, say });
+  tabBlobs = member ? await indexedDbBlobStore(bandStoreId(userId), indexedDB, 'tabs') : memoryBlobStore();
+  const schedule = () => ({ retention: replica.library.settings.desiredRetention, dayStart: replica.library.settings.dayStart });
+  songsUi = setupSongs(songsHost, say, afterChange, () => undefined, { files: () => tabBlobs, cloud: tabCloud, sheets }, { schedule, now: Date.now });
+  songsUi.wire();
+  // Settings a band member doesn't have: reminders, practice times, setup tools.
+  for (const h of ['settings-notify', 'settings-times', 'dev'] as const) $(h).hidden = true;
+  wireAccount();
+  $('account').textContent += member ? ' (band member)' : ' (band access removed)';
+  shell = setupShell((screen) => (sheets.closeAll(), render(), screen === 'settings' ? void bandUi.refresh() : bandUi.forget()), 'member');
+  (window as unknown as { zg: unknown }).zg = { replica, songs: songsHost, tabs: tabBlobs, shell, sheets, role };
+  say(member ? 'Ready (band member)' : 'Ready (band access removed)');
+  if (bandNotice) say(bandNotice);
+  const synced = await syncNow().then(() => true, (e) => (say(`Offline: ${(e as Error).message}`), false));
+  if (synced && member) {
+    const zone = adoptDeviceTimeZone(replica.library, Intl.DateTimeFormat().resolvedOptions().timeZone);
+    if (zone) await record(zone);
+  }
+  setInterval(render, 30_000);
+  // Removal is checked on every sync; a minute's check catches it while the app sits open.
+  if (member) setInterval(() => void syncNow().catch(() => undefined), 60_000);
+}
+
 async function enableNotifications() {
   if (!client || !config.vapidPublicKey) return say('Connect and sign in first, and set the VAPID public key.');
   if (!('PushManager' in window)) return say('This browser cannot receive push here. On iPhone: Share, then Add to Home Screen, and open it from there.');
@@ -561,6 +728,11 @@ function wire() {
   goalsUi.wire();
   theoryUi.wire();
   $('enable-push').onclick = () => void enableNotifications().catch((e) => say((e as Error).message));
+  wireAccount();
+}
+
+/** Account, sign-in, sync and backup: the same for owners and band members. */
+function wireAccount() {
   $('save-config').onclick = () => {
     config = { supabaseUrl: ($('cfg-url') as HTMLInputElement).value.trim(), publishableKey: ($('cfg-key') as HTMLInputElement).value.trim(), vapidPublicKey: ($('cfg-vapid') as HTMLInputElement).value.trim() };
     if (/sb_secret_|service_role/.test(JSON.stringify(config))) return say('That looks like a secret key. Only the publishable key belongs here.');
@@ -604,11 +776,20 @@ function wire() {
     say(`Restored ${r.added} events${r.rejected.length ? `, ${r.rejected.length} set aside` : ''}`);
     await afterChange();
   };
+  bandUi.wire();
 }
 
 async function main() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+  const invite = takeInviteFromUrl();
   await connect().catch((e) => say(`Supabase: ${(e as Error).message}`));
+  if (invite) {
+    // Signed in already: this account is not new, so it can't join. Signed out: kept for the sign-in.
+    if (client) bandNotice = 'This device is already signed in. A band invite is for a new account: sign out, then open the invite link again.';
+    else localStorage.setItem(INVITE_KEY, invite);
+  }
+  const inviteFailed = client ? await settleRole() : null;
+  if (role.role !== 'owner') return startMember();
   replica = await Replica.open(await indexedDbStore(userId), deviceId);
   deck = createHost(replica, TEST_DECK);
   const seeded = await runModule(deck, () => seedTestDeck(deck));
@@ -616,6 +797,7 @@ async function main() {
   await metronome.init();
   songsHost = createHost(replica, SONGS);
   sheets = setupSheets();
+  bandUi = setupBand({ client: () => client, role: () => role, appUrl: () => location.origin + location.pathname, sheets, say });
   tabBlobs = await indexedDbBlobStore(userId, indexedDB, 'tabs');
   songsUi = setupSongs(songsHost, say, afterChange, () => sheets.close('songs-paste'), { files: () => tabBlobs, cloud: tabCloud, sheets });
   earHost = createHost(replica, EAR);
@@ -649,7 +831,12 @@ async function main() {
   $('teach-card').dataset.started = String(Date.now());
   // Signed out but able to sign in: ask straight away (Blake, 2026-11-02), on top of the first popup. "Not now" keeps this device only.
   signInPending = signedOut;
+  // An invite waiting for its person to sign in (or one the server just refused): say so in the popup.
+  $('signin-invite').hidden = !localStorage.getItem(INVITE_KEY);
+  if (inviteFailed) $('signin-note').textContent = inviteFailed;
   say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
+  if (inviteFailed) say(inviteFailed);
+  if (bandNotice) say(bandNotice);
   // Opening on Home with no goal yet: Goals instead, with the new-goal sheet (no extra history entry).
   if (startScreen(location.hash).screen === 'today' && !focusGoal(replica.library, practiceDay(Date.now(), replica.library.settings.dayStart))) {
     history.replaceState(null, '', hashOf('goals'));
@@ -657,7 +844,7 @@ async function main() {
     goalSheetOnArrival = firstGoalPending = true;
   }
   // Leaving a screen closes its sheets (a modal left open on a hidden screen would block the page); arriving may open a page's popup.
-  shell = setupShell((screen) => (sheets.closeAll(), render(), arrive(screen)));
+  shell = setupShell((screen) => (sheets.closeAll(), render(), screen === 'settings' ? void bandUi.refresh() : bandUi.forget(), arrive(screen)));
   // Swipe between Home and Teach (touch and trackpad); the page dots do the same.
   setupSwipe(
     $('screens'),

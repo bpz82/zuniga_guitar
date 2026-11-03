@@ -5,11 +5,15 @@
 // device time zone and the metronome's quiet-hours note. 2026-11-03: Home
 // and Teach open with their objectives popups and move into their decks;
 // one menu button replaces the tab bar; swiping between Home and Teach.
+// Band members (2026-11-03): invite links, a member's Songs-only app, his
+// own ratings, removal and the confirmed delete, against a fake server that
+// mimics the database's rules (the rules themselves: test/sql/rls.test.sql).
 // Run with `npm run test:browser` (needs Playwright and its Chromium).
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import assert from 'node:assert/strict';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 // Real content types: browsers refuse a stylesheet served as anything but text/css.
@@ -937,10 +941,10 @@ try {
         from() {
           return {
             upsert(rows) { for (const r of rows) if (!db.events.some((e) => e.id === r.id)) db.events.push({ seq: ++db.seq, id: r.id, event: r.event }); return ok(null); },
-            select() { const q = { after: 0, gt(c, v) { q.after = v; return q; }, order() { return q; }, limit(n) { return ok(db.events.filter((e) => e.seq > q.after).slice(0, n).map((e) => ({ seq: e.seq, event: e.event }))); } }; return q; },
+            select() { const q = { after: 0, eq() { return q; }, gt(c, v) { q.after = v; return q; }, order() { return q; }, limit(n) { return ok(db.events.filter((e) => e.seq > q.after).slice(0, n).map((e) => ({ seq: e.seq, event: e.event }))); } }; return q; },
           };
         },
-        rpc: () => ok(null),
+        rpc: (fn) => ok(fn === 'band_status' ? { role: 'owner' } : null),
         storage: { from: (bucket) => ({
           upload: async (path, body) => { const k = bucket + '/' + path; if (db.files.has(k)) return { data: null, error: { message: 'already exists', statusCode: '409' } }; db.files.set(k, body); globalThis.__uploads = [...db.files.keys()]; return { data: { path }, error: null }; },
           download: async (path) => (db.files.has(bucket + '/' + path) ? { data: db.files.get(bucket + '/' + path), error: null } : { data: null, error: { message: 'not found' } }),
@@ -1001,6 +1005,327 @@ try {
   await signin.waitForFunction(() => [...window.zg.replica.library.items.values()].some((i) => i.fields.title === 'Blackbird' && i.fields.tabUploaded === true));
   await connected.close();
   step('tabs: signed in, a tab is uploaded on sync to tabs/<user id>/tab-<id>.pdf and marked backed up');
+
+
+  // ----------------------------------------------------------- band members (2026-11-03)
+  // A fake Supabase shared by every browser context (Node side, so the owner and the member see one server).
+  // It mimics the migration's rules closely enough to drive the app; the real rules are proven in test/sql.
+  const OWNER = 'aaaaaaaa-0000-4000-8000-000000000001';
+  const MEMBER = 'cccccccc-0000-4000-8000-000000000003';
+  const NEWBIE = 'dddddddd-0000-4000-8000-000000000004';
+  const server = (() => {
+    const ids = { 'blake@example.com': OWNER, 'mike@example.com': MEMBER, 'sam@example.com': NEWBIE };
+    const events = [];
+    const files = new Map();
+    const invites = [];
+    const members = new Map();
+    const calls = [];
+    let seq = 0;
+    const ok = (data) => ({ data, error: null });
+    const err = (message) => ({ data: null, error: { message } });
+    const ownerOf = (me) => (members.get(me)?.status === 'active' ? members.get(me).owner : null);
+    const songsOnly = (e) => (e.type === 'item-set' && e.item?.module === 'songs') || (e.type === 'card-set' && e.card?.template === 'song');
+    const visible = (me, row) => row.user === me || (row.user === ownerOf(me) && songsOnly(row.event));
+    const status = (i) => (i.revoked ? 'revoked' : i.used ? 'used' : i.expires <= Date.now() ? 'expired' : 'open');
+    const rpc = (me, fn, a) => {
+      calls.push(fn);
+      if (!me) return err('not signed in');
+      const m = members.get(me);
+      switch (fn) {
+        case 'band_status':
+          return ok(!m ? { role: 'owner' } : m.status === 'active' ? { role: 'member', owner_id: m.owner } : { role: 'removed' });
+        case 'create_band_invite': {
+          if (m) return err('band members cannot invite anyone');
+          const i = { id: randomUUID(), owner: me, token: randomBytes(32).toString('hex'), note: a.p_note, created: Date.now(), expires: Date.now() + 7 * 864e5 };
+          invites.push(i);
+          return ok({ id: i.id, token: i.token, expires_at: new Date(i.expires).toISOString() });
+        }
+        case 'revoke_band_invite': {
+          const i = invites.find((x) => x.id === a.p_id && x.owner === me && status(x) === 'open');
+          if (!i) return err('no open invite of yours with that id');
+          i.revoked = true;
+          return ok(null);
+        }
+        case 'accept_band_invite': {
+          const i = invites.find((x) => x.token === a.p_token);
+          if (!i) return err('This invite link is not valid.');
+          if (status(i) !== 'open') return err(`This invite was ${status(i) === 'used' ? 'already used' : status(i)}. Ask for a new link.`);
+          if (m || events.some((e) => e.user === me)) return err('Invites are for new accounts. Sign in with an email that has no Zuniga Guitar account yet.');
+          i.used = true;
+          members.set(me, { owner: i.owner, note: i.note, status: 'active', joined: Date.now(), removed: null, deleted: false });
+          return ok({ role: 'member', owner_id: i.owner });
+        }
+        case 'band_overview':
+          if (m) return err('band members cannot manage a band');
+          return ok({
+            invites: invites.filter((i) => i.owner === me).reverse().map((i) => ({ id: i.id, note: i.note, created_at: new Date(i.created).toISOString(), expires_at: new Date(i.expires).toISOString(), status: status(i) })),
+            members: [...members].filter(([, x]) => x.owner === me).map(([id, x]) => ({ member_id: id, note: x.note, status: x.status, joined_at: new Date(x.joined).toISOString(), removed_at: x.removed && new Date(x.removed).toISOString(), data_deleted: x.deleted })),
+          });
+        case 'remove_band_member': {
+          const x = members.get(a.p_member);
+          if (!x || x.owner !== me || x.status !== 'active') return err('no active member of your band with that id');
+          Object.assign(x, { status: 'removed', removed: Date.now() });
+          return ok(null);
+        }
+        case 'delete_band_member_data': {
+          const x = members.get(a.p_member);
+          if (!x || x.owner !== me || x.status !== 'removed') return err('only a member you have removed from your band');
+          const before = events.length;
+          events.splice(0, events.length, ...events.filter((e) => e.user !== a.p_member));
+          x.deleted = true;
+          return ok(before - events.length);
+        }
+        case 'replace_nudges':
+        case 'save_push_subscription':
+          return m ? err('band members have no reminders') : ok(null);
+        default:
+          return err(`no function ${fn}`);
+      }
+    };
+    const handle = (op, p) => {
+      const me = p.me ?? null;
+      switch (op) {
+        case 'signup':
+          return ok(ids[p.email] ?? null);
+        case 'email':
+          return ok(Object.keys(ids).find((k) => ids[k] === p.id) ?? null);
+        case 'upsert': {
+          if (!me) return err('not signed in');
+          if (members.has(me) && (!ownerOf(me) || p.rows.some((r) => !['review', 'settings-set'].includes(r.event.type)))) return err('new row violates row-level security policy for table "events"');
+          for (const r of p.rows) if (!events.some((e) => e.user === me && e.id === r.id)) events.push({ seq: ++seq, user: me, id: r.id, event: r.event });
+          return ok(null);
+        }
+        case 'select':
+          return ok(events.filter((e) => e.seq > p.after && (p.stream === null || e.user === p.stream) && visible(me, e)).slice(0, p.limit).map(({ seq: q, event }) => ({ seq: q, event })));
+        case 'rpc':
+          return rpc(me, p.fn, p.args);
+        case 'upload': {
+          if (!me || p.path.split('/')[0] !== me || members.has(me)) return err('new row violates row-level security policy');
+          const key = `${p.bucket}/${p.path}`;
+          if (files.has(key)) return { data: null, error: { message: 'already exists', statusCode: '409' } };
+          files.set(key, { b64: p.b64, type: p.type });
+          return ok({ path: p.path });
+        }
+        case 'download': {
+          const folder = p.path.split('/')[0];
+          const key = `${p.bucket}/${p.path}`;
+          if (!me || !(folder === me || (p.bucket === 'tabs' && folder === ownerOf(me))) || !files.has(key)) return err('Object not found');
+          return ok(files.get(key));
+        }
+      }
+      return err(`bad op ${op}`);
+    };
+    return { handle, events, files, invites, members, calls };
+  })();
+  const FAKE_BAND_SUPABASE = `
+    const call = (op, p) => window.fakeSupabase(op, p);
+    const me = () => localStorage.getItem('fake-session');
+    const b64 = async (blob) => { let s = ''; for (const x of new Uint8Array(await blob.arrayBuffer())) s += String.fromCharCode(x); return btoa(s); };
+    export function createClient() {
+      return {
+        auth: {
+          getSession: async () => { const id = me(); return { data: { session: id ? { user: { id, email: (await call('email', { id })).data } } : null } }; },
+          signInWithOtp: async () => ({ error: null }),
+          verifyOtp: async ({ email, token }) => { if (token !== '123456') return { error: { message: 'Token has expired or is invalid' } }; localStorage.setItem('fake-session', (await call('signup', { email })).data); return { error: null }; },
+          signOut: async () => { localStorage.removeItem('fake-session'); return {}; },
+        },
+        from() {
+          return {
+            upsert: (rows) => call('upsert', { me: me(), rows }),
+            select() { const q = { stream: null, after: 0, eq(c, v) { q.stream = v; return q; }, gt(c, v) { q.after = v; return q; }, order() { return q; }, limit(n) { return call('select', { me: me(), stream: q.stream, after: q.after, limit: n }); } }; return q; },
+          };
+        },
+        rpc: (fn, args) => call('rpc', { me: me(), fn, args }),
+        storage: { from: (bucket) => ({
+          upload: async (path, body) => call('upload', { me: me(), bucket, path, b64: await b64(body), type: body.type }),
+          download: async (path) => { const r = await call('download', { me: me(), bucket, path }); return r.error ? r : { data: new Blob([Uint8Array.from(atob(r.data.b64), (c) => c.charCodeAt(0))], { type: r.data.type }), error: null }; },
+        }) },
+      };
+    }`;
+  /** A browser context (one person's device) on the shared fake server, signed in as `who` (or signed out). */
+  const device = async (who, timezoneId = 'UTC') => {
+    const ctx = await browser.newContext({ timezoneId });
+    await ctx.exposeFunction('fakeSupabase', (op, p) => server.handle(op, p));
+    await ctx.route('https://esm.sh/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_BAND_SUPABASE }));
+    await ctx.addInitScript((id) => {
+      if (location.protocol === 'about:') return; // about:blank has no storage
+      localStorage.setItem('zg-config', JSON.stringify({ supabaseUrl: 'https://example.supabase.co', publishableKey: 'sb_publishable_test' }));
+      if (id && !sessionStorage.getItem('signed')) (localStorage.setItem('fake-session', id), sessionStorage.setItem('signed', '1'));
+    }, who);
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(e.message));
+    return { ctx, p };
+  };
+  /** ZG_SHOTS=<folder>: also save screenshots of the band screens there, to look at. */
+  const shot = (p, name) => (process.env.ZG_SHOTS ? p.screenshot({ path: join(process.env.ZG_SHOTS, `${name}.png`), fullPage: true }) : null);
+  const openSheetIn = (p, n) => p.waitForFunction((x) => document.querySelector(`[data-zg="sheet-${x}"]`).open, n);
+  const go = async (p, screen) => {
+    await p.evaluate((s) => (location.hash = `#/${s}`), screen);
+    await p.waitForFunction((s) => !document.querySelector(`[data-zg="screen-${s}"]`).hidden, screen);
+  };
+
+  // Blake: two songs (one with a tab), his own rating of one, then an invite for Mike and a spare he revokes.
+  const blake = await device(OWNER);
+  await blake.p.goto(url);
+  await blake.p.waitForFunction(() => /Synced/.test(document.querySelector('[data-zg="status"]').textContent));
+  await blake.p.keyboard.press('Escape'); // no goal yet: past the new-goal sheet
+  await go(blake.p, 'songs');
+  for (const [n, title] of ['Blackbird', 'Wonderwall'].entries()) {
+    await blake.p.fill('[data-zg="songs-new"]', title);
+    await blake.p.click('[data-zg="songs-add"]');
+    await blake.p.waitForFunction((k) => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === k, n + 1);
+  }
+  await blake.p.waitForFunction(() => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === 2);
+  const chooserB = blake.p.waitForEvent('filechooser');
+  await blake.p.click('[data-zg="songs-list"] [data-zg="song"]:has-text("Blackbird") [data-zg="song-tab-attach"]');
+  await (await chooserB).setFiles({ name: 'blackbird.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n') });
+  await blake.p.click('[data-zg="baseline-song"]:has-text("Blackbird") [data-zg="baseline-rate"][data-rating="easy"]');
+  await blake.p.waitForFunction(() => [...window.zg.replica.library.items.values()].some((i) => i.fields.tabUploaded === true) && window.zg.replica.pendingCount === 0);
+  assert.ok([...server.files.keys()].some((k) => k.startsWith(`tabs/${OWNER}/tab-`)), 'Blake\'s tab is in his folder');
+  await go(blake.p, 'settings');
+  assert.match(await blake.p.textContent('[data-zg="band-role"]'), /^Invite your band\./);
+  assert.equal(await blake.p.isVisible('[data-zg="band-manage"]'), true);
+  await blake.p.fill('[data-zg="band-invite-note"]', 'Mike (bass)');
+  await blake.p.click('[data-zg="band-invite"]');
+  await blake.p.waitForFunction(() => !document.querySelector('[data-zg="band-invite-made"]').hidden);
+  const link = await blake.p.inputValue('[data-zg="band-invite-link"]');
+  assert.match(link, new RegExp(`^${url.replace(/[/.]/g, '\\$&')}\\?invite=[0-9a-f]{64}$`), 'the link is the app with the token');
+  await blake.p.waitForFunction(() => document.querySelector('[data-zg="band-invites"]').textContent.includes('Mike (bass) · open, expires'));
+  await blake.p.fill('[data-zg="band-invite-note"]', 'Spare');
+  await blake.p.click('[data-zg="band-invite"]');
+  await blake.p.waitForFunction(() => document.querySelectorAll('[data-zg="band-invite-row"]').length === 2);
+  await blake.p.click('[data-zg="band-invite-row"]:has-text("Spare") [data-zg="band-invite-revoke"]');
+  await blake.p.waitForFunction(() => document.querySelector('[data-zg="band-invite-row"][data-status="revoked"]')?.textContent.startsWith('Spare · revoked'));
+  assert.deepEqual(await blake.p.evaluate(() => [document.querySelector('[data-zg="band-invite-made"]').hidden, document.querySelector('[data-zg="band-invite-link"]').value]), [true, ''], 'a revoked invite\'s link is taken off the page');
+  assert.equal(await blake.p.$$eval('[data-zg="band-invite-row"][data-status="revoked"] button', (b) => b.length), 0, 'nothing to do on a revoked invite');
+  await shot(blake.p, 'band-owner-settings');
+  await go(blake.p, 'songs');
+  assert.equal(await blake.p.inputValue('[data-zg="band-invite-link"]'), '', 'leaving Settings takes the link (it holds the token) off the page');
+  step('band: Blake makes a single-use invite link in Settings, sees his invites, and revokes one');
+
+  // Mike opens the link on his phone, signed out: the token leaves the address bar; he signs in with a new email and joins.
+  const mike = await device(null, 'America/New_York'); // his own time zone: his one settings event
+  await mike.p.goto(link);
+  await mike.p.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+  assert.equal(new URL(mike.p.url()).search, '', 'the token is out of the address');
+  await openSheetIn(mike.p, 'signin');
+  assert.equal(await mike.p.isVisible('[data-zg="signin-invite"]'), true, 'the popup says he was invited');
+  await mike.p.fill('[data-zg="email"]', 'mike@example.com');
+  await mike.p.fill('[data-zg="code"]', '123456');
+  await mike.p.click('[data-zg="verify"]');
+  await mike.p.waitForFunction(() => window.zg?.role?.role === 'member' && document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === 2);
+  assert.equal(await mike.p.evaluate(() => localStorage.getItem('zg-invite')), null, 'the token is gone once used');
+  assert.equal(new URL(mike.p.url()).hash, '#/songs', 'his app opens on Songs');
+  assert.match(await mike.p.textContent('[data-zg="account"]'), /mike@example\.com \(band member\)$/);
+  step('band: Mike opens the link signed out, signs in with a new email, and joins as a band member');
+
+  // Only Songs and Settings, in the menu and by URL.
+  await mike.p.click('[data-zg="menu"]');
+  const menuShown = await mike.p.$$eval('[data-zg="menu-list"] > a', (as) => as.filter((a) => !a.hidden).map((a) => a.dataset.zg));
+  assert.deepEqual(menuShown, ['tab-songs', 'menu-settings']);
+  await mike.p.keyboard.press('Escape');
+  for (const s of ['today', 'teach', 'record', 'ear', 'goals', 'cards']) {
+    await mike.p.evaluate((x) => (location.hash = `#/${x}`), s);
+    await mike.p.waitForFunction(() => location.hash === '#/songs');
+    assert.deepEqual(await mike.p.evaluate(() => [...document.querySelectorAll('[data-zg^="screen-"]')].filter((e) => !e.hidden).map((e) => e.dataset.zg)), ['screen-songs'], `#/${s} leads back to Songs`);
+  }
+  await mike.p.goto('about:blank'); // a hash-only change would not reload
+  await mike.p.goto(`${url}#/goals`);
+  await mike.p.waitForFunction(() => window.zg?.role?.role === 'member' && document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === 2);
+  assert.equal(new URL(mike.p.url()).hash, '#/songs', 'a fresh load of another screen lands on Songs too');
+  assert.equal(await mike.p.evaluate(() => [...document.querySelectorAll('dialog')].some((d) => d.open)), false, 'no objectives popup, no new-goal sheet');
+  assert.equal(await mike.p.evaluate(() => Boolean(window.zg.deck || window.zg.theory || window.zg.metronome)), false, 'no other module is even set up');
+  assert.deepEqual(await mike.p.evaluate(() => [window.zg.replica.log.map((e) => e.type), window.zg.replica.library.settings.dayStart.timeZone]), [['settings-set'], 'America/New_York'], 'his log: only his own time zone; nothing seeded');
+  step('band: Mike\'s menu has only Songs and Settings; every other screen is out of reach by URL; nothing else is set up');
+
+  // Songs, read only: Blake's titles and tab, none of Blake's ratings; he rates in his own log.
+  for (const h of ['songs-new-label', 'songs-add', 'open-songs-paste', 'songs-archive']) assert.equal(await mike.p.isHidden(`[data-zg="${h}"]`), true, `${h} hidden`);
+  assert.equal(await mike.p.isVisible('[data-zg="songs-band"]'), true);
+  assert.equal(await mike.p.$$eval('[data-zg="songs-list"] button', (bs) => bs.filter((b) => /rename|archive|attach/.test(b.dataset.zg)).length), 0, 'no rename, archive or tab buttons');
+  assert.deepEqual(await mike.p.$$eval('[data-zg="baseline-song"] > span', (xs) => xs.map((x) => x.textContent)), ['Blackbird', 'Wonderwall'], 'Blake\'s baseline is not his: both wait for his');
+  await mike.p.click('[data-zg="songs-list"] [data-zg="song"]:has-text("Blackbird") [data-zg="song-tab"]');
+  await openSheetIn(mike.p, 'songtab');
+  assert.equal(await mike.p.getAttribute('[data-zg="songtab-open"]', 'download'), 'blackbird.pdf', 'he can download the tab');
+  assert.match(await mike.p.getAttribute('[data-zg="songtab-open"]', 'href'), /^blob:/);
+  await mike.p.click('[data-zg="close-songtab"]');
+  await mike.p.click('[data-zg="baseline-song"]:has-text("Blackbird") [data-zg="baseline-rate"][data-rating="hard"]');
+  await mike.p.waitForFunction(() => document.querySelector('[data-zg="songs-list"] [data-zg="song"]')?.querySelector('[data-zg="song-due"]')?.textContent.startsWith('Next: '));
+  await mike.p.click('[data-zg="songs-list"] [data-zg="song"]:has-text("Blackbird") [data-zg="song-rate"][data-rating="good"]');
+  await mike.p.waitForFunction(() => window.zg.replica.log.filter((e) => e.type === 'review').length === 2 && window.zg.replica.pendingCount === 0);
+  const blackbirdCard = await mike.p.evaluate(() => [...window.zg.replica.library.items.values()].find((i) => i.fields.title === 'Blackbird').id + '-c');
+  assert.deepEqual(await mike.p.evaluate((c) => window.zg.replica.library.reviews.get(c).map((r) => r.rating), blackbirdCard), ['hard', 'good'], 'his ratings only: not Blake\'s Easy');
+  assert.deepEqual(server.events.filter((e) => e.user === MEMBER).map((e) => e.event.type).sort(), ['review', 'review', 'settings-set'], 'his rows: his ratings and his time zone, nothing else');
+  assert.equal(server.events.filter((e) => e.user === OWNER && e.event.type === 'review').length, 1, 'Blake\'s rows: still only his own rating');
+  await shot(mike.p, 'band-member-songs');
+  await assert.rejects(mike.p.evaluate(() => window.zg.replica.record({ type: 'item-set', item: { id: 'song-x', module: 'songs', fields: { title: 'Mine' } } })), /only record review and settings-set/, 'his app refuses a song write too');
+  step('band: Mike sees Blake\'s songs and tab read only, downloads the tab, and rates (baseline, then played) in his own rows only');
+
+  // His Settings: account, band, backup; no reminders, practice times or setup tools.
+  await go(mike.p, 'settings');
+  for (const h of ['settings-notify', 'settings-times', 'dev', 'band-manage']) assert.equal(await mike.p.isHidden(`[data-zg="${h}"]`), true, `${h} hidden`);
+  assert.match(await mike.p.textContent('[data-zg="band-role"]'), /^You're a band member/);
+  for (const h of ['sign-out', 'sync', 'export']) assert.equal(await mike.p.isVisible(`[data-zg="${h}"]`), true, h);
+  step('band: Mike\'s Settings: his account, sign-out, sync and backup only');
+
+  // Blake sees Mike in his band, never his ratings; removes him; Mike's app is cut off on its next sync.
+  await go(blake.p, 'settings');
+  await blake.p.waitForFunction(() => document.querySelector('[data-zg="band-member-row"]')?.textContent.startsWith('Mike (bass) · member since'));
+  await blake.p.click('[data-zg="sync"]');
+  await blake.p.waitForFunction(() => /Synced/.test(document.querySelector('[data-zg="status"]').textContent));
+  assert.equal(await blake.p.evaluate(() => window.zg.replica.log.filter((e) => e.type === 'review').length), 1, 'Mike\'s ratings never reach Blake');
+  await blake.p.click('[data-zg="band-member-remove"]');
+  await blake.p.waitForFunction(() => document.querySelector('[data-zg="band-member-row"]')?.dataset.status === 'removed');
+  await mike.p.click('[data-zg="sync"]');
+  await mike.p.waitForFunction(() => window.zg?.role?.role === 'removed');
+  await go(mike.p, 'songs');
+  assert.equal(await mike.p.textContent('[data-zg="songs-band-title"]'), 'Access removed');
+  assert.equal(await mike.p.$$eval('[data-zg="songs-list"] > li', (x) => x.length), 0, 'none of Blake\'s songs left on his phone');
+  assert.deepEqual(await mike.p.evaluate(async () => (await indexedDB.databases()).map((d) => d.name).filter((n) => n.endsWith('-band')).length), 0, 'the copy of Blake\'s songs and tabs is deleted from his device');
+  assert.equal(await mike.p.evaluate(() => window.zg.replica.log.length), 3, 'his own ratings stay with him');
+  step('band: Blake sees Mike, never his ratings; removing him cuts him off and clears Blake\'s songs and tabs from his phone');
+
+  // Deleting Mike's data: only after removal, only Blake, behind a confirm (Keep it does nothing).
+  await blake.p.click('[data-zg="band-member-delete"]');
+  await openSheetIn(blake.p, 'band-delete');
+  assert.equal(await blake.p.textContent('[data-zg="band-delete-who"]'), 'Mike (bass): their ratings and settings.');
+  assert.equal(await blake.p.evaluate(() => document.activeElement.dataset.zg), 'band-delete-cancel', 'the safe choice has the focus');
+  await shot(blake.p, 'band-delete-confirm');
+  await blake.p.click('[data-zg="band-delete-cancel"]');
+  await blake.p.waitForFunction(() => !document.querySelector('[data-zg="sheet-band-delete"]').open);
+  assert.equal(server.events.filter((e) => e.user === MEMBER).length, 3, 'Keep it: nothing deleted');
+  assert.ok(!server.calls.includes('delete_band_member_data'));
+  await blake.p.click('[data-zg="band-member-delete"]');
+  await openSheetIn(blake.p, 'band-delete');
+  await blake.p.click('[data-zg="band-delete-confirm"]');
+  await blake.p.waitForFunction(() => document.querySelector('[data-zg="band-member-row"]')?.textContent === 'Mike (bass) · removed, data deleted ');
+  assert.equal(server.events.filter((e) => e.user === MEMBER).length, 0, 'his rows are gone from the server');
+  assert.equal(server.events.filter((e) => e.user === OWNER).length > 0, true, 'Blake\'s untouched');
+  step('band: deleting a removed member\'s data asks first; Keep it does nothing; confirmed, only his rows go');
+
+  // A used link: Sam can't join with it; he is signed out again and told why. Without a link, a sign-up is an owner as always.
+  const sam = await device(null);
+  await sam.p.goto(link);
+  await openSheetIn(sam.p, 'signin');
+  await sam.p.fill('[data-zg="email"]', 'sam@example.com');
+  await sam.p.fill('[data-zg="code"]', '123456');
+  await sam.p.click('[data-zg="verify"]');
+  await sam.p.waitForFunction(() => document.querySelector('[data-zg="signin-note"]')?.textContent.startsWith('This invite was already used.'));
+  assert.equal(await sam.p.textContent('[data-zg="account"]'), 'Not signed in');
+  assert.equal(await sam.p.evaluate(() => localStorage.getItem('fake-session')), null);
+  assert.equal(await sam.p.isHidden('[data-zg="signin-invite"]'), true, 'the used token is dropped');
+  await sam.p.fill('[data-zg="email"]', 'sam@example.com');
+  await sam.p.fill('[data-zg="code"]', '123456');
+  await sam.p.click('[data-zg="verify"]');
+  await sam.p.waitForFunction(() => /Synced/.test(document.querySelector('[data-zg="status"]').textContent));
+  assert.equal(await sam.p.evaluate(() => window.zg.shell.current()), 'goals', 'an owner app: no goal yet, so Goals');
+  assert.equal(server.members.has(NEWBIE), false, 'a sign-up without a link stays an owner');
+  // Blake opening an invite link on his own, signed-in phone: nothing joins, nothing is kept.
+  await blake.p.goto(`${url}?invite=${'e'.repeat(64)}`);
+  await blake.p.waitForFunction(() => window.zg?.replica && /Synced/.test(document.querySelector('[data-zg="status"]').textContent));
+  assert.equal(await blake.p.evaluate(() => [location.search, localStorage.getItem('zg-invite')].join('|')), '|');
+  assert.equal(server.members.has(OWNER), false);
+  for (const d of [blake, mike, sam]) await d.ctx.close();
+  step('band: a used link is refused (signed out, told why); without a link a sign-up is an owner; a signed-in owner opening a link stays himself');
 
   // The metronome's root cause (2026-11-02): settings never set left the zone at UTC, so the default 9-to-5 quiet
   // hours fell at 4am to noon in New York and silenced the metronome all morning. Now the device's zone is used.

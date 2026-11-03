@@ -186,6 +186,165 @@ select pg_temp.expect((select count(*) from storage.objects where bucket_id = 't
 select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'aaaaaaaa-0000-0000-0000-000000000001/tab-anon.pdf')$$, 'signed out: cannot upload a tab');
 reset role;
 
+-- ------------------------------------------------- band members (2026-11-03)
+-- Alice is the owner (Blake), Carol her bass player, Dave someone else new.
+\set carol '\'cccccccc-0000-0000-0000-000000000003\''
+\set dave  '\'dddddddd-0000-0000-0000-000000000004\''
+insert into auth.users values (:carol), (:dave);
+
+-- Alice has a song with a tab, and private practice data around it.
+select pg_temp.as_user(:alice);
+insert into public.events (id, event) values
+  ('s1', '{"id":"s1","type":"item-set","item":{"id":"song-1","module":"songs","fields":{"title":"Blackbird","tab":"t1","tabName":"blackbird.pdf","tabType":"application/pdf","tabBytes":10,"tabUploaded":true}}}'),
+  ('s2', '{"id":"s2","type":"card-set","card":{"id":"song-1-c","itemId":"song-1","template":"song","tags":["guitar"],"retired":false}}'),
+  ('p1', '{"id":"p1","type":"review","cardId":"song-1-c","rating":"good"}'),
+  ('p2', '{"id":"p2","type":"goal-set","goal":{"id":"g1","what":"Gig"}}'),
+  ('p3', '{"id":"p3","type":"item-set","item":{"id":"take-1","module":"recorder","fields":{"title":"Blues"}}}'),
+  ('p4', '{"id":"p4","type":"card-set","card":{"id":"th-1-c","itemId":"th-1","template":"qa","tags":[],"retired":false}}'),
+  ('p5', '{"id":"p5","type":"settings-set","settings":{}}'),
+  ('p6', '{"id":"p6","type":"review","cardId":"song-1-c","rating":"easy","item":{"module":"songs"},"card":{"template":"song"}}');
+select pg_temp.expect((select public.band_status() ->> 'role') = 'owner', 'a normal account is an owner');
+select (x ->> 'token') as carol_token from (select public.create_band_invite('Carol (bass)') as x) s \gset
+reset role;
+select pg_temp.expect((select count(*) from public.band_invites where token_hash = :'carol_token') = 0, 'the token itself is never stored');
+select pg_temp.expect((select bool_and(expires_at between now() + interval '7 days' - interval '1 minute' and now() + interval '7 days') from public.band_invites where owner_id = :alice), 'an invite expires after 7 days');
+
+-- Carol signs up through the link and joins.
+select pg_temp.as_user(:carol);
+select pg_temp.expect((select public.band_status() ->> 'role') = 'owner', 'a brand-new account is an owner until it joins');
+select pg_temp.expect((select public.accept_band_invite(:'carol_token') ->> 'owner_id') = :alice, 'carol joins alice''s band');
+select pg_temp.expect((select public.band_status()) = jsonb_build_object('role', 'member', 'owner_id', :alice), 'carol is alice''s band member');
+
+-- She reads alice's song and its card, and nothing else of alice's.
+select pg_temp.expect((select array_agg(id order by id) from public.events where user_id = :alice) = array['s1', 's2'], 'carol sees exactly alice''s song and its card');
+select pg_temp.expect((select count(*) from public.events where event ->> 'type' = 'review') = 0, 'carol cannot read alice''s ratings (even one dressed up as a song)');
+select pg_temp.expect((select count(*) from public.events where event ->> 'type' = 'goal-set') = 0, 'carol cannot read alice''s goals');
+select pg_temp.expect((select count(*) from public.events where event ->> 'type' = 'played') = 0, 'carol cannot read alice''s practice log');
+select pg_temp.expect((select count(*) from public.events where event -> 'item' ->> 'module' = 'recorder') = 0, 'carol cannot read alice''s takes');
+select pg_temp.expect((select count(*) from public.events where id = 'p4') = 0, 'carol cannot read alice''s other cards');
+select pg_temp.expect((select count(*) from public.events where event ->> 'type' = 'settings-set') = 0, 'carol cannot read alice''s settings');
+select pg_temp.expect((select count(*) from public.events where user_id = :bob) = 0, 'carol sees nothing of other owners');
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'tabs') = 2, 'carol can read alice''s tab files');
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'takes') = 0, 'carol cannot read alice''s take files');
+
+-- She writes her own ratings and settings, and nothing else.
+insert into public.events (id, event) values ('c1', '{"id":"c1","type":"review","cardId":"song-1-c","rating":"hard","details":{"baseline":true}}');
+insert into public.events (id, event) values ('c2', '{"id":"c2","type":"settings-set","settings":{}}');
+select pg_temp.expect((select count(*) from public.events where user_id = :carol) = 2, 'carol keeps her own ratings and settings');
+select pg_temp.expect_error($$insert into public.events (id, event) values ('c3', '{"id":"c3","type":"item-set","item":{"id":"song-1","module":"songs","fields":{"title":"Renamed"}}}')$$, 'carol cannot add or edit a song');
+select pg_temp.expect_error($$insert into public.events (id, event) values ('c3', '{"id":"c3","type":"card-set","card":{"id":"song-1-c","itemId":"song-1","template":"song","tags":["guitar"],"retired":true}}')$$, 'carol cannot archive a song');
+select pg_temp.expect_error($$insert into public.events (id, event) values ('c3', '{"id":"c3","type":"goal-set","goal":{"id":"g9"}}')$$, 'carol keeps no goals');
+select pg_temp.expect_error($$insert into public.events (id, event) values ('c3', '{"id":"c3","type":"played","minutes":5}')$$, 'carol keeps no practice log');
+select pg_temp.expect_error($$insert into public.events (user_id, id, event) values ('aaaaaaaa-0000-0000-0000-000000000001', 'c3', '{"id":"c3","type":"review","cardId":"song-1-c","rating":"good"}')$$, 'carol cannot write into alice''s rows');
+select pg_temp.expect_error($$update public.events set event = '{"id":"s1","type":"item-set"}' where id = 's1'$$, 'carol cannot edit alice''s songs');
+select pg_temp.expect_error($$delete from public.events where id = 's1'$$, 'carol cannot delete alice''s songs');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'aaaaaaaa-0000-0000-0000-000000000001/tab-c1.pdf')$$, 'carol cannot add a tab to alice''s folder');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('tabs', 'cccccccc-0000-0000-0000-000000000003/tab-c1.pdf')$$, 'a band member uploads no tabs, even to his own folder');
+select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('takes', 'cccccccc-0000-0000-0000-000000000003/take-c1.webm')$$, 'a band member uploads no takes');
+update storage.objects set name = 'aaaaaaaa-0000-0000-0000-000000000001/tab-moved.pdf' where bucket_id = 'tabs';
+delete from storage.objects where bucket_id = 'tabs';
+-- Nothing to manage, no reminders.
+select pg_temp.expect_error($$select public.band_overview()$$, 'a member cannot see the band''s invites or members');
+select pg_temp.expect_error($$select public.create_band_invite('x')$$, 'a member cannot invite anyone');
+select pg_temp.expect_error($$select * from public.band_invites$$, 'no direct access to invites');
+select pg_temp.expect_error($$select * from public.band_members$$, 'no direct access to members');
+select pg_temp.expect_error($$select public.remove_band_member('cccccccc-0000-0000-0000-000000000003')$$, 'a member cannot remove anyone');
+select pg_temp.expect_error($$select public.delete_band_member_data('cccccccc-0000-0000-0000-000000000003')$$, 'a member cannot delete his own data');
+select pg_temp.expect_error($$select public.replace_nudges('[{"at":"2026-11-03T09:00:00Z","window_id":"morning","silent":false}]')$$, 'a member plans no reminders');
+select pg_temp.expect_error($$select public.save_push_subscription('https://web.push.apple.com/carol', 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4', 'BTBZMqHH6r4Tts7J_aSIgg')$$, 'a member registers no device');
+reset role;
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'tabs' and name like 'aaaaaaaa-0000-0000-0000-000000000001/tab-t%') = 2, 'carol can neither move nor delete alice''s tabs');
+select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 10, 'alice''s log untouched by carol');
+
+-- Alice cannot see Carol's ratings either; she sees her band.
+select pg_temp.as_user(:alice);
+select pg_temp.expect((select count(*) from public.events where user_id = :carol) = 0, 'alice cannot read carol''s ratings');
+select pg_temp.expect((select public.band_overview() #>> '{members,0,note}') = 'Carol (bass)', 'alice sees carol in her band');
+select pg_temp.expect((select public.band_overview() #>> '{invites,0,status}') = 'used', 'and her invite as used');
+select pg_temp.expect((select public.band_overview()::text !~ 'token'), 'the overview never carries a token or its hash');
+reset role;
+
+-- Bob, another owner, can do nothing to alice's band.
+select pg_temp.as_user(:bob);
+select pg_temp.expect((select count(*) from public.events where user_id in (:alice, :carol)) = 0, 'bob sees nothing of alice''s or carol''s');
+select pg_temp.expect((select public.band_overview()) = '{"invites":[],"members":[]}'::jsonb, 'bob''s band is his own (empty)');
+select pg_temp.expect_error($$select public.remove_band_member('cccccccc-0000-0000-0000-000000000003')$$, 'bob cannot remove alice''s member');
+select (x ->> 'token') as bob_carol_token from (select public.create_band_invite('Carol') as x) s \gset
+reset role;
+select pg_temp.as_user(:carol);
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'bob_carol_token'), 'one band at a time');
+reset role;
+
+-- Single use, expiry, revoking, and who may join.
+select pg_temp.as_user(:dave);
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'carol_token'), 'an invite works once');
+select pg_temp.expect_error($$select public.accept_band_invite('not-a-token')$$, 'a malformed token is refused');
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', repeat('0', 64)), 'an unknown token is refused');
+reset role;
+select pg_temp.as_user(:alice);
+select (x ->> 'token') as old_token from (select public.create_band_invite('Dave') as x) s \gset
+select (x ->> 'token') as revoked_token, (x ->> 'id') as revoked_id from (select public.create_band_invite('Dave again') as x) s \gset
+select (x ->> 'token') as for_bob_token, (x ->> 'id') as for_bob_id from (select public.create_band_invite('Bob') as x) s \gset
+select public.revoke_band_invite(:'revoked_id');
+select pg_temp.expect_error(format('select public.revoke_band_invite(%L)', :'revoked_id'), 'an invite is revoked once');
+select pg_temp.expect((select public.band_overview() -> 'invites' @> '[{"note":"Dave again","status":"revoked"}]'), 'alice sees it as revoked');
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'for_bob_token'), 'alice cannot join her own band');
+reset role;
+update public.band_invites set expires_at = now() - interval '1 second' where note = 'Dave'; -- a week goes by
+select pg_temp.as_user(:dave);
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'old_token'), 'an expired invite does not work');
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'revoked_token'), 'a revoked invite does not work');
+select pg_temp.expect((select public.band_status() ->> 'role') = 'owner', 'dave is still a normal account');
+reset role;
+select pg_temp.as_user(:bob);
+select pg_temp.expect_error(format('select public.revoke_band_invite(%L)', :'for_bob_id'), 'bob cannot revoke alice''s invites');
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'for_bob_token'), 'an account with its own data cannot become a member');
+select pg_temp.expect((select public.band_status() ->> 'role') = 'owner', 'bob stays an owner');
+reset role;
+select pg_temp.as_user(:alice);
+select pg_temp.expect((select public.band_overview() -> 'invites' @> '[{"note":"Dave","status":"expired"},{"note":"Bob","status":"open"}]'), 'alice sees expired and open invites');
+reset role;
+
+-- Removing Carol cuts her off at once; her own data is kept until alice deletes it.
+select pg_temp.as_user(:alice);
+select pg_temp.expect_error($$select public.delete_band_member_data('cccccccc-0000-0000-0000-000000000003')$$, 'data is deleted only after removing the member');
+select public.remove_band_member(:carol);
+select pg_temp.expect((select public.band_overview() #>> '{members,0,status}') = 'removed', 'alice sees carol removed');
+reset role;
+select pg_temp.as_user(:carol);
+select pg_temp.expect((select public.band_status()) = '{"role":"removed"}'::jsonb, 'carol''s app learns she was removed');
+select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 0, 'removal cuts carol off from alice''s songs at once');
+select pg_temp.expect((select count(*) from storage.objects where bucket_id = 'tabs') = 0, 'and from alice''s tab files');
+select pg_temp.expect_error($$insert into public.events (id, event) values ('c4', '{"id":"c4","type":"review","cardId":"song-1-c","rating":"good"}')$$, 'a removed member writes nothing');
+select pg_temp.expect((select count(*) from public.events where user_id = :carol) = 2, 'removing kept carol''s own ratings');
+reset role;
+select pg_temp.as_user(:bob);
+select pg_temp.expect_error($$select public.delete_band_member_data('cccccccc-0000-0000-0000-000000000003')$$, 'only her own owner can delete a member''s data');
+reset role;
+select pg_temp.as_user(:alice);
+select pg_temp.expect((select public.delete_band_member_data(:carol)) = 2, 'alice deletes carol''s 2 rows');
+select pg_temp.expect((select public.band_overview() #>> '{members,0,data_deleted}') = 'true', 'and sees it done');
+reset role;
+select pg_temp.expect((select count(*) from public.events where user_id = :carol) = 0, 'carol''s data is gone from the server');
+select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 10, 'alice''s data untouched');
+
+-- A new invite lets a removed member back in.
+select pg_temp.as_user(:alice);
+select (x ->> 'token') as rejoin_token from (select public.create_band_invite('Carol') as x) s \gset
+reset role;
+select pg_temp.as_user(:carol);
+select public.accept_band_invite(:'rejoin_token');
+select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 2, 'carol rejoins and reads the songs again');
+reset role;
+
+-- Signed out: none of it.
+set role anon;
+select pg_temp.expect_error($$select public.band_status()$$, 'anon has no band status');
+select pg_temp.expect_error($$select public.create_band_invite('x')$$, 'anon cannot invite');
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'for_bob_token'), 'anon cannot join');
+reset role;
+select pg_temp.expect(not has_table_privilege('service_role', 'public.band_invites', 'SELECT') and not has_table_privilege('service_role', 'public.band_members', 'SELECT'), 'the reminder sender reads no band data');
+
 -- --------------------------------------------------------- account deletion
 delete from auth.users where id = :alice;
 select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 0, 'deleting the account deletes the log');
@@ -194,3 +353,14 @@ select pg_temp.expect((select count(*) from public.events where user_id = :bob) 
 -- Storage files do not cascade with the account (Supabase behaviour): the
 -- pre-customer checklist covers removing the folder on account deletion.
 select pg_temp.expect((select count(*) from storage.objects where name like 'aaaaaaaa-0000-0000-0000-000000000001/%') = 4, 'takes and tabs outlive the account: cleanup needed (docs/SETUP.md)');
+-- Band (2026-11-03): alice's invites go with her account; carol keeps her
+-- account but no access (her membership keeps no owner).
+select pg_temp.expect((select count(*) from public.band_invites where owner_id = :alice) = 0, 'deleting the owner deletes her invites');
+select pg_temp.expect((select owner_id is null from public.band_members where member_id = :carol), 'carol''s membership keeps no owner');
+select pg_temp.as_user(:carol);
+select pg_temp.expect((select public.band_status()) = '{"role":"removed"}'::jsonb, 'carol''s app shows access removed');
+select pg_temp.expect_error($$insert into public.events (id, event) values ('c5', '{"id":"c5","type":"review","cardId":"song-1-c","rating":"good"}')$$, 'and she writes nothing');
+reset role;
+delete from auth.users where id = :carol;
+select pg_temp.expect((select count(*) from public.band_members where member_id = :carol) = 0, 'deleting a member deletes his membership');
+

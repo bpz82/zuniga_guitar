@@ -28,15 +28,44 @@ export function parseHash(hash: string): Screen | null {
   return name !== undefined && (SCREENS as readonly string[]).includes(name) ? (name as Screen) : null;
 }
 
+// ---------------------------------------------------- roles (2026-11-03) --
+
 /**
- * The screen to open at launch. A valid hash wins (a link or a reload).
- * Otherwise Today, the goal-first page. `replace`: the URL should be
- * rewritten (without adding a history entry).
+ * Who uses the app (Blake, 2026-11-03). An owner (every normal account, and
+ * the app with no account) has every screen. A band member has only Songs
+ * (his owner's list, read only, rated privately) and his own Settings; a
+ * member whose access was removed keeps the same two. The other screens
+ * can't be reached by URL either: the shell sends such a link back.
  */
-export function startScreen(hash: string): { screen: Screen; replace: boolean } {
-  const fromHash = parseHash(hash);
+export type Role = 'owner' | 'member';
+export const MEMBER_SCREENS = ['songs', 'settings'] as const;
+
+/** The screens a role can reach. */
+export function screensFor(role: Role): readonly Screen[] {
+  return role === 'member' ? MEMBER_SCREENS : SCREENS;
+}
+
+/** Where a role's app opens: Home for an owner, Songs for a band member. */
+export function homeFor(role: Role): Screen {
+  return role === 'member' ? 'songs' : DEFAULT_SCREEN;
+}
+
+/** A screen this role may see, from a hash; null for anything else. */
+export function screenFor(hash: string, role: Role): Screen | null {
+  const screen = parseHash(hash);
+  return screen !== null && screensFor(role).includes(screen) ? screen : null;
+}
+
+/**
+ * The screen to open at launch. A valid hash wins (a link or a reload), if
+ * the role may see it. Otherwise the role's home: Today (the goal-first
+ * page) for an owner. `replace`: the URL should be rewritten (without adding
+ * a history entry).
+ */
+export function startScreen(hash: string, role: Role = 'owner'): { screen: Screen; replace: boolean } {
+  const fromHash = screenFor(hash, role);
   if (fromHash) return { screen: fromHash, replace: false };
-  return { screen: DEFAULT_SCREEN, replace: true };
+  return { screen: homeFor(role), replace: true };
 }
 
 // ------------------------------------------------ navigation (2026-11-03) --
@@ -100,7 +129,8 @@ export const SHEETS = ['mx-settings', 'songs-paste', 'improv', 'goal-new'] as co
  * so they sit outside the screens and the code opens them: the sign-in
  * popup (shown at launch when signed out), the tab viewer (from a song's
  * row or the song being practised), and (2026-11-03) the objectives popups
- * that open Home and Teach. Hooks `sheet-<name>` and `close-<name>`.
+ * that open Home and Teach; (2026-11-03) the confirm before deleting a band
+ * member's data. Hooks `sheet-<name>` and `close-<name>`.
  */
-export const APP_SHEETS = ['signin', 'songtab', 'objectives', 'teach-objectives'] as const;
+export const APP_SHEETS = ['signin', 'songtab', 'objectives', 'teach-objectives', 'band-delete'] as const;
 export type SheetName = (typeof SHEETS)[number] | (typeof APP_SHEETS)[number];

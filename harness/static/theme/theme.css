@@ -576,3 +576,24 @@ pre[data-zg="songtab-content"] {
 @media (prefers-reduced-motion: reduce) {
   [data-zg^="screen-"][data-enter] > section, [data-zg^="screen-"][data-enter] { animation: none !important; }
 }
+
+/* Band members (2026-11-03). A member's song rows: when the song is next due for him, then his four ratings in one even row. */
+[data-zg="song-due"] { flex-basis: 100%; color: var(--zg-color-muted); font-size: .9rem; }
+[data-zg="song"] [data-zg="song-rate"] { flex: 1 1 0; min-width: 0; margin: 0; padding: 8px 4px; }
+[data-zg="song-rate"][data-rating="again"] { background: var(--zg-color-again-soft); border-color: transparent; color: var(--zg-color-again); }
+[data-zg="song-rate"][data-rating="good"] { background: var(--zg-color-good-soft); border-color: transparent; color: var(--zg-color-good); }
+[data-zg="song-rate"][data-rating="easy"] { background: var(--zg-color-accent-soft); border-color: transparent; color: var(--zg-color-accent-strong); }
+[data-zg="songs-band-note"] { color: var(--zg-color-muted); }
+/* Settings: the Band section's invites and members are rows like songs; deleting a member's data reads as dangerous. */
+[data-zg="band-invites"], [data-zg="band-members"] { list-style: none; margin: 4px 0 12px; padding: 0; }
+[data-zg="band-invites"] > li, [data-zg="band-members"] > li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+  padding: 12px 0; border-bottom: 1px solid var(--zg-color-border); line-height: 1.4;
+}
+[data-zg="band-invites"] > li:last-child, [data-zg="band-members"] > li:last-child { border-bottom: 0; }
+[data-zg="band-invite-row"] button, [data-zg="band-member-row"] button { min-height: 44px; margin: 0 0 0 auto; padding: 8px 14px; font-size: .9rem; }
+[data-zg="band-invite-row"][data-status="used"], [data-zg="band-invite-row"][data-status="revoked"], [data-zg="band-invite-row"][data-status="expired"] { color: var(--zg-color-muted); }
+[data-zg="band-invite-link"] { font: .85rem/1.35 var(--zg-font-mono); }
+[data-zg="band-invite"], [data-zg="band-invite-copy"] { width: 100%; margin: 0 0 8px; }
+[data-zg="band-member-delete"], [data-zg="band-delete-confirm"] { border-color: var(--zg-color-again); color: var(--zg-color-again); background: var(--zg-color-again-soft); }
+[data-zg="band-delete-confirm"], [data-zg="band-delete-cancel"] { width: 100%; margin: 0 0 8px; }

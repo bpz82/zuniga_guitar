@@ -6,12 +6,20 @@
  * Writes go through record() only (append + save + mark for upload). Sync
  * pushes pending events, then pulls everything new; both sides are append
  * only, so a sync is a set union and can be retried at any time.
+ *
+ * Band members (Blake, 2026-11-03): a replica can also carry a read-only
+ * shared layer, someone else's events this user may see (a band member's
+ * copy of his owner's songs). It is kept in its own local store, pulled
+ * with its own cursor, filtered by `accept`, never recorded to and never
+ * uploaded. The library is projected from both; the log, export and upload
+ * are this user's own events only. `writable` limits which event types this
+ * user may record at all (a band member: ratings and his own settings).
  */
-import { append, emptyLog, merge } from './log.ts';
+import { append, compareEvents, emptyLog, merge, RejectedEvent } from './log.ts';
 import type { Log, Rejection } from './log.ts';
 import { project } from './project.ts';
 import type { Library } from './project.ts';
-import type { EngineEvent } from './model.ts';
+import type { EngineEvent, EventType } from './model.ts';
 
 /** What a store holds: raw events (validated on load), upload queue, sync cursor. */
 export interface StoredState {
@@ -42,6 +50,21 @@ export interface Remote {
   pull(afterSeq: number, limit: number): Promise<readonly { seq: number; event: unknown }[]>;
 }
 
+/** Someone else's events this user may read (see the top of this file). */
+export interface SharedLayer {
+  /** Where they are kept on this device: a store of their own, never uploaded. */
+  readonly store: EventStore;
+  /** Which events may be kept. Anything else the server sends is set aside and reported. */
+  accept(event: EngineEvent): boolean;
+}
+
+export interface ReplicaOptions {
+  readonly now?: () => number;
+  /** Event types this user may record (and restore). Absent: every type. */
+  readonly writable?: readonly EventType[];
+  readonly shared?: SharedLayer;
+}
+
 export interface SyncReport {
   readonly pushed: number;
   readonly pulled: number;
@@ -58,32 +81,52 @@ export class Replica {
   readonly #store: EventStore;
   readonly #device: string;
   readonly #now: () => number;
+  readonly #writable: ReadonlySet<string> | null;
+  readonly #sharedLayer: SharedLayer | null;
+  #shared: Log = emptyLog();
+  #sharedCursor = 0;
   /** Stored events that failed validation on load (corruption). Never used. */
   readonly loadRejected: readonly Rejection[];
 
-  private constructor(store: EventStore, device: string, state: StoredState, now: () => number) {
+  private constructor(store: EventStore, device: string, state: StoredState, options: ReplicaOptions, shared: StoredState | null) {
     this.#store = store;
     this.#device = device;
-    this.#now = now;
+    this.#now = options.now ?? Date.now;
+    this.#writable = options.writable ? new Set(options.writable) : null;
+    this.#sharedLayer = options.shared ?? null;
     const { log, rejected } = merge(emptyLog(), state.events);
     this.#log = log;
-    this.loadRejected = rejected;
     const ids = new Set(log.map((e) => e.id));
     this.#pending = new Set(state.pending.filter((id) => ids.has(id)));
     this.#cursor = state.cursor;
+    const all = [...rejected];
+    if (shared && this.#sharedLayer) {
+      const kept = this.#acceptShared(shared.events);
+      this.#shared = kept.log;
+      this.#sharedCursor = shared.cursor;
+      all.push(...kept.rejected);
+    }
+    this.loadRejected = all;
   }
 
-  static async open(store: EventStore, device: string, options: { now?: () => number } = {}): Promise<Replica> {
-    return new Replica(store, device, await store.load(), options.now ?? Date.now);
+  static async open(store: EventStore, device: string, options: ReplicaOptions = {}): Promise<Replica> {
+    const shared = options.shared ? await options.shared.store.load() : null;
+    return new Replica(store, device, await store.load(), options, shared);
   }
 
+  /** This user's own events. */
   get log(): Log {
     return this.#log;
   }
 
-  /** The projected library, recomputed only after the log changes. */
+  /** The read-only shared events (empty without a shared layer). */
+  get sharedLog(): Log {
+    return this.#shared;
+  }
+
+  /** The projected library (own events and shared ones), recomputed only after either changes. */
   get library(): Library {
-    this.#library ??= project(this.#log);
+    this.#library ??= project(this.#shared.length === 0 ? this.#log : interleave(this.#log, this.#shared));
     return this.#library;
   }
 
@@ -94,6 +137,8 @@ export class Replica {
   /** Records one event: validated, saved locally, queued for upload. Throws RejectedEvent if invalid. */
   record(body: unknown): Promise<EngineEvent> {
     return this.#serial(async () => {
+      const refused = this.#refuses(body);
+      if (refused) throw new RejectedEvent(refused);
       const { log, event } = append(this.#log, body, { device: this.#device, now: this.#now });
       await this.#store.save({ add: [event], pendingAdd: [event.id], pendingRemove: [] });
       this.#set(log);
@@ -110,12 +155,18 @@ export class Replica {
   restore(events: readonly unknown[]): Promise<{ added: number; rejected: readonly Rejection[] }> {
     return this.#serial(async () => {
       const known = new Set(this.#log.map((e) => e.id));
-      const result = merge(this.#log, events);
+      const refused: Rejection[] = [];
+      const allowed = events.filter((raw) => {
+        const reason = this.#refuses(raw);
+        if (reason) refused.push({ event: raw, reason });
+        return !reason;
+      });
+      const result = merge(this.#log, allowed);
       const added = result.log.filter((e) => !known.has(e.id));
       await this.#store.save({ add: added, pendingAdd: added.map((e) => e.id), pendingRemove: [] });
       this.#set(result.log);
       for (const e of added) this.#pending.add(e.id);
-      return { added: added.length, rejected: result.rejected };
+      return { added: added.length, rejected: [...refused, ...result.rejected] };
     });
   }
 
@@ -124,20 +175,29 @@ export class Replica {
     return JSON.stringify({ format: 'zuniga-guitar-log', version: 1, events: this.#log });
   }
 
-  /** Pushes pending events, then pulls new ones. Safe to retry after any failure. */
+  /**
+   * Pushes pending events, then pulls new ones. Safe to retry after any
+   * failure. With `writable` set, a queued event of another type (recorded
+   * on this device before it knew the account's role) is never sent: the
+   * server would refuse it and hold up every upload after it. It leaves the
+   * queue, stays on this device, and is reported.
+   */
   sync(remote: Remote, batch = 500): Promise<SyncReport> {
     return this.#serial(async () => {
       let pushed = 0;
+      const rejected: Rejection[] = [];
       while (this.#pending.size > 0) {
         const ids = [...this.#pending].slice(0, batch);
         const byId = new Map(this.#log.map((e) => [e.id, e]));
-        await remote.push(ids.map((id) => byId.get(id)!));
+        const events = ids.map((id) => byId.get(id)!);
+        const send = events.filter((e) => !this.#refuses(e));
+        for (const e of events) if (this.#refuses(e)) rejected.push({ event: e, reason: 'not uploaded: this account can not hold it (kept on this device)' });
+        if (send.length > 0) await remote.push(send);
         await this.#store.save({ add: [], pendingAdd: [], pendingRemove: ids });
         for (const id of ids) this.#pending.delete(id);
-        pushed += ids.length;
+        pushed += send.length;
       }
       let pulled = 0;
-      const rejected: Rejection[] = [];
       for (;;) {
         const rows = await remote.pull(this.#cursor, batch);
         if (rows.length === 0) break;
@@ -158,6 +218,57 @@ export class Replica {
     });
   }
 
+  /**
+   * Pulls the shared layer's new events (never pushes: they are not this
+   * user's). Each is validated and must pass `accept`; anything else is
+   * reported and never stored. Safe to retry after any failure.
+   */
+  syncShared(remote: Remote, batch = 500): Promise<SyncReport> {
+    return this.#serial(async () => {
+      const layer = this.#sharedLayer;
+      if (!layer) return { pushed: 0, pulled: 0, rejected: [] };
+      let pulled = 0;
+      const rejected: Rejection[] = [];
+      for (;;) {
+        const rows = await remote.pull(this.#sharedCursor, batch);
+        if (rows.length === 0) break;
+        if (!rows.some((r) => Number.isFinite(r.seq) && r.seq > this.#sharedCursor)) break;
+        const known = new Set(this.#shared.map((e) => e.id));
+        const kept = this.#acceptShared(rows.map((r) => r.event), this.#shared);
+        const added = kept.log.filter((e) => !known.has(e.id));
+        const cursor = Math.max(this.#sharedCursor, ...rows.map((r) => r.seq));
+        await layer.store.save({ add: added, pendingAdd: [], pendingRemove: [], cursor });
+        this.#shared = kept.log;
+        this.#library = null;
+        this.#sharedCursor = cursor;
+        pulled += added.length;
+        rejected.push(...kept.rejected);
+        if (rows.length < batch) break;
+      }
+      return { pushed: 0, pulled, rejected };
+    });
+  }
+
+  /** Why this user may not record an event of this type, or null if they may. */
+  #refuses(body: unknown): string | null {
+    if (!this.#writable) return null;
+    const type = typeof body === 'object' && body !== null ? (body as { type?: unknown }).type : undefined;
+    return typeof type === 'string' && this.#writable.has(type) ? null : `this account can only record ${[...this.#writable].join(' and ')} events`;
+  }
+
+  /** Validates incoming shared events and keeps the ones the layer accepts. */
+  #acceptShared(incoming: readonly unknown[], into: Log = emptyLog()): { log: Log; rejected: Rejection[] } {
+    const checked = merge(emptyLog(), incoming);
+    const rejected = [...checked.rejected];
+    const ok = checked.log.filter((e) => {
+      const keep = this.#sharedLayer!.accept(e);
+      if (!keep) rejected.push({ event: e, reason: 'not shared with this account' });
+      return keep;
+    });
+    const result = merge(into, ok);
+    return { log: result.log, rejected: [...rejected, ...result.rejected] };
+  }
+
   #set(log: Log) {
     this.#log = log;
     this.#library = null;
@@ -169,6 +280,24 @@ export class Replica {
     this.#queue = run.catch(() => undefined);
     return run;
   }
+}
+
+/**
+ * Own events and shared ones in canonical order, for projecting. Both are
+ * already validated and sorted. A shared event never replaces one of this
+ * user's own (an id clash is only possible with forged data).
+ */
+function interleave(own: Log, shared: Log): Log {
+  const ids = new Set(own.map((e) => e.id));
+  const other = shared.filter((e) => !ids.has(e.id));
+  const out: EngineEvent[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < own.length || j < other.length) {
+    if (j >= other.length || (i < own.length && compareEvents(own[i]!, other[j]!) <= 0)) out.push(own[i++]!);
+    else out.push(other[j++]!);
+  }
+  return Object.freeze(out);
 }
 
 /** A store kept in memory: for tests and for trying the app without saving. */

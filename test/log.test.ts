@@ -45,12 +45,26 @@ test('callers cannot set id, time or device: append stamps them', () => {
   assert.throws(() => append(emptyLog(), { ...review('c1'), at: 1 }, phone), RejectedEvent);
 });
 
+/**
+ * The only two exceptions, both band members (Blake, 2026-11-03, item 6),
+ * both calls to the server that never touch a log in the app:
+ * removeMember ends a membership (deletes nothing), and deleteMemberData
+ * deletes a REMOVED member's own rows on the server: owner only, behind a
+ * confirm, enforced by the server. Anything else fails here.
+ */
+const BAND_EXCEPTIONS = ['removemember', 'deletememberdata'];
+
 test('the engine exposes no way to edit or delete events', () => {
   const names = Object.keys(engine).map((k) => k.toLowerCase());
   for (const banned of ['update', 'delete', 'remove', 'edit', 'clear', 'truncate', 'overwrite', 'rewrite']) {
-    assert.ok(!names.some((n) => n === banned || n.startsWith(banned)), `found ${banned}*`);
+    const found = names.filter((n) => (n === banned || n.startsWith(banned)) && !BAND_EXCEPTIONS.includes(n));
+    assert.deepEqual(found, [], `found ${banned}*`);
   }
+  assert.ok(BAND_EXCEPTIONS.every((n) => names.includes(n)), 'the exceptions are exactly these two');
   assert.ok(!names.includes('set') && !names.some((n) => n.startsWith('setevent') || n.startsWith('setlog')));
+  // A replica (own log and shared layer) has no edit or delete method either.
+  const methods = Object.getOwnPropertyNames(engine.Replica.prototype).map((k) => k.toLowerCase());
+  for (const banned of ['update', 'delete', 'remove', 'edit', 'clear', 'truncate', 'overwrite', 'rewrite']) assert.ok(!methods.some((n) => n.startsWith(banned)), `Replica.${banned}*`);
 });
 
 function twoDevices() {

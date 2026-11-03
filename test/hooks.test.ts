@@ -253,3 +253,30 @@ test('the long forms live in sheets; each screen keeps its main action outside t
   for (const h of ['mx-groove', 'mx-workout', 'mx-vol-kick', 'mx-allowDuringQuietHours', 'songs-paste', 'improv-prompt', 'goal-what', 'goal-save']) assert.ok(inSheet(h), `${h} is in a sheet`);
   for (const h of ['reveal', 'mx-start', 'mx-bpm', 'rec-start', 'improv-start', 'songs-add', 'ear-play', 'theory-lessons', 'baseline-list', 'notify-all', 'open-signin', 'teach-reveal', 'today-objectives', 'teach-objectives']) assert.ok(!inSheet(h), `${h} stays on its screen`);
 });
+
+// ---------------------------------------------------- band members (2026-11-03) --
+
+test('band members: what a member does not get is wrapped so it hides whole; the Band section and its confirm', () => {
+  const inside = (outer: string, inner: string, closing: string) => {
+    const at = html.indexOf(`data-zg="${outer}"`);
+    const end = html.indexOf(closing, at);
+    const i = html.indexOf(`data-zg="${inner}"`);
+    return at >= 0 && i > at && i < end;
+  };
+  assert.ok(inside('songs-new-label', 'songs-new', '</label>'), 'the title box sits in its label');
+  for (const h of ['notify-all', 'notify-windows', 'enable-push']) assert.ok(inside('settings-notify', h, '</section>'), h);
+  for (const h of ['quiet-start', 'quiet-end', 'save-quiet', 'use-zone']) assert.ok(inside('settings-times', h, '</section>'), h);
+  for (const h of ['band-role', 'band-manage', 'band-invite-note', 'band-invite', 'band-invite-made', 'band-invite-link', 'band-invite-copy', 'band-note', 'band-invites', 'band-members']) {
+    assert.ok(inside('band', h, '</section>'), `${h} is in the Band section`);
+  }
+  assert.ok(inside('screen-settings', 'band', 'data-zg="dev"'), 'the Band section is in Settings, before the setup tools');
+  assert.match(html, /<div data-zg="band-manage" hidden>/, 'the owner controls start hidden');
+  assert.match(html, /<div data-zg="band-invite-made" hidden>/, 'no link until one is made');
+  assert.match(html, /<input type="text" data-zg="band-invite-link" readonly>/);
+  assert.ok(inside('screen-songs', 'songs-band', 'data-zg="songs-baseline"'), 'the band note heads Songs');
+  assert.match(html, /<section data-zg="songs-band" hidden>/);
+  assert.ok(inside('sheet-signin', 'signin-invite', '</dialog>'), 'the invite note is in the sign-in popup');
+  const confirm = html.slice(html.indexOf('<dialog data-zg="sheet-band-delete"'), html.indexOf('</dialog>', html.indexOf('<dialog data-zg="sheet-band-delete"')));
+  for (const h of ['band-delete-who', 'band-delete-confirm', 'band-delete-cancel']) assert.ok(confirm.includes(`data-zg="${h}"`), h);
+  assert.match(confirm, /data-zg="band-delete-cancel" autofocus>Keep it</, 'the safe choice has the focus');
+});

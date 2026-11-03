@@ -155,6 +155,10 @@
         </section>
       </div>
       <div data-zg="screen-songs" hidden>
+        <section data-zg="songs-band" hidden>
+          <h2 data-zg="songs-band-title">Your band's songs</h2>
+          <p data-zg="songs-band-note"></p>
+        </section>
         <section data-zg="songs-baseline" hidden>
           <h2>Rate your songs</h2>
           <p>How well could you play each one right now? Rate it without playing; this sets where it starts in practice.</p>
@@ -164,7 +168,7 @@
         </section>
         <section data-zg="songs">
           <h2>Songs I already know</h2>
-          <label>Song title <input type="text" data-zg="songs-new" maxlength="200" placeholder="e.g. Blackbird"></label>
+          <label data-zg="songs-new-label">Song title <input type="text" data-zg="songs-new" maxlength="200" placeholder="e.g. Blackbird"></label>
           <button data-zg="songs-add">Add song</button>
           <button type="button" data-zg="open-songs-paste">Paste a list</button>
           <ul data-zg="songs-list"></ul>
@@ -289,14 +293,14 @@
         </section>
       </div>
       <div data-zg="screen-settings" hidden>
-        <section>
+        <section data-zg="settings-notify">
           <h2>Notifications</h2>
           <label><input type="checkbox" data-zg="notify-all"> All notifications</label>
           <label><input type="checkbox" data-zg="notify-morning-always"> Morning reminder even when nothing is due</label>
           <div data-zg="notify-windows"></div>
           <button data-zg="enable-push">Allow notifications on this device</button>
         </section>
-        <section>
+        <section data-zg="settings-times">
           <h2>Practice times</h2>
           <p>Quiet hours (work): only silent cards, and the metronome stays off unless you allow it.</p>
           <label>Quiet hours start <input type="time" data-zg="quiet-start"></label>
@@ -309,6 +313,23 @@
           <p data-zg="account">Not connected (this device only)</p>
           <button type="button" data-zg="open-signin">Sign in</button>
           <p><button data-zg="sync">Sync now</button> <button data-zg="sign-out">Sign out</button></p>
+        </section>
+        <section data-zg="band">
+          <h2>Band</h2>
+          <p data-zg="band-role"></p>
+          <div data-zg="band-manage" hidden>
+            <label>Who it's for <input type="text" data-zg="band-invite-note" maxlength="100" placeholder="e.g. Mike (bass)"></label>
+            <button type="button" data-zg="band-invite">Make an invite link</button>
+            <div data-zg="band-invite-made" hidden>
+              <label>Send this link to them. It works once and expires in 7 days. For safety it is shown only now. <input type="text" data-zg="band-invite-link" readonly></label>
+              <button type="button" data-zg="band-invite-copy">Copy the link</button>
+            </div>
+            <p data-zg="band-note" role="status"></p>
+            <h3>Invites</h3>
+            <ul data-zg="band-invites"></ul>
+            <h3>Band members</h3>
+            <ul data-zg="band-members"></ul>
+          </div>
         </section>
         <section>
           <h2>Backup</h2>
@@ -374,6 +395,7 @@
           <button type="button" data-zg="close-signin" aria-label="Close">×</button>
         </header>
         <p>Sign in to back up your practice, takes and tabs, and to use them on your phone and laptop. We email you a code; there is no password.</p>
+        <p data-zg="signin-invite" hidden>You have been invited to a band: sign in to see its songs and tabs. Use an email that has no Zuniga Guitar account yet.</p>
         <label>Email <input type="email" data-zg="email" autocomplete="email"></label>
         <button data-zg="sign-in">Email me a sign-in code</button>
         <label>Code from the email <input type="text" data-zg="code" inputmode="numeric" autocomplete="one-time-code"></label>
@@ -390,6 +412,18 @@
         </header>
         <div data-zg="songtab-view"></div>
         <p><a data-zg="songtab-open" target="_blank" rel="noopener">Open full size</a></p>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-band-delete" aria-labelledby="zg-sheet-band-delete-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-band-delete-title">Delete this member's data?</h2>
+          <button type="button" data-zg="close-band-delete" aria-label="Close">×</button>
+        </header>
+        <p data-zg="band-delete-who"></p>
+        <p>This deletes their ratings and settings from the server for good. It can't be undone. Your songs, tabs and practice are not touched.</p>
+        <button type="button" data-zg="band-delete-confirm">Delete their data</button>
+        <button type="button" data-zg="band-delete-cancel" autofocus>Keep it</button>
       </div>
     </dialog>
   </div>

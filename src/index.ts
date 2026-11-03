@@ -33,7 +33,7 @@ export type { GoalForm } from './goal-form.ts';
 export { settingsFromOnboarding, changeSettings, toggleNotifications, toggleWindowNotify, toggleAlwaysRemindMorning, adoptDeviceTimeZone } from './settings.ts';
 export type { Onboarding } from './settings.ts';
 export { Replica, memoryStore } from './replica.ts';
-export type { EventStore, StoredState, StoreChange, Remote, SyncReport } from './replica.ts';
+export type { EventStore, StoredState, StoreChange, Remote, SyncReport, SharedLayer, ReplicaOptions } from './replica.ts';
 export { supabaseRemote, planNudges, uploadNudges, NUDGE_HORIZON_DAYS } from './remote.ts';
 export type { SupabaseLike } from './remote.ts';
 export { createHost, runModule, ContractViolation, CONTRACT_VERSION, MAX_WRITES_PER_HOUR } from './contract.ts';
@@ -65,3 +65,23 @@ export {
   tabFile,
 } from './modules/songs.ts';
 export type { Song, SongTab, TabType, TabFiles, TabStorage, PasteReport } from './modules/songs.ts';
+export {
+  MEMBER_WRITES,
+  isSharedSongEvent,
+  parseRole,
+  parseBand,
+  cleanNote,
+  bandRole,
+  bandOverview,
+  createInvite,
+  revokeInvite,
+  acceptInvite,
+  removeMember,
+  deleteMemberData,
+  inviteLink,
+  inviteFromUrl,
+  inviteWhen,
+  INVITE_TOKEN,
+  MAX_NOTE,
+} from './band.ts';
+export type { BandRole, Band, Invite, Member, RpcLike } from './band.ts';
