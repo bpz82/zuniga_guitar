@@ -602,3 +602,200 @@ pre[data-zg="songtab-content"] {
 [data-zg="install-step"] { margin: 0 0 10px; line-height: 1.45; }
 [data-zg="install-done"] { width: 100%; margin: 0 0 8px; }
 [data-zg="install-open"] { margin-top: 4px; }
+
+/* =========================================================================
+   Theme v7: crimson stage (Blake, 2026-11-03)
+   Dark red-curtain stage, crimson metallic cards, cream type and buttons,
+   a tortoiseshell strip under the goal, and the amp and guitar art on Home.
+   Look only. Selectors are tags and data-zg hooks. No motion is added.
+   ========================================================================= */
+:root {
+  --zg-color-bg: #1a0508;
+  --zg-color-surface: #3a0812;
+  --zg-color-surface-2: #4a0d1a;
+  --zg-color-surface-3: #5a1222;
+  --zg-color-text: #e9dcc0;
+  --zg-color-muted: #d9b9a0;
+  --zg-color-border: rgba(255, 200, 180, .18);
+  --zg-color-border-strong: rgba(255, 200, 180, .32);
+  --zg-color-accent-soft: rgba(243, 230, 200, .14);
+  --zg-color-accent-strong: #f0c98a;
+  --zg-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .45);
+  --zg-shadow-lift: 0 2px 4px rgba(0, 0, 0, .35), 0 18px 44px rgba(0, 0, 0, .55);
+  --zg-v7-metal:
+    linear-gradient(180deg, rgba(255, 220, 200, .10), rgba(255, 220, 200, 0) 38%),
+    linear-gradient(135deg, #9e1b32, #5a0f1d 55%, #3a0812);
+  --zg-v7-edge: 1px solid rgba(255, 200, 180, .25);
+  --zg-v7-shadow: inset 0 1px 0 rgba(255, 220, 200, .22), 0 2px 4px rgba(0, 0, 0, .35), 0 12px 30px rgba(0, 0, 0, .5);
+  --zg-v7-stage:
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(255, 190, 130, .22), rgba(255, 190, 130, 0) 70%),
+    linear-gradient(180deg, rgba(26, 5, 8, 0) 300px, #1c0509 420px),
+    url('./img/stage-bg.webp'),
+    linear-gradient(180deg, #1a0508, #2a0a10);
+}
+
+/* ------------------------------------------------------------ the stage */
+html {
+  color-scheme: dark; min-height: 100%;
+  background-color: #1a0508;
+  background-image: var(--zg-v7-stage);
+  background-repeat: no-repeat, no-repeat, repeat-x, no-repeat;
+  background-position: center top, 0 0, center top, 0 0;
+  background-size: 100% 100%, 100% 100%, 200px 420px, 100% 100%;
+}
+body { background: transparent; color: #e9dcc0; }
+h1, h2, legend { color: #e9dcc0; }
+h3, small, label { color: #d9b9a0; }
+label:has(> input[type="checkbox"]) { color: #e9dcc0; }
+[data-zg="lesson-reading"] > summary { color: #e9dcc0; }
+[data-zg="theory-chapter"], [data-zg="teach-chapter"] { color: #d9b9a0; }
+
+/* -------------------------------------------- top bar, menu, status, dots */
+[data-zg="topbar"] {
+  margin: 0 0 12px; padding: 8px 10px 8px 16px; border-radius: 18px;
+  background: rgba(42, 8, 14, .72); border: 1px solid rgba(255, 200, 180, .16);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .4);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+[data-zg="topbar"] h1 { color: #e9dcc0; text-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
+[data-zg="menu"] {
+  color: #e9dcc0; background: rgba(90, 15, 29, .7); border: 1px solid rgba(255, 200, 180, .25);
+  box-shadow: inset 0 1px 0 rgba(255, 220, 200, .15), 0 3px 9px rgba(0, 0, 0, .35); text-shadow: none;
+}
+[data-zg="menu"]:hover { border-color: rgba(243, 230, 200, .55); }
+[data-zg="menu"][aria-expanded="true"] { color: #f3e6c8; border-color: rgba(243, 230, 200, .5); background: rgba(158, 27, 50, .75); }
+[data-zg="menu-list"] {
+  background: rgba(38, 7, 13, .94); border: 1px solid rgba(255, 200, 180, .22);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .55), 0 0 0 100vmax rgba(10, 2, 4, .5);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+[data-zg="menu-list"] > a { color: #e9dcc0; }
+[data-zg="menu-list"] > a:hover { background: rgba(158, 27, 50, .35); }
+[data-zg="menu-list"] > a[aria-current="page"] { background: rgba(158, 27, 50, .6); color: #f3e6c8; }
+[data-zg="menu-list"] svg, [data-zg="tab-record"] svg { color: #e9dcc0; }
+[data-zg="status"] {
+  background: rgba(42, 8, 14, .6); color: #d9b9a0;
+  border: 1px solid rgba(255, 200, 180, .14); box-shadow: none;
+}
+[data-zg="pager"] > a { color: #d9b9a0; }
+[data-zg="pager"] > a > span { background: rgba(255, 200, 180, .3); }
+[data-zg="pager"] > a[aria-current="page"] { color: #f3e6c8; }
+[data-zg="pager"] > a[aria-current="page"] > span { background: #f3e6c8; }
+
+/* --------------------------------------------- crimson metallic surfaces */
+section, dialog {
+  color: #e9dcc0; border: var(--zg-v7-edge); border-radius: 18px;
+  background-color: #5a0f1d; background-image: var(--zg-v7-metal);
+  box-shadow: var(--zg-v7-shadow);
+}
+dialog { border-radius: 18px 18px 0 0; }
+dialog header {
+  background-color: #6a1324;
+  background-image: linear-gradient(135deg, #8a1a2e, #5a0f1d);
+  border-bottom: 1px solid rgba(255, 200, 180, .2);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .25);
+}
+dialog > div::before { background: rgba(255, 200, 180, .35); }
+dialog::backdrop { background: rgba(10, 2, 4, .62); }
+[data-zg="sheet-objectives"], [data-zg="sheet-teach-objectives"] { border-radius: 18px; box-shadow: 0 24px 64px rgba(0, 0, 0, .6); }
+[data-zg="sheet-objectives"]::backdrop, [data-zg="sheet-teach-objectives"]::backdrop {
+  background-color: #1a0508;
+  background-image: var(--zg-v7-stage);
+  background-repeat: no-repeat, no-repeat, repeat-x, no-repeat;
+  background-position: center top, 0 0, center top, 0 0;
+  background-size: 100% 100%, 100% 100%, 200px 420px, 100% 100%;
+}
+/* Recessed wells inside a card. */
+[data-zg="card"], [data-zg="teach-card"], [data-zg="ear-stage"], [data-zg="rec-stage"] {
+  background-color: rgba(20, 4, 8, .38); background-image: none;
+  border: 1px solid rgba(255, 200, 180, .16);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .35), 0 1px 0 rgba(255, 220, 200, .08);
+}
+[data-zg="answer"]:not(:empty), [data-zg="ear-feedback"]:not(:empty), [data-zg="card-feedback"]:not(:empty),
+[data-zg="teach-answer"]:not(:empty), [data-zg="teach-feedback"]:not(:empty) {
+  border: 1px solid rgba(255, 200, 180, .18); box-shadow: inset 0 1px 0 rgba(255, 220, 200, .08);
+}
+[data-zg="ear-level"] { background: rgba(20, 4, 8, .38); color: #d9b9a0; }
+[data-zg="dev"] { background: rgba(20, 4, 8, .35); border-color: rgba(255, 200, 180, .25); }
+[data-zg="dev"] section { background: none; box-shadow: none; border: 0; border-top: 1px solid rgba(255, 200, 180, .18); border-radius: 0; }
+[data-zg="mx-display"] { border-color: rgba(255, 200, 180, .25); }
+[data-zg="rec-stop"] { background: #f3e6c8; border-color: transparent; color: #3a0812; }
+[data-zg="rec-timer"]:empty::before { color: rgba(233, 220, 192, .4); }
+
+/* ---------------------------------------------------------------- inputs */
+input:not([type="checkbox"]):not([type="range"]):not([type="file"]), select, textarea {
+  background: linear-gradient(180deg, #24060c, #33091a);
+  border-color: rgba(255, 200, 180, .3); color: #e9dcc0;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .4), 0 1px 0 rgba(255, 220, 200, .06);
+}
+input:not([type="checkbox"]):not([type="range"]):not([type="file"]):focus, select:focus, textarea:focus {
+  background: #2c0812; border-color: #e6d2a6;
+  box-shadow: 0 0 0 3px rgba(230, 210, 166, .25), inset 0 2px 4px rgba(0, 0, 0, .35);
+}
+input[type="file"] { color: #e9dcc0; }
+input::placeholder, textarea::placeholder { color: #b48f7c; }
+input[type="checkbox"] { background: rgba(20, 4, 8, .55); box-shadow: inset 0 0 0 1px rgba(255, 200, 180, .32); }
+input[type="checkbox"]:checked { background: #e6d2a6; box-shadow: none; }
+input[type="checkbox"]:checked::after { background: #3a0812; }
+input[type="range"] { accent-color: #e6d2a6; }
+:focus-visible { outline-color: #f3e6c8; }
+
+/* ------------------------------------------------- the goal card and head */
+[data-zg="today"], [data-zg="home"] {
+  color: #e9dcc0; border: var(--zg-v7-edge); border-radius: 18px;
+  background-color: #5a0f1d;
+  background-image:
+    radial-gradient(ellipse at 15% 0%, rgba(255, 210, 170, .18), rgba(255, 210, 170, 0) 55%),
+    var(--zg-v7-metal);
+  background-size: auto;
+  box-shadow: var(--zg-v7-shadow);
+}
+[data-zg="today"] > p:first-child { color: #d9b9a0; }
+[data-zg="goal-focus"], [data-zg="home"] h2 { color: #f3e6c8; text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+/* The tortoiseshell strip under the goal heading (empty decoration only). */
+[data-zg="goal-focus"]::after, [data-zg="home"] h2::after {
+  content: ''; display: block; height: 6px; margin-top: 10px; border-radius: 3px;
+  background: url('./img/tortoise.webp') center / cover no-repeat;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 230, 200, .25);
+}
+[data-zg="home"] h2 { margin-bottom: 10px; }
+[data-zg="goal-focus-when"] { color: #f3e6c8; }
+[data-zg="goal-focus-why"], [data-zg="home-goal"] { color: #d9b9a0; }
+[data-zg="goal-focus-link"] { color: #f3e6c8; }
+
+/* ----------------------------------------------------- primary buttons */
+[data-zg="today-start"], [data-zg="reveal"], [data-zg="songs-add"], [data-zg="ear-play"],
+[data-zg="open-goal-new"], [data-zg="goal-save"], [data-zg="songs-paste-add"],
+[data-zg="ear-next"], [data-zg="practice"], [data-zg="teach-reveal"], [data-zg="teach-start"] {
+  border: 1px solid rgba(255, 245, 220, .6); border-radius: 14px;
+  background: linear-gradient(180deg, #f3e6c8, #e6d2a6); color: #3a0812;
+  font-family: var(--zg-font-display); letter-spacing: .06em; text-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 6px 16px rgba(0, 0, 0, .4);
+}
+[data-zg="today-start"]:hover, [data-zg="reveal"]:hover, [data-zg="songs-add"]:hover, [data-zg="ear-play"]:hover,
+[data-zg="open-goal-new"]:hover, [data-zg="goal-save"]:hover, [data-zg="songs-paste-add"]:hover,
+[data-zg="ear-next"]:hover, [data-zg="practice"]:hover, [data-zg="teach-reveal"]:hover, [data-zg="teach-start"]:hover {
+  background: linear-gradient(180deg, #f8eed6, #ecdab2); border-color: #fff4dc;
+}
+[data-zg="ear-play"] { border-radius: 50%; }
+/* Quiet buttons: dark crimson with cream text. */
+button { color: #e9dcc0; }
+button:hover { border-color: rgba(243, 230, 200, .55); }
+
+/* ----------------------------------------------- Home art: amp and guitar */
+/* 853x700 art at full width is about 82% of the width tall; padding % follows the width. */
+[data-zg="screen-today"] {
+  padding-bottom: 84%;
+  background: url('./img/stage-rig.webp') center bottom / 100% auto no-repeat;
+}
+[data-zg="sheet-objectives"] > div {
+  padding-bottom: calc(66% + 24px + env(safe-area-inset-bottom));
+  background: url('./img/stage-rig.webp') center bottom / 80% auto no-repeat local;
+}
+
+/* ---------------------------------------------------------------- laptop */
+@media (min-width: 800px) {
+  dialog { border-radius: 18px; }
+  [data-zg="topbar"] { padding: 10px 12px 10px 20px; }
+}
+/* Reduced motion: v7 adds no animation or transition; the v6 block above still stops all motion. */
