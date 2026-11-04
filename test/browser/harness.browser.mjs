@@ -17,7 +17,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 // Real content types: browsers refuse a stylesheet served as anything but text/css.
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.ico': 'image/x-icon','.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg' };
 const server = createServer(async (req, res) => {
   const path = join('public', new URL(req.url, 'http://x').pathname.replace(/\/$/, '/index.html'));
   try {
