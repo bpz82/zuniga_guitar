@@ -4,16 +4,16 @@
  * and the takes list: play, rename, archive, restore. Audio is saved on this
  * device first; sync uploads it to the user's private folder.
  */
-import { runModule } from '../src/index.ts';
-import type { ModuleHost } from '../src/index.ts';
-import type { BlobStore } from '../src/modules/recorder/blobs.ts';
-import { checkImprov, DEFAULT_IMPROV, MAX_TAKE_MS, MIN_TAKE_MS, pickFormat, runState, takeTitle } from '../src/modules/recorder/core.ts';
-import type { ImprovPrompt } from '../src/modules/recorder/core.ts';
-import type { TakeStorage } from '../src/modules/recorder/storage.ts';
-import { archiveTake, audioOf, renameTake, restoreTake, runTakes, saveTake, takes } from '../src/modules/recorder/takes.ts';
-import type { Take } from '../src/modules/recorder/takes.ts';
-import { hook } from './hooks.ts';
-import type { Hook } from './hooks.ts';
+import { runModule } from '../../src/index.ts';
+import type { ModuleHost } from '../../src/index.ts';
+import type { BlobStore } from '../../src/modules/recorder/blobs.ts';
+import { checkImprov, DEFAULT_IMPROV, MAX_TAKE_MS, MIN_TAKE_MS, pickFormat, runState, takeTitle } from '../../src/modules/recorder/core.ts';
+import type { ImprovPrompt } from '../../src/modules/recorder/core.ts';
+import type { TakeStorage } from '../../src/modules/recorder/storage.ts';
+import { archiveTake, audioOf, renameTake, restoreTake, runTakes, saveTake, takes } from '../../src/modules/recorder/takes.ts';
+import type { Take } from '../../src/modules/recorder/takes.ts';
+import { hook } from '../shared/hooks.ts';
+import type { Hook } from '../shared/hooks.ts';
 
 const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
 const clockText = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;

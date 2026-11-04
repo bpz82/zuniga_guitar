@@ -4,10 +4,10 @@
  * the popup that opens Teach, from the current unlocked chapter. Locking and
  * graduation stay in the theory module (src/modules/theory/practice.ts).
  */
-import { goalQueue } from '../src/index.ts';
-import type { Library } from '../src/index.ts';
-import { CURRICULUM_CHAPTERS, LESSONS } from '../src/modules/theory/curriculum.ts';
-import type { LessonState } from '../src/modules/theory/practice.ts';
+import { goalQueue } from '../../src/index.ts';
+import type { Library } from '../../src/index.ts';
+import { CURRICULUM_CHAPTERS, LESSONS } from '../../src/modules/theory/curriculum.ts';
+import type { LessonState } from '../../src/modules/theory/practice.ts';
 import type { Objective } from './today.ts';
 
 /**

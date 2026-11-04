@@ -1,7 +1,7 @@
 /** Swiping between Home and Teach (2026-11-03): touch strokes and trackpad gestures. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SWIPE_MAX_MS, SWIPE_MIN_PX, swipeOf, WHEEL_GAP_MS, WHEEL_SWIPE_PX, WheelSwipe } from '../harness/swipe.ts';
+import { SWIPE_MAX_MS, SWIPE_MIN_PX, swipeOf, WHEEL_GAP_MS, WHEEL_SWIPE_PX, WheelSwipe } from '../harness/shared/swipe.ts';
 
 test('touch: a quick, mostly sideways stroke is a swipe; its direction is where the finger went', () => {
   assert.equal(swipeOf(-120, 10, 200), 'left');

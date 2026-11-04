@@ -4,8 +4,8 @@
  * and the bullet points of the popup that opens Home. The DOM side is in
  * main.ts.
  */
-import { daysBetween, isActive, practiceDay, sessionFor, todayBlocks } from '../src/index.ts';
-import type { BlockSegment, Goal, Library, ReviewSegment } from '../src/index.ts';
+import { daysBetween, isActive, practiceDay, sessionFor, todayBlocks } from '../../src/index.ts';
+import type { BlockSegment, Goal, Library, ReviewSegment } from '../../src/index.ts';
 
 /**
  * The goal on top: the live goal with the nearest deadline (then the heavier

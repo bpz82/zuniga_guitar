@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { CREATED_HOOKS, HOOKS, MX_VOICES } from '../harness/hooks.ts';
+import { CREATED_HOOKS, HOOKS, MX_VOICES } from '../harness/shared/hooks.ts';
 import { VOICES } from '../src/modules/metronome/core.ts';
 
 const read = (p: string) => readFileSync(p, 'utf8');
@@ -26,10 +26,11 @@ test('every hook the code relies on is in index.html exactly once', () => {
 test('index.html has no hooks the code does not know about (catches renames)', () => {
   const known = new Set<string>(HOOKS);
   const unknown = hooksIn(html).filter((h) => !known.has(h));
-  assert.deepEqual(unknown, [], 'add these to harness/hooks.ts or restore their names');
+  assert.deepEqual(unknown, [], 'add these to harness/shared/hooks.ts or restore their names');
 });
 
-const HARNESS_CODE = readdirSync('harness').filter((f) => f.endsWith('.ts')).map((f) => join('harness', f));
+// Every .ts under harness/, in its module folders too (2026-11-03 layout); static/ holds no code.
+const HARNESS_CODE = files('harness').filter((f) => f.endsWith('.ts') && !f.startsWith(join('harness', 'static')));
 
 test('elements the code creates carry their hooks', () => {
   const code = HARNESS_CODE.map(read).join('\n');
@@ -49,7 +50,8 @@ test('metronome voice hooks match the voices the engine plays', () => {
 });
 
 test('code finds elements only through hooks and never styles them', () => {
-  assert.ok(HARNESS_CODE.includes(join('harness', 'songs-ui.ts')), 'every harness file is scanned');
+  assert.ok(HARNESS_CODE.includes(join('harness', 'songs', 'songs-ui.ts')), 'every harness file is scanned');
+  assert.ok(HARNESS_CODE.includes(join('harness', 'main.ts')), 'main.ts is scanned');
   for (const f of [...HARNESS_CODE, ...files('src')]) {
     const code = read(f);
     for (const banned of ['getElementById', 'getElementsByClassName', ".querySelector('#", '.querySelectorAll(', '.style.', '.className', 'classList.', 'style=']) {
@@ -80,7 +82,7 @@ test('pages load tokens, then theme, then the protected base.css; no inline styl
 // ------------------------------------------------- app shell (2026-10-31) --
 
 test('app shell: one container per screen; every section sits inside exactly one screen; only Today starts visible', async () => {
-  const { SCREENS } = await import('../harness/routes.ts');
+  const { SCREENS } = await import('../harness/shared/routes.ts');
   const main = html.slice(html.indexOf('<main data-zg="screens">'), html.indexOf('</main>'));
   assert.ok(main.length > 0, 'screens container present');
   const opens = SCREENS.map((s) => ({ s, at: main.indexOf(`<div data-zg="screen-${s}"`) }));
@@ -119,7 +121,7 @@ test('base.css: the protected hidden rule, then structure only, all at zero spec
 // ------------------------------------------ social-style tab bar (2026-11-01) --
 
 test('menu: one button in the top bar; its list holds Home, Teach, Record, Songs, Ear training, Goals, Cards, Settings, in that order', async () => {
-  const { MENU } = await import('../harness/routes.ts');
+  const { MENU } = await import('../harness/shared/routes.ts');
   const top = html.slice(html.indexOf('<header data-zg="topbar">'), html.indexOf('</header>'));
   assert.ok(top.includes('<nav data-zg="nav"'), 'the menu lives in the top bar');
   const list = top.slice(top.indexOf('data-zg="menu-list"'));
@@ -162,7 +164,7 @@ test('menu: every item is an inline SVG icon (currentColor, hidden from screen r
 });
 
 test('menu: due-count badges sit inside Home and Cards in the list, hidden until something is due', async () => {
-  const { BADGED } = await import('../harness/routes.ts');
+  const { BADGED } = await import('../harness/shared/routes.ts');
   const list = html.slice(html.indexOf('data-zg="menu-list"'), html.indexOf('</nav>'));
   for (const b of BADGED) {
     const link = new RegExp(`data-zg="tab-${b}">[\\s\\S]*?</a>`).exec(list)?.[0] ?? '';
@@ -171,7 +173,7 @@ test('menu: due-count badges sit inside Home and Cards in the list, hidden until
 });
 
 test('page dots: Home and Teach links, under the top bar, hidden until a page shows', async () => {
-  const { PAGES } = await import('../harness/routes.ts');
+  const { PAGES } = await import('../harness/shared/routes.ts');
   const pager = html.slice(html.indexOf('<nav data-zg="pager"'), html.indexOf('</nav>', html.indexOf('<nav data-zg="pager"')));
   assert.match(pager, /^<nav data-zg="pager" aria-label="[^"]+" hidden>/);
   for (const p of PAGES) assert.match(pager, new RegExp(`<a href="#/${p}" data-zg="pager-${p}">`));
@@ -181,7 +183,7 @@ test('page dots: Home and Teach links, under the top bar, hidden until a page sh
 // --------------------------------------------- layout redesign (2026-11-01) --
 
 test('sheets: each is a labelled dialog in its own screen, closed at load, with its close button inside and its open button outside', async () => {
-  const { SHEETS, SCREENS, APP_SHEETS } = await import('../harness/routes.ts');
+  const { SHEETS, SCREENS, APP_SHEETS } = await import('../harness/shared/routes.ts');
   for (const name of SHEETS) {
     const open = html.indexOf(`<dialog data-zg="sheet-${name}"`);
     assert.ok(open >= 0, `sheet-${name} is a <dialog>`);

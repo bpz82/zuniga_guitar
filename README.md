@@ -25,6 +25,26 @@ Setting up Supabase, Vercel and push reminders: [`docs/SETUP.md`](docs/SETUP.md)
 
 FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORED.md`](vendor/ts-fsrs/VENDORED.md).
 
+## Where the code lives
+
+- `src/`: the engine (log, scheduler, goals, sessions, sync) and `src/modules/` (metronome, recorder, ear, theory, songwriting, songs, test deck).
+- `harness/`: the app's UI code, one folder per module (2026-11-03), mirroring `src/modules`:
+
+| Folder | What is in it |
+|---|---|
+| `harness/main.ts` | Wires everything together (the only file that sees every folder; the build's entry point) |
+| `harness/metronome/` | `metronome-ui.ts` |
+| `harness/recorder/` | `recorder-ui.ts` (takes, improv) |
+| `harness/ear/` | `ear-ui.ts` |
+| `harness/theory/` | `theory-ui.ts` (Cards: the curriculum) |
+| `harness/songs/` | `songs-ui.ts` (songs, baselines, tabs, a band member's Songs) |
+| `harness/home/` | `today.ts` (Home's objectives), `teach.ts` (Teach), `goals-ui.ts` (Goals) |
+| `harness/band/` | `band-ui.ts` (Settings' Band section) |
+| `harness/shared/` | `shell.ts` and `routes.ts` (the menu, screens, hash routing), `hooks.ts`, `sheets.ts` (used by Sign-in, Band, Songs), `swipe.ts`, `install.ts` |
+| `harness/static/` | HTML, `base.css`, the service worker, sounds, and `theme/` (the look; see `docs/THEME.md`) |
+
+A module folder imports only its own files, `harness/shared/` and the engine, never another module's folder; `shared/` imports no module folder. `test/harness-layout.test.ts` enforces this (architecture principle 1, failure isolation).
+
 ## Status
 
 | Checkpoint | State |
@@ -44,3 +64,4 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 | App shell: Today, tabs and side nav, Settings behind the gear, hash routing | Built, awaiting review |
 | Social-style tab bar: centre Record, More sheet, due badges | Built, awaiting review |
 | Layout redesign of every screen; theme v6 (lighter) | Built, awaiting review |
+| Theme v8: Home like final_mock4, Zuniga Mission v2; harness split into module folders | Built, awaiting review |

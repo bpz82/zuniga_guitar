@@ -3,15 +3,15 @@
  * time: Play (again = a replay), answer by button or by tapping the rhythm,
  * then immediate correction (the right answer, replayed and resolved) and Next.
  */
-import { dayBegins, isQuiet, practiceDay, runModule } from '../src/index.ts';
-import type { ModuleHost, Replica } from '../src/index.ts';
-import { EarPlayer } from '../src/modules/ear/audio.ts';
-import { DAILY_MINUTES, skillOf } from '../src/modules/ear/core.ts';
-import type { Trial } from '../src/modules/ear/core.ts';
-import { answerRhythm, answerTrial, cardInfo, minutesSince, pickEarCard, progress, trialFor, unlockNext } from '../src/modules/ear/practice.ts';
-import type { Outcome } from '../src/modules/ear/practice.ts';
-import { hook } from './hooks.ts';
-import type { Hook } from './hooks.ts';
+import { dayBegins, isQuiet, practiceDay, runModule } from '../../src/index.ts';
+import type { ModuleHost, Replica } from '../../src/index.ts';
+import { EarPlayer } from '../../src/modules/ear/audio.ts';
+import { DAILY_MINUTES, skillOf } from '../../src/modules/ear/core.ts';
+import type { Trial } from '../../src/modules/ear/core.ts';
+import { answerRhythm, answerTrial, cardInfo, minutesSince, pickEarCard, progress, trialFor, unlockNext } from '../../src/modules/ear/practice.ts';
+import type { Outcome } from '../../src/modules/ear/practice.ts';
+import { hook } from '../shared/hooks.ts';
+import type { Hook } from '../shared/hooks.ts';
 
 const $ = <T extends HTMLElement = HTMLButtonElement>(name: Hook) => hook<T>(name);
 const randomSeed = () => crypto.getRandomValues(new Uint32Array(1))[0]! >>> 1;

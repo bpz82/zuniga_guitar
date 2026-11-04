@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { append, dayBegins, emptyLog, project } from '../src/index.ts';
 import type { BlockSegment, EventBody, Log } from '../src/index.ts';
-import { blocksForFocus, focusGoal, goalWhen, homeObjectives } from '../harness/today.ts';
+import { blocksForFocus, focusGoal, goalWhen, homeObjectives } from '../harness/home/today.ts';
 import { BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
 
 let n = 0;

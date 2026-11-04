@@ -3,11 +3,11 @@
  * deadline, plus its building blocks), the list of goals with check-ins and
  * archive. No design. Today's blocks appear in the "Now" section (main.ts).
  */
-import { archiveGoal, checkInGoal, goalFromForm, planGoals, practiceDay, tasksFromText } from '../src/index.ts';
-import type { EventBody, GoalForm, ModuleHost, Replica, Validation } from '../src/index.ts';
-import { songs } from '../src/modules/songs.ts';
-import { hook } from './hooks.ts';
-import type { Hook } from './hooks.ts';
+import { archiveGoal, checkInGoal, goalFromForm, planGoals, practiceDay, tasksFromText } from '../../src/index.ts';
+import type { EventBody, GoalForm, ModuleHost, Replica, Validation } from '../../src/index.ts';
+import { songs } from '../../src/modules/songs.ts';
+import { hook } from '../shared/hooks.ts';
+import type { Hook } from '../shared/hooks.ts';
 
 const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
 /** An empty number field means "leave this block out". */

@@ -6,11 +6,11 @@
  * is; a member whose access was removed sees that. Every action is a call
  * to the server, which checks who is asking (src/band.ts).
  */
-import { bandOverview, createInvite, deleteMemberData, inviteLink, inviteWhen, removeMember, revokeInvite } from '../src/index.ts';
-import type { BandRole, Member, RpcLike } from '../src/index.ts';
-import { hook } from './hooks.ts';
-import type { Hook } from './hooks.ts';
-import type { Sheets } from './sheets.ts';
+import { bandOverview, createInvite, deleteMemberData, inviteLink, inviteWhen, removeMember, revokeInvite } from '../../src/index.ts';
+import type { BandRole, Member, RpcLike } from '../../src/index.ts';
+import { hook } from '../shared/hooks.ts';
+import type { Hook } from '../shared/hooks.ts';
+import type { Sheets } from '../shared/sheets.ts';
 
 const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
 

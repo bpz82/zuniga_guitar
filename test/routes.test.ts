@@ -1,7 +1,7 @@
 /** App shell routing (pure parts): hashes and the start screen. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { APP_SHEETS, BADGED, badgeText, DEFAULT_SCREEN, hashOf, homeFor, isPage, MAX_BADGE, MEMBER_SCREENS, MENU, MENU_LABEL, PAGES, pageAfter, parseHash, SCREENS, screenFor, screensFor, SHEETS, startScreen, TABS } from '../harness/routes.ts';
+import { APP_SHEETS, BADGED, badgeText, DEFAULT_SCREEN, hashOf, homeFor, isPage, MAX_BADGE, MEMBER_SCREENS, MENU, MENU_LABEL, PAGES, pageAfter, parseHash, SCREENS, screenFor, screensFor, SHEETS, startScreen, TABS } from '../harness/shared/routes.ts';
 
 test('the screens: Home ("today") first, Teach, the module screens, Settings', () => {
   assert.deepEqual([...TABS], ['today', 'teach', 'songs', 'ear', 'record', 'goals', 'cards']);

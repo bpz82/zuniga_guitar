@@ -6,13 +6,13 @@
  * lesson's reading opens today's lesson; the Cards screen lists every lesson
  * (graduated, current, locked) and the Extras switch.
  */
-import { runModule } from '../src/index.ts';
-import type { DayStart, ModuleHost, Rating } from '../src/index.ts';
-import { answerMc, contentOf, currentLesson, extras, lessonStates, optionsFor, rateQa, seedTheory, setExtras } from '../src/modules/theory/practice.ts';
-import type { LessonState } from '../src/modules/theory/practice.ts';
-import { LESSONS } from '../src/modules/theory/curriculum.ts';
-import { hook } from './hooks.ts';
-import type { Hook } from './hooks.ts';
+import { runModule } from '../../src/index.ts';
+import type { DayStart, ModuleHost, Rating } from '../../src/index.ts';
+import { answerMc, contentOf, currentLesson, extras, lessonStates, optionsFor, rateQa, seedTheory, setExtras } from '../../src/modules/theory/practice.ts';
+import type { LessonState } from '../../src/modules/theory/practice.ts';
+import { LESSONS } from '../../src/modules/theory/curriculum.ts';
+import { hook } from '../shared/hooks.ts';
+import type { Hook } from '../shared/hooks.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(name: Hook) => hook<T>(name);
 

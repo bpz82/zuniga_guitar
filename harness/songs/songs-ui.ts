@@ -14,11 +14,11 @@
  * from his own ratings only. No adding, renaming, archiving or attaching:
  * those controls are not shown, and the server refuses them anyway.
  */
-import { addSong, archiveSong, attachTab, MAX_TAB_BYTES, memoryOf, pasteSongs, rateBaseline, rateSong, renameSong, restoreSong, runModule, songs, tabFile, tabTypeOf, unratedSongs } from '../src/index.ts';
-import type { DayStart, ModuleHost, Rating, Song, TabFiles, TabStorage, Validation } from '../src/index.ts';
-import { hook, RATINGS } from './hooks.ts';
-import type { Hook } from './hooks.ts';
-import type { Sheets } from './sheets.ts';
+import { addSong, archiveSong, attachTab, MAX_TAB_BYTES, memoryOf, pasteSongs, rateBaseline, rateSong, renameSong, restoreSong, runModule, songs, tabFile, tabTypeOf, unratedSongs } from '../../src/index.ts';
+import type { DayStart, ModuleHost, Rating, Song, TabFiles, TabStorage, Validation } from '../../src/index.ts';
+import { hook, RATINGS } from '../shared/hooks.ts';
+import type { Hook } from '../shared/hooks.ts';
+import type { Sheets } from '../shared/sheets.ts';
 
 const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
 const newKey = () => crypto.randomUUID();

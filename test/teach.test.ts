@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createHost, dayBegins, memoryStore, Replica } from '../src/index.ts';
 import { LESSONS } from '../src/modules/theory/curriculum.ts';
 import { cardIdOf, currentLesson, rateQa, seedTheory, THEORY } from '../src/modules/theory/practice.ts';
-import { chapterLine, teachDeck, teachObjectives } from '../harness/teach.ts';
+import { chapterLine, teachDeck, teachObjectives } from '../harness/home/teach.ts';
 import { BLAKE_SETTINGS, BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
 
 const NY = BLAKE_SETTINGS.dayStart;

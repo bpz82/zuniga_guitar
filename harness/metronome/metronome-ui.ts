@@ -8,11 +8,11 @@
  * under Start, not only in the status line at the top of the page, and quiet
  * hours offer "Play anyway" for this one session.
  */
-import { isQuiet, runModule } from '../src/index.ts';
-import type { ModuleHost, Replica } from '../src/index.ts';
-import { tapTempo, tapTiming, validateConfig, VOICES } from '../src/modules/metronome/core.ts';
-import type { MetronomeConfig } from '../src/modules/metronome/core.ts';
-import { MetronomePlayer } from '../src/modules/metronome/player.ts';
+import { isQuiet, runModule } from '../../src/index.ts';
+import type { ModuleHost, Replica } from '../../src/index.ts';
+import { tapTempo, tapTiming, validateConfig, VOICES } from '../../src/modules/metronome/core.ts';
+import type { MetronomeConfig } from '../../src/modules/metronome/core.ts';
+import { MetronomePlayer } from '../../src/modules/metronome/player.ts';
 import {
   addExercise,
   bestCleanTempo,
@@ -23,10 +23,10 @@ import {
   loadPrefs,
   logSession,
   savePrefs,
-} from '../src/modules/metronome/practice.ts';
-import type { LadderParams, SessionResult } from '../src/modules/metronome/practice.ts';
-import { hook, MX_NUMBER_FIELDS, MX_TEXT_FIELDS } from './hooks.ts';
-import type { Hook } from './hooks.ts';
+} from '../../src/modules/metronome/practice.ts';
+import type { LadderParams, SessionResult } from '../../src/modules/metronome/practice.ts';
+import { hook, MX_NUMBER_FIELDS, MX_TEXT_FIELDS } from '../shared/hooks.ts';
+import type { Hook } from '../shared/hooks.ts';
 
 const $ = <T extends HTMLElement = HTMLInputElement>(name: Hook) => hook<T>(name);
 const NUMBER_FIELDS = MX_NUMBER_FIELDS;
