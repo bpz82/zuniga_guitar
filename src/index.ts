@@ -71,6 +71,7 @@ export {
   parseRole,
   parseBand,
   cleanNote,
+  inviteFor,
   bandRole,
   bandOverview,
   createInvite,

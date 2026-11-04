@@ -221,7 +221,7 @@ await replica.syncShared(supabaseRemote(supabase, me.ownerId)); // the owner's s
 | | |
 |---|---|
 | `bandRole(client)` | The signed-in account's role (`band_status`). |
-| `createInvite(client, note)` / `revokeInvite(client, id)` | Owner only. Single use, 7 days. The note (who it is for) is one line, at most 100 characters (`cleanNote`). |
+| `createInvite(client, note)` / `revokeInvite(client, id)` | Owner only. Single use, 7 days. The note (who it is for) is one line, at most 100 characters (`cleanNote`). (2026-11-04) An email address in the note locks the invite to that email (`inviteFor`; needs `20261104120000_band_invite_email.sql`): any account signed in with another email is refused and the invite stays open. No email: first come, as before. |
 | `acceptInvite(client, token)` | Brand-new accounts only (no practice data, no band of their own), or a removed member rejoining the same band. Refused for a used, revoked, expired, unknown or own invite, with a reason worded for the person. |
 | `bandOverview(client)` | Owner only: invites (status `open`, `used`, `revoked`, `expired`; never the token) and members (`active` or `removed`, data deleted or not). |
 | `removeMember(client, id)` | Owner only. His access ends at once; nothing is deleted. |

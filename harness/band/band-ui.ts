@@ -140,7 +140,9 @@ export function setupBand(places: BandPlaces) {
           $('band-invite-made').hidden = false;
           shown = made.id;
           $('band-invite-note').value = '';
-          return 'Invite link made. Send it to your band member; it works once, within 7 days.';
+          return made.email
+            ? `Invite link made for ${made.email}. Send it to your band member; it works once, within 7 days, and only for that email.`
+            : 'Invite link made. Send it to your band member; it works once, within 7 days.';
         });
       $('band-invite-copy').onclick = async () => {
         const link = $('band-invite-link');

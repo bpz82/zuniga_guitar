@@ -56,9 +56,33 @@ export function cleanNote(raw: string): Validation<string> {
   return { ok: true, value: note };
 }
 
+/** A plain email address (what Supabase Auth signs people in with). */
+const EMAIL = /[^\s@<>()[\],;:"']+@[^\s@<>()[\],;:"']+\.[^\s@<>()[\],;:"']+/g;
+export const MAX_EMAIL = 254;
+
+/**
+ * Who an invite is for (2026-11-04): the note, and the one email it is
+ * locked to when the note holds an address ("Mike (bass) mike@example.com").
+ * A locked invite works only for an account signed in with that email; any
+ * other account (a test account, someone the link was forwarded to) is
+ * refused by the server and the invite stays open. No address: the invite
+ * is first come, as before. Two addresses are refused (which one?).
+ */
+export function inviteFor(raw: string): Validation<{ note: string; email: string | null }> {
+  const note = cleanNote(raw);
+  if (!note.ok) return note;
+  const found = note.value.match(EMAIL) ?? [];
+  if (found.length > 1) return { ok: false, error: 'put one email address in the note, the band member\'s' };
+  const email = found.length === 1 ? found[0]!.replace(/\.+$/, '').toLowerCase() : null;
+  if (email !== null && (email.length > MAX_EMAIL || !/^[^@]+@[^@]+\.[^@.]+$/.test(email))) return { ok: false, error: 'that email address does not look right' };
+  return { ok: true, value: { note: note.value, email } };
+}
+
 export interface Invite {
   readonly id: string;
   readonly note: string;
+  /** The one email that can use it; null: anyone with the link (first come). */
+  readonly email: string | null;
   readonly createdAt: string;
   readonly expiresAt: string;
   readonly status: 'open' | 'used' | 'revoked' | 'expired';
@@ -85,7 +109,10 @@ export function parseBand(data: unknown): Validation<Band> {
   for (const i of data.invites) {
     if (!isObj(i) || typeof i.id !== 'string' || !UUID.test(i.id) || typeof i.note !== 'string' || !isTime(i.created_at) || !isTime(i.expires_at)) return { ok: false, error: 'band: bad invite' };
     if (!(INVITE_STATUS as readonly unknown[]).includes(i.status)) return { ok: false, error: 'band: bad invite status' };
-    invites.push({ id: i.id, note: i.note, createdAt: i.created_at, expiresAt: i.expires_at, status: i.status as Invite['status'] });
+    // Older servers send no email: the invite is open to anyone with the link.
+    if (i.email !== undefined && i.email !== null && (typeof i.email !== 'string' || !i.email.includes('@'))) return { ok: false, error: 'band: bad invite email' };
+    const email = typeof i.email === 'string' ? i.email : null;
+    invites.push({ id: i.id, note: i.note, email, createdAt: i.created_at, expiresAt: i.expires_at, status: i.status as Invite['status'] });
   }
   const members: Member[] = [];
   for (const m of data.members) {
@@ -117,14 +144,19 @@ export async function bandOverview(client: RpcLike): Promise<Band> {
   return valid(parseBand(await call(client, 'band_overview')));
 }
 
-/** A new single-use invite, valid for 7 days. The token comes back this once. */
-export async function createInvite(client: RpcLike, rawNote: string): Promise<{ id: string; token: string; expiresAt: string }> {
-  const note = valid(cleanNote(rawNote));
-  const data = await call(client, 'create_band_invite', { p_note: note });
+/**
+ * A new single-use invite, valid for 7 days. The token comes back this once.
+ * An email in the note locks it to that email (inviteFor); the server must
+ * confirm the lock, or the invite is not handed out as locked.
+ */
+export async function createInvite(client: RpcLike, rawNote: string): Promise<{ id: string; token: string; expiresAt: string; email: string | null }> {
+  const { note, email } = valid(inviteFor(rawNote));
+  const data = await call(client, 'create_band_invite', email ? { p_note: note, p_email: email } : { p_note: note });
   if (!isObj(data) || typeof data.id !== 'string' || !UUID.test(data.id) || typeof data.token !== 'string' || !INVITE_TOKEN.test(data.token) || !isTime(data.expires_at)) {
     throw new Error('the server sent a bad invite');
   }
-  return { id: data.id, token: data.token, expiresAt: data.expires_at };
+  if (email && data.email !== email) throw new Error('the server did not lock the invite to that email');
+  return { id: data.id, token: data.token, expiresAt: data.expires_at, email };
 }
 
 export async function revokeInvite(client: RpcLike, id: string): Promise<void> {

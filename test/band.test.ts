@@ -11,6 +11,7 @@ import {
   createHost,
   createInvite,
   deleteMemberData,
+  inviteFor,
   inviteFromUrl,
   inviteLink,
   inviteWhen,
@@ -71,12 +72,40 @@ test('invite note: one line, at most 100 characters, spaces tidied', () => {
 
 test('create an invite: the note is cleaned first, the answer is checked, the token comes back once', async () => {
   const good = fakeRpc({ create_band_invite: { data: { id: OWNER, token: TOKEN, expires_at: '2026-11-10T08:00:00Z' } } });
-  assert.deepEqual(await createInvite(good.client, ' Mike  (bass) '), { id: OWNER, token: TOKEN, expiresAt: '2026-11-10T08:00:00Z' });
+  assert.deepEqual(await createInvite(good.client, ' Mike  (bass) '), { id: OWNER, token: TOKEN, expiresAt: '2026-11-10T08:00:00Z', email: null });
   assert.deepEqual(good.calls, [['create_band_invite', { p_note: 'Mike (bass)' }]]);
   await assert.rejects(createInvite(good.client, 'a\nb'), /one line/);
   assert.equal(good.calls.length, 1, 'a bad note never reaches the server');
   await assert.rejects(createInvite(fakeRpc({ create_band_invite: { data: { id: OWNER, token: 'short', expires_at: '2026-11-10T08:00:00Z' } } }).client, ''), /bad invite/);
   await assert.rejects(createInvite(fakeRpc({ create_band_invite: { error: 'band members cannot invite anyone' } }).client, ''), /cannot invite/);
+});
+
+test('who an invite is for: an email in the note locks it to that email; none leaves it open; two are refused', () => {
+  assert.deepEqual(inviteFor('Mike (bass)'), { ok: true, value: { note: 'Mike (bass)', email: null } });
+  assert.deepEqual(inviteFor(' Mike (bass)  Mike.Bass@Example.com '), { ok: true, value: { note: 'Mike (bass) Mike.Bass@Example.com', email: 'mike.bass@example.com' } });
+  assert.deepEqual(inviteFor('Mike <mike@example.com>.'), { ok: true, value: { note: 'Mike <mike@example.com>.', email: 'mike@example.com' } });
+  assert.match((inviteFor('mike@example.com bpz82bear@gmail.com') as { error: string }).error, /one email/);
+  assert.equal(inviteFor('a\nmike@example.com').ok, false, 'still one line');
+});
+
+test('a locked invite: the email goes to the server, which must confirm the lock', async () => {
+  const made = { id: OWNER, token: TOKEN, expires_at: '2026-11-10T08:00:00Z', email: 'mike@example.com' };
+  const good = fakeRpc({ create_band_invite: { data: made } });
+  assert.deepEqual(await createInvite(good.client, 'Mike MIKE@example.com'), { id: OWNER, token: TOKEN, expiresAt: '2026-11-10T08:00:00Z', email: 'mike@example.com' });
+  assert.deepEqual(good.calls, [['create_band_invite', { p_note: 'Mike MIKE@example.com', p_email: 'mike@example.com' }]]);
+  await assert.rejects(createInvite(fakeRpc({ create_band_invite: { data: { ...made, email: null } } }).client, 'Mike mike@example.com'), /did not lock/);
+  const two = fakeRpc({ create_band_invite: { data: made } });
+  await assert.rejects(createInvite(two.client, 'a@example.com b@example.com'), /one email/);
+  assert.equal(two.calls.length, 0, 'never reaches the server');
+  // No email: the call is the same as before (works on a server without the 2026-11-04 migration).
+  const open = fakeRpc({ create_band_invite: { data: { ...made, email: null } } });
+  assert.equal((await createInvite(open.client, 'Mike')).email, null);
+  assert.deepEqual(open.calls, [['create_band_invite', { p_note: 'Mike' }]]);
+});
+
+test('a stray account opening a locked invite is refused with the server\'s reason (the invite stays open for its person)', async () => {
+  const reason = 'This invite is for a different email address. Sign in with the email the invite was sent to.';
+  await assert.rejects(acceptInvite(fakeRpc({ accept_band_invite: { error: reason } }).client, TOKEN), (e: Error) => e.message === reason);
 });
 
 test('accept an invite: a malformed token never reaches the server; the server\'s reason is shown as it is', async () => {
@@ -96,7 +125,10 @@ test('the owner\'s band: invites and members, checked before use', async () => {
     members: [{ member_id: MEMBER, note: 'Mike', status: 'removed', joined_at: '2026-11-03T09:00:00Z', removed_at: '2026-11-04T09:00:00Z', data_deleted: false }],
   };
   const got = await bandOverview(fakeRpc({ band_overview: { data: band } }).client);
-  assert.deepEqual(got.invites[0], { id: OWNER, note: 'Mike', createdAt: '2026-11-03T08:00:00Z', expiresAt: '2026-11-10T08:00:00Z', status: 'open' });
+  assert.deepEqual(got.invites[0], { id: OWNER, note: 'Mike', email: null, createdAt: '2026-11-03T08:00:00Z', expiresAt: '2026-11-10T08:00:00Z', status: 'open' });
+  const locked = parseBand({ ...band, invites: [{ ...band.invites[0], email: 'mike@example.com' }] });
+  assert.equal(locked.ok && locked.value.invites[0]!.email, 'mike@example.com');
+  assert.equal(parseBand({ ...band, invites: [{ ...band.invites[0], email: 42 }] }).ok, false);
   assert.deepEqual(got.members[0], { memberId: MEMBER, note: 'Mike', status: 'removed', joinedAt: '2026-11-03T09:00:00Z', removedAt: '2026-11-04T09:00:00Z', dataDeleted: false });
   assert.equal(parseBand({ ...band, invites: [{ ...band.invites[0], status: 'pending' }] }).ok, false);
   assert.equal(parseBand({ ...band, members: [{ ...band.members[0], member_id: 'x' }] }).ok, false);

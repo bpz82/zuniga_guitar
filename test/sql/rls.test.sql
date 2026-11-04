@@ -337,6 +337,37 @@ select public.accept_band_invite(:'rejoin_token');
 select pg_temp.expect((select count(*) from public.events where user_id = :alice) = 2, 'carol rejoins and reads the songs again');
 reset role;
 
+-- Invites locked to an email (2026-11-04): a stray test account that opens
+-- the link first is refused and the invite stays open for its person.
+\set erin  '\'eeeeeeee-0000-0000-0000-000000000005\''
+\set frank '\'ffffffff-0000-0000-0000-000000000006\''
+insert into auth.users (id, email) values (:erin, 'Erin.Bass@Example.com'), (:frank, 'test-account@example.com');
+update auth.users set email = 'alice@example.com' where id = :alice;
+select pg_temp.as_user(:alice);
+select pg_temp.expect_error($$select public.create_band_invite('Me', 'ALICE@example.com')$$, 'an owner cannot lock an invite to her own email');
+select pg_temp.expect_error($$select public.create_band_invite('Erin', 'not an email')$$, 'a bad email is refused');
+select (x ->> 'token') as erin_token, (x ->> 'email') as erin_email from (select public.create_band_invite('Erin (bass)', ' erin.bass@example.com ') as x) s \gset
+select pg_temp.expect(:'erin_email' = 'erin.bass@example.com', 'the invite is locked to erin''s email, lowercased');
+select pg_temp.expect((select public.band_overview() -> 'invites' @> '[{"note":"Erin (bass)","email":"erin.bass@example.com","status":"open"}]'), 'alice sees whom it is locked to');
+select (x ->> 'token') as open_token from (select public.create_band_invite('Anyone') as x) s \gset
+select pg_temp.expect((select public.band_overview() -> 'invites' @> '[{"note":"Anyone","email":null,"status":"open"}]'), 'an invite with no email is open to anyone, as before');
+reset role;
+select pg_temp.as_user(:frank);
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'erin_token'), 'a stray account cannot use an invite locked to another email');
+select pg_temp.expect((select public.band_status() ->> 'role') = 'owner', 'the stray account did not join');
+reset role;
+select pg_temp.expect((select used_at is null and used_by is null from public.band_invites where email = 'erin.bass@example.com'), 'the refused attempt left the invite unused');
+select pg_temp.as_user(:erin);
+select pg_temp.expect((select public.accept_band_invite(:'erin_token') ->> 'owner_id') = :alice, 'erin (her email in another case) joins with the locked invite');
+reset role;
+select pg_temp.as_user(:frank);
+select pg_temp.expect_error(format('select public.accept_band_invite(%L)', :'erin_token'), 'and it is used up');
+reset role;
+select pg_temp.as_user(:alice);
+select pg_temp.expect((select public.band_overview() -> 'members' @> jsonb_build_array(jsonb_build_object('member_id', :erin, 'note', 'Erin (bass)', 'status', 'active'))), 'alice sees erin in her band');
+select pg_temp.expect(not (select public.band_overview() -> 'members' @> jsonb_build_array(jsonb_build_object('member_id', :frank))), 'and not the stray account');
+reset role;
+
 -- Signed out: none of it.
 set role anon;
 select pg_temp.expect_error($$select public.band_status()$$, 'anon has no band status');
