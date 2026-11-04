@@ -1,5 +1,5 @@
 // Service worker: offline app shell, and showing reminders.
-const SHELL = 'zg-shell-v5';
+const SHELL = 'zg-shell-v6';
 const FILES = ['./', './index.html', './app.js', './manifest.webmanifest', './base.css',
   './theme/tokens.css', './theme/theme.css', './theme/icons/icon-192-v10.png', './theme/icons/icon-512-v10.png',
   './theme/icons/icon-maskable-512-v10.png', './theme/icons/apple-touch-icon-v10.png', './theme/icons/favicon-32-v10.png',

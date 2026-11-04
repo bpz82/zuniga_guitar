@@ -1,10 +1,12 @@
 /* Zuniga Guitar — theme v6 (2026-11-01): lighter, refined, mobile first.
    Look only. Selectors are tags and data-zg hooks (see docs/THEME.md).
    Wood textures (img/*.webp) and the Zuniga Mission face are kept as accents. */
-/* Zuniga Mission v2 (2026-11-03): capitals, figures, space . , ! ? - ' : & / ( ); lowercase sets in capitals.
-   Anything it lacks (… — digits are in) falls back per character to the next font in --zg-font-display.
-   The v1 file (ZunigaMission-Regular.woff2) is kept in fonts/ but no longer loaded. */
-@font-face {font-family:'Zuniga Mission';src:url('./fonts/ZunigaMission-v2.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap;}
+/* Zuniga Mission v3 (2026-11-04): full Basic Latin + Latin-1 (U+0020–007E, U+00A0–00FF); lowercase are small caps.
+   Regular only (no Bold), so display text stays at weight 400. Anything it lacks falls back per character
+   to the next font in --zg-font-display. Every display role uses var(--zg-font-display), so this one face
+   covers all display text sitewide. The v1 (ZunigaMission-Regular.woff2) and v2 (ZunigaMission-v2.woff2)
+   files are kept in fonts/ but no longer loaded. */
+@font-face {font-family:'Zuniga Mission';src:url('./fonts/ZunigaMission-Regular-v3.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap;}
 
 /* ------------------------------------------------------------------ base */
 * { box-sizing: border-box; }
@@ -805,7 +807,7 @@ button:hover { border-color: rgba(243, 230, 200, .55); }
 
 /* =========================================================================
    Theme v8: Home like final_mock4 (Blake, 2026-11-03)
-   Zuniga Mission v2 for display text. The goal block floats on the stage with
+   Zuniga Mission (v3 since 2026-11-04) for display text. The goal block floats on the stage with
    no hard box edges (translucent crimson that fades out at its rim), the
    objectives are checkbox rows, Start is a cream bar with a play mark, and the
    amp and guitar art (img/stage-rig.webp, alpha edges) bleeds edge to edge

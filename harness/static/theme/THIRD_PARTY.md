@@ -1,6 +1,6 @@
 # Font and asset licensing
 
-- **Zuniga Mission**: original font built for this project, copyright © 2026 Blake Zuniga; no third-party font outlines used. Included as WOFF2. Version 2.000 (`fonts/ZunigaMission-v2.woff2`, 2026-11-03) is a new original drawing (hand-placed straight-line outlines); v1 is kept unused.
+- **Zuniga Mission**: original font built for this project, copyright © 2026 Blake Zuniga; no third-party font outlines used. Included as WOFF2. Version 2.000 (`fonts/ZunigaMission-v2.woff2`, 2026-11-03) is a new original drawing (hand-placed straight-line outlines). Version 3.0 (`fonts/ZunigaMission-Regular-v3.woff2`, 2026-11-04) is the one loaded now; it was traced from Blake Zuniga's own reference art, with no outlines from any other typeface. v1 and v2 are kept unused.
 - **Home art** (`img/stage-rig.webp`, theme v8): composited from the project's generated mock art (`proto/guitar5/final_mock2.png`) and generated assets (`assets/logo1.png` Glaswerks badge, `assets/inlay2.png` clay dots), all made for this project.
 - **Auto Mission by Toto**: not used or bundled (personal-use license).
 - **Arial Narrow / system fonts**: optional system fallback; not bundled.

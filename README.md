@@ -65,3 +65,4 @@ A module folder imports only its own files, `harness/shared/` and the engine, ne
 | Social-style tab bar: centre Record, More sheet, due badges | Built, awaiting review |
 | Layout redesign of every screen; theme v6 (lighter) | Built, awaiting review |
 | Theme v8: Home like final_mock4, Zuniga Mission v2; harness split into module folders | Built, awaiting review |
+| Display font Zuniga Mission v3.0 (`theme/fonts/ZunigaMission-Regular-v3.woff2`) for all display text; app icon is logo 10 (`theme/icons/*-v10.*`) | Built, awaiting review |
