@@ -131,7 +131,10 @@ export const SHEETS = ['mx-settings', 'songs-paste', 'improv', 'goal-new'] as co
  * row or the song being practised), and (2026-11-03) the objectives popups
  * that open Home and Teach; (2026-11-03) the confirm before deleting a band
  * member's data, and the walk-through for putting the app on a band
- * member's phone. Hooks `sheet-<name>` and `close-<name>`.
+ * member's phone; (2026-11-08) the goal-led practice: the goal popup that
+ * opens Home, the choice between practising with or without the instrument,
+ * the practice sequence, the flashcard review, and a chapter's reading.
+ * Hooks `sheet-<name>` and `close-<name>`.
  */
-export const APP_SHEETS = ['signin', 'songtab', 'objectives', 'teach-objectives', 'band-delete', 'install'] as const;
+export const APP_SHEETS = ['signin', 'songtab', 'objectives', 'teach-objectives', 'band-delete', 'install', 'goal-open', 'practice-choice', 'practice', 'review', 'chapter'] as const;
 export type SheetName = (typeof SHEETS)[number] | (typeof APP_SHEETS)[number];

@@ -33,6 +33,7 @@
       </nav>
     </header>
     <p data-zg="status">Loading…</p>
+    <button type="button" data-zg="practice-resume" hidden>Back to practice</button>
     <nav data-zg="pager" aria-label="Home and Teach (or swipe)" hidden>
       <a href="#/today" data-zg="pager-today"><span aria-hidden="true"></span>Home</a>
       <a href="#/teach" data-zg="pager-teach"><span aria-hidden="true"></span>Teach</a>
@@ -53,6 +54,7 @@
             <div data-zg="mc-choices"></div>
             <p data-zg="card-feedback"></p>
             <button data-zg="reveal">Show answer</button>
+            <button type="button" data-zg="card-read" hidden>Read in Chapter</button>
             <button data-zg="practice" hidden>Practise with the metronome</button>
             <button type="button" data-zg="card-tab" hidden>Show the tab</button>
             <div data-zg="rate" hidden>
@@ -150,6 +152,7 @@
             <div data-zg="teach-choices"></div>
             <p data-zg="teach-feedback"></p>
             <button data-zg="teach-reveal">Show answer</button>
+            <button type="button" data-zg="teach-read" hidden>Read in Chapter</button>
             <div data-zg="teach-rate" hidden>
               <button data-zg="teach-r-again">Again</button><button data-zg="teach-r-hard">Hard</button><button data-zg="teach-r-good">Good</button><button data-zg="teach-r-easy">Easy</button>
             </div>
@@ -377,6 +380,118 @@
           <p data-zg="today-reminder"></p>
         </div>
         <button type="button" data-zg="today-start" autofocus>Start</button>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-goal-open" aria-labelledby="zg-sheet-goal-open-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-goal-open-title">Your goal</h2>
+          <button type="button" data-zg="close-goal-open" aria-label="Close">×</button>
+        </header>
+        <div data-zg="goal-open-view">
+          <h3 data-zg="goal-open-what"></h3>
+          <p data-zg="goal-open-when"></p>
+          <p data-zg="goal-open-why"></p>
+          <a href="#/goals" data-zg="goal-open-set" hidden>Set your goal</a>
+          <button type="button" data-zg="goal-open-edit">Edit goal</button>
+          <button type="button" data-zg="goal-open-next" autofocus>Let's practise</button>
+        </div>
+        <div data-zg="goal-open-form" hidden>
+          <label>What <input type="text" data-zg="goal-edit-what" maxlength="120"></label>
+          <label>Why <input type="text" data-zg="goal-edit-why" maxlength="300"></label>
+          <label>Deadline <input type="date" data-zg="goal-edit-deadline"></label>
+          <p data-zg="goal-edit-error" role="alert"></p>
+          <button type="button" data-zg="goal-edit-save">Save goal</button>
+          <button type="button" data-zg="goal-edit-cancel">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-practice-choice" aria-labelledby="zg-sheet-practice-choice-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-practice-choice-title">How do you want to practise?</h2>
+          <button type="button" data-zg="close-practice-choice" aria-label="Close">×</button>
+        </header>
+        <button type="button" data-zg="choose-with" autofocus>Practice with instrument</button>
+        <button type="button" data-zg="choose-without">Practice without</button>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-practice" aria-labelledby="zg-sheet-practice-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-practice-title">Practice</h2>
+          <button type="button" data-zg="close-practice" aria-label="Close">×</button>
+        </header>
+        <p data-zg="practice-goal"></p>
+        <progress data-zg="practice-bar" value="0" max="1" aria-label="Required practice time"></progress>
+        <p data-zg="practice-progress" role="status"></p>
+        <div data-zg="practice-step" hidden>
+          <h3 data-zg="practice-title"></h3>
+          <p data-zg="practice-text"></p>
+          <p data-zg="practice-suggestion"></p>
+          <p data-zg="practice-beato"></p>
+          <button type="button" data-zg="practice-randomize">Randomize</button>
+          <button type="button" data-zg="practice-tool" hidden></button>
+          <label>How did it feel? <input type="text" data-zg="practice-note" maxlength="500"></label>
+          <p data-zg="practice-timer" role="timer" aria-live="off">0:00</p>
+          <button type="button" data-zg="practice-start">Start timer</button>
+          <button type="button" data-zg="practice-pause" hidden>Pause</button>
+          <button type="button" data-zg="practice-done" disabled>Done (when the timer ends)</button>
+          <button type="button" data-zg="practice-skip" hidden>Skip this goal step</button>
+        </div>
+        <div data-zg="practice-song" hidden>
+          <h3 data-zg="practice-song-title"></h3>
+          <p data-zg="practice-song-note"></p>
+          <button type="button" data-zg="practice-r-again">Again</button><button type="button" data-zg="practice-r-hard">Hard</button><button type="button" data-zg="practice-r-good">Good</button><button type="button" data-zg="practice-r-easy">Easy</button>
+          <button type="button" data-zg="practice-song-skip">Skip</button>
+        </div>
+        <div data-zg="practice-finish" hidden>
+          <h3>Practice done</h3>
+          <p>The required time is in, and it is saved.</p>
+          <button type="button" data-zg="practice-again">Another round</button>
+          <button type="button" data-zg="practice-choose-again">Back to the choice</button>
+        </div>
+        <p data-zg="practice-error" role="alert"></p>
+        <ol data-zg="practice-steps"></ol>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-review" aria-labelledby="zg-sheet-review-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-review-title">Practice without the instrument</h2>
+          <button type="button" data-zg="close-review" aria-label="Close">×</button>
+        </header>
+        <p data-zg="review-counts"></p>
+        <button type="button" data-zg="review-mode-due" aria-pressed="false">Due today</button>
+        <button type="button" data-zg="review-mode-more" aria-pressed="false">Do more</button>
+        <div data-zg="review-stage" hidden>
+          <p data-zg="review-empty" hidden></p>
+          <div data-zg="review-deck">
+            <p data-zg="review-kind"></p>
+            <div data-zg="review-card">
+              <p data-zg="review-question"></p>
+              <p data-zg="review-answer"></p>
+              <div data-zg="review-choices"></div>
+              <p data-zg="review-feedback"></p>
+              <button type="button" data-zg="review-reveal">Show answer</button>
+              <button type="button" data-zg="review-read" hidden>Read in Chapter</button>
+              <div data-zg="review-rate" hidden>
+                <button type="button" data-zg="review-r-again">Again</button><button type="button" data-zg="review-r-hard">Hard</button><button type="button" data-zg="review-r-good">Good</button><button type="button" data-zg="review-r-easy">Easy</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button type="button" data-zg="review-choose-again">Back to the choice</button>
+      </div>
+    </dialog>
+    <dialog data-zg="sheet-chapter" aria-labelledby="zg-sheet-chapter-title">
+      <div>
+        <header>
+          <h2 id="zg-sheet-chapter-title" data-zg="chapter-title">Chapter</h2>
+          <button type="button" data-zg="close-chapter" aria-label="Close">×</button>
+        </header>
+        <p data-zg="chapter-card"></p>
+        <div data-zg="chapter-lessons"></div>
       </div>
     </dialog>
     <dialog data-zg="sheet-teach-objectives" aria-labelledby="zg-sheet-teach-objectives-title">

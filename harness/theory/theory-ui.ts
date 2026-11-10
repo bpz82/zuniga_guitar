@@ -8,11 +8,12 @@
  */
 import { runModule } from '../../src/index.ts';
 import type { DayStart, ModuleHost, Rating } from '../../src/index.ts';
-import { answerMc, contentOf, currentLesson, extras, lessonStates, optionsFor, rateQa, seedTheory, setExtras } from '../../src/modules/theory/practice.ts';
+import { answerMc, chapterFor, contentOf, currentLesson, extras, lessonStates, needsReading, optionsFor, rateQa, seedTheory, setExtras } from '../../src/modules/theory/practice.ts';
 import type { LessonState } from '../../src/modules/theory/practice.ts';
 import { LESSONS } from '../../src/modules/theory/curriculum.ts';
 import { hook } from '../shared/hooks.ts';
 import type { Hook } from '../shared/hooks.ts';
+import type { Sheets } from '../shared/sheets.ts';
 
 const $ = <T extends HTMLElement = HTMLElement>(name: Hook) => hook<T>(name);
 
@@ -35,7 +36,9 @@ function lessonRow(s: LessonState): HTMLElement {
       ? `${lessonHeading(s)}: graduated ✓`
       : s.status === 'current'
         ? `${lessonHeading(s)}: learning, ${s.ready} of ${s.total} cards solid`
-        : `${lessonHeading(s)}: locked`;
+        : s.status === 'open'
+          ? `${lessonHeading(s)}: open, you can learn ahead`
+          : `${lessonHeading(s)}: locked`;
   if (s.status === 'locked') {
     li.textContent = label;
     return li;
@@ -54,15 +57,33 @@ function lessonRow(s: LessonState): HTMLElement {
  * with every module) or Teach's lesson deck. Each has its own hooks and its
  * own feedback line.
  */
-export type Slot = 'home' | 'teach';
-const SLOTS: Readonly<Record<Slot, { card: Hook; question: Hook; answer: Hook; choices: Hook; feedback: Hook; reveal: Hook; rate: Hook }>> = {
-  home: { card: 'card', question: 'question', answer: 'answer', choices: 'mc-choices', feedback: 'card-feedback', reveal: 'reveal', rate: 'rate' },
-  teach: { card: 'teach-card', question: 'teach-question', answer: 'teach-answer', choices: 'teach-choices', feedback: 'teach-feedback', reveal: 'teach-reveal', rate: 'teach-rate' },
+export type Slot = 'home' | 'teach' | 'review';
+const SLOTS: Readonly<Record<Slot, { card: Hook; question: Hook; answer: Hook; choices: Hook; feedback: Hook; reveal: Hook; rate: Hook; read: Hook }>> = {
+  home: { card: 'card', question: 'question', answer: 'answer', choices: 'mc-choices', feedback: 'card-feedback', reveal: 'reveal', rate: 'rate', read: 'card-read' },
+  teach: { card: 'teach-card', question: 'teach-question', answer: 'teach-answer', choices: 'teach-choices', feedback: 'teach-feedback', reveal: 'teach-reveal', rate: 'teach-rate', read: 'teach-read' },
+  review: { card: 'review-card', question: 'review-question', answer: 'review-answer', choices: 'review-choices', feedback: 'review-feedback', reveal: 'review-reveal', rate: 'review-rate', read: 'review-read' },
 };
 
-export function setupTheory(host: ModuleHost, say: (s: string) => void, afterChange: () => Promise<void>, dayStart: () => DayStart) {
+export interface TheoryDeps {
+  /** Whether rating this card now is extra (early) practice: kept in the log, never scheduled (2026-11-08). */
+  readonly isExtra: (cardId: string) => boolean;
+  readonly sheets: Sheets;
+}
+
+export function setupTheory(host: ModuleHost, say: (s: string) => void, afterChange: () => Promise<void>, dayStart: () => DayStart, deps: TheoryDeps) {
+  /** The card whose chapter each deck's "Read in Chapter" button opens: set by a Hard or Don't know, until the next answer. */
+  const toRead: Record<Slot, string> = { home: '', teach: '', review: '' };
+  const chapterName = (cardId: string) => {
+    const m = chapterFor(host, cardId);
+    return m ? `Chapter ${m.chapter} · ${m.title}` : '';
+  };
+  const showRead = (where: Slot) => {
+    const b = $<HTMLButtonElement>(SLOTS[where].read);
+    b.hidden = toRead[where] === '';
+    if (toRead[where]) b.textContent = `Read in Chapter: ${chapterName(toRead[where])}`;
+  };
   /** The last multiple-choice result in each deck, shown until the next answer there. */
-  const feedback: Record<Slot, string> = { home: '', teach: '' };
+  const feedback: Record<Slot, string> = { home: '', teach: '', review: '' };
   /** Lesson whose reading is drawn (redrawn only when it changes, so an open/closed choice sticks). */
   let drawn = -1;
 
@@ -86,6 +107,7 @@ export function setupTheory(host: ModuleHost, say: (s: string) => void, afterCha
       const card = contentOf(host, cardId);
       $(h.choices).replaceChildren();
       $(h.feedback).textContent = feedback[where];
+      showRead(where);
       if (!card) return false;
       $(h.question).textContent = card.question;
       $(h.card).dataset.card = cardId;
@@ -102,13 +124,18 @@ export function setupTheory(host: ModuleHost, say: (s: string) => void, afterCha
         ...optionsFor(card, seed).map((option) => {
           const b = document.createElement('button');
           if (where === 'home') b.dataset.zg = 'mc-choice';
-          else b.dataset.zg = 'teach-choice';
+          else if (where === 'teach') b.dataset.zg = 'teach-choice';
+          else b.dataset.zg = 'review-choice';
           b.textContent = option;
           b.onclick = async () => {
-            const r = await runModule(host, () => answerMc(host, cardId, option, Date.now() - startedAt()));
+            const extra = deps.isExtra(cardId);
+            const r = await runModule(host, () => answerMc(host, cardId, option, Date.now() - startedAt(), extra));
             if (!r.ok) say(`Theory cards switched off: ${r.error}`);
             else if (!r.value.ok) say(`Theory: ${r.value.error}`);
-            else feedback[where] = `${r.value.value.correct ? '✓' : `✗ The answer: ${card.answer}.`} ${card.why}`;
+            else {
+              feedback[where] = `${r.value.value.correct ? '✓' : `✗ The answer: ${card.answer}.`} ${card.why}`;
+              toRead[where] = r.value.value.correct ? '' : cardId; // a wrong answer is a Don't know
+            }
             $(h.card).dataset.started = String(Date.now());
             await unlock();
             await afterChange();
@@ -121,7 +148,9 @@ export function setupTheory(host: ModuleHost, say: (s: string) => void, afterCha
     /** Rates a Q/A theory card (from either deck). */
     async rate(cardId: string, rating: Rating, durationMs: number, where: Slot = 'home'): Promise<void> {
       feedback[where] = '';
-      const r = await runModule(host, () => rateQa(host, cardId, rating, durationMs));
+      toRead[where] = needsReading(rating) ? cardId : '';
+      const extra = deps.isExtra(cardId);
+      const r = await runModule(host, () => rateQa(host, cardId, rating, durationMs, extra));
       if (!r.ok) say(`Theory cards switched off: ${r.error}`);
       else if (!r.value.ok) say(`Theory: ${r.value.error}`);
       await unlock();
@@ -167,7 +196,31 @@ export function setupTheory(host: ModuleHost, say: (s: string) => void, afterCha
       box.checked = x.on > 0;
       $('theory-extras-label').textContent = `Extra cards outside the course: guitar theory and cassette gear (${x.on} of ${x.total} on)`;
     },
+    /** "Read in Chapter" (2026-11-08): the chapter the card belongs to, in our own words, with the card's own lesson on top. */
+    openChapter(cardId: string) {
+      const m = chapterFor(host, cardId);
+      if (!m) return say('That card is not from the course, so it has no chapter.');
+      $('chapter-title').textContent = `Chapter ${m.chapter} · ${m.title}`;
+      $('chapter-card').textContent = contentOf(host, cardId)?.question ?? '';
+      const lessons = [...m.lessons].sort((a, b) => Number(b.relevant) - Number(a.relevant));
+      $('chapter-lessons').replaceChildren(
+        ...lessons.map((l) => {
+          const d = document.createElement('details');
+          d.dataset.zg = 'chapter-lesson';
+          if (l.relevant) {
+            d.open = true;
+            d.dataset.relevant = '';
+          }
+          const sum = document.createElement('summary');
+          sum.textContent = `Lesson ${l.n} · ${l.title}${l.relevant ? ' (this card)' : ''}`;
+          d.append(sum, ...paragraphs(l.reading));
+          return d;
+        }),
+      );
+      deps.sheets.open('chapter');
+    },
     wire() {
+      for (const where of ['home', 'teach', 'review'] as const) $<HTMLButtonElement>(SLOTS[where].read).onclick = () => this.openChapter(toRead[where]);
       $<HTMLInputElement>('theory-extras').onchange = async () => {
         const r = await runModule(host, () => setExtras(host, $<HTMLInputElement>('theory-extras').checked));
         if (!r.ok) say(`Theory cards switched off: ${r.error}`);

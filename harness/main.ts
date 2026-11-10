@@ -25,6 +25,7 @@ import {
   changeSettings,
   createHost,
   dueToday,
+  isExtraNow,
   nudgesBetween,
   practiceDay,
   planNudges,
@@ -55,13 +56,14 @@ import { setupSongs } from './songs/songs-ui.ts';
 import { setupEar } from './ear/ear-ui.ts';
 import { setupRecorder } from './recorder/recorder-ui.ts';
 import { setupGoals } from './home/goals-ui.ts';
+import { setupPractice } from './home/practice-ui.ts';
 import { setupShell } from './shared/shell.ts';
 import { setupSheets } from './shared/sheets.ts';
 import type { Sheets } from './shared/sheets.ts';
 import { badgeText } from './shared/routes.ts';
 import type { Shell } from './shared/shell.ts';
 import { lessonHeading, setupTheory } from './theory/theory-ui.ts';
-import { THEORY, contentOf, seedTheory } from '../src/modules/theory/practice.ts';
+import { THEORY, contentOf, horizon, newCardFilter, seedTheory } from '../src/modules/theory/practice.ts';
 import { improvFor, memoFor, songwritingFor } from '../src/modules/recorder/blocks.ts';
 import { runTakes } from '../src/modules/recorder/takes.ts';
 import { RECORDER, uploadPending } from '../src/modules/recorder/takes.ts';
@@ -124,6 +126,7 @@ let recorder!: ReturnType<typeof setupRecorder>;
 let goalsUi!: ReturnType<typeof setupGoals>;
 let theoryHost!: ModuleHost;
 let theoryUi!: ReturnType<typeof setupTheory>;
+let practiceUi!: ReturnType<typeof setupPractice>;
 let shell!: Shell;
 let sheets!: Sheets;
 let bandUi!: ReturnType<typeof setupBand>;
@@ -278,10 +281,10 @@ function renderHome() {
 function renderTeach() {
   const lib = replica.library;
   const state = theoryUi.current();
-  const deck = teachDeck(lib, Date.now(), THEORY.id);
+  const deck = teachDeck(lib, Date.now(), THEORY.id, newCardFilter(theoryHost, lib.settings.dayStart));
   $('teach-chapter').textContent = state ? chapterLine(state) : 'The course';
   $('teach-lesson').textContent = state ? lessonHeading(state) : 'Every lesson has graduated';
-  $('teach-goals').replaceChildren(...bullets(teachObjectives(state, { due: deck.due.length, fresh: deck.fresh.length }), 'teach'));
+  $('teach-goals').replaceChildren(...bullets(teachObjectives(state, { due: deck.due.length, fresh: deck.fresh.length }, theoryHost.enabled ? horizon(theoryHost, lib.settings.dayStart).last : undefined), 'teach'));
   $('teach-progress').textContent = !theoryHost.enabled
     ? `Theory cards switched off: ${theoryHost.disabledReason}`
     : state
@@ -339,7 +342,9 @@ function arrive(screen: Screen) {
   } else if (isPage(screen) && !introduced.has(screen)) {
     // (Opening the app on Home with no goal goes to Goals instead: see main().)
     introduced.add(screen);
-    sheets.open(screen === 'today' ? 'objectives' : 'teach-objectives');
+    // Home opens with the goal popup, then the choice (2026-11-08); Teach keeps its objectives popup.
+    if (screen === 'today') practiceUi.openGoal();
+    else sheets.open('teach-objectives');
   }
   if (signInPending) {
     signInPending = false;
@@ -369,6 +374,7 @@ function render() {
   bandUi.render();
   renderHome();
   renderTeach();
+  practiceUi.render();
   const lib = replica.library;
   const now = Date.now();
   const s = sessionFor(lib, now);
@@ -758,6 +764,7 @@ function wire() {
   recorder.wire();
   goalsUi.wire();
   theoryUi.wire();
+  practiceUi.wire();
   $('enable-push').onclick = () => void enableNotifications().catch((e) => say((e as Error).message));
   wireAccount();
 }
@@ -856,7 +863,34 @@ async function main() {
   const dayStart = () => replica.library.settings.dayStart;
   const theorySeeded = await runModule(theoryHost, () => seedTheory(theoryHost, dayStart()));
   if (!theorySeeded.ok) say(`Theory cards failed: ${theorySeeded.error}`);
-  theoryUi = setupTheory(theoryHost, say, afterChange, dayStart);
+  theoryUi = setupTheory(theoryHost, say, afterChange, dayStart, { isExtra: (cardId) => isExtraNow(replica.library, cardId, Date.now()), sheets });
+  practiceUi = setupPractice({
+    library: () => replica.library,
+    sheets,
+    say,
+    record,
+    storageKey: () => `zg-practice-run-${userId}`,
+    rateSong: async (cardId, rating, durationMs) => {
+      const r = await runModule(songsHost, () => rateSong(songsHost, cardId, rating, durationMs));
+      if (!r.ok) say(`Songs switched off: ${r.error}`);
+      else if (!r.value.ok) say(`Songs: ${r.value.error}`);
+      await afterChange();
+    },
+    openTool: (tool) => {
+      if (tool === 'metronome') {
+        sheets.closeAll();
+        if (shell.current() !== 'today') shell.go('today');
+        $('metronome').scrollIntoView({ block: 'start' });
+      } else shell.go(tool === 'recorder' ? 'record' : 'ear');
+    },
+    reviewFilter: () => ({ accept: (id) => contentOf(theoryHost, id) !== undefined, newOk: newCardFilter(theoryHost, dayStart()) }),
+    drawCard: (cardId, revealed, startedAt) => theoryUi.showCard(cardId, revealed, startedAt, 'review'),
+    rateCard: async (cardId, rating, durationMs) => {
+      const content = contentOf(theoryHost, cardId);
+      if (content?.type === 'qa') await theoryUi.rate(cardId, rating, durationMs, 'review');
+      await afterChange();
+    },
+  });
   wire();
   $('card').dataset.started = String(Date.now());
   $('teach-card').dataset.started = String(Date.now());
@@ -885,7 +919,7 @@ async function main() {
       if (to) shell.go(to);
     },
   );
-  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, tabs: tabBlobs, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) }, shell, sheets };
+  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, tabs: tabBlobs, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) }, practice: practiceUi, shell, sheets };
   const synced = client ? await syncNow().then(() => true, (e) => (say(`Offline: ${(e as Error).message}`), false)) : true;
   // Settings never set (on any synced device): use this device's time zone instead of the UTC default.
   if (synced) {

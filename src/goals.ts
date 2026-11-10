@@ -116,6 +116,46 @@ export function isActive(goal: Goal, today: string): boolean {
   return !goal.archived && today <= goal.deadline;
 }
 
+/**
+ * The goal on top (Blake, 2026-11-02): the live goal with the nearest deadline
+ * (then the heavier one, then the oldest id, so the choice is stable). Null
+ * with no live goal. `others` counts the other live goals.
+ */
+export function focusGoal(library: Library, today: string): { goal: Goal; others: number } | null {
+  const live = [...library.goals.values()].filter((g) => isActive(g, today));
+  live.sort((a, b) => a.deadline.localeCompare(b.deadline) || b.weight - a.weight || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const goal = live[0];
+  return goal ? { goal, others: live.length - 1 } : null;
+}
+
+/** What the goal popup lets Blake change (Blake, 2026-11-08). Everything else about the goal stays as it is. */
+export interface GoalEdit {
+  readonly what?: string;
+  readonly why?: string;
+  /** "YYYY-MM-DD". */
+  readonly deadline?: string;
+}
+
+/**
+ * Edits the goal's wording and date: a new goal-set event for the same id with
+ * every other field (songs, blocks, minutes, weight) carried over, so the goal
+ * keeps its history and nothing is deleted. Refuses an archived or unknown
+ * goal, and a deadline already passed. Validated like any intake.
+ */
+export function changeGoal(library: Library, goalId: string, change: GoalEdit, now: number): Validation<EventBody> {
+  const goal = library.goals.get(goalId);
+  if (!goal) return { ok: false, error: `no goal ${goalId}` };
+  if (goal.archived) return { ok: false, error: 'that goal is archived' };
+  const today = practiceDay(now, library.settings.dayStart);
+  if (typeof change.deadline === 'string' && change.deadline < today) {
+    return { ok: false, error: `event.goal.deadline: ${change.deadline} has already passed (today is ${today})` };
+  }
+  return validateBody({
+    type: 'goal-set',
+    goal: { ...goal, what: change.what ?? goal.what, why: change.why ?? goal.why, deadline: change.deadline ?? goal.deadline },
+  });
+}
+
 function targetOf(goal: Goal, fallback: number): number {
   return goal.targetRetention ?? (goal.kind === 'gig' ? GIG_DEFAULT_RETENTION : fallback);
 }

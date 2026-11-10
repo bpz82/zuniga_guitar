@@ -1,7 +1,8 @@
 /**
- * Theory and physics: the curriculum (2026-11-02): content rules, lesson
- * gating and the graduation rule, the migration from the superseded topic
- * deck, and the module through contract v1. The superseded deck's own
+ * Theory and physics: the curriculum (2026-11-02): content rules, the chapter
+ * horizon (2026-11-08: guided exploration, no strict lesson-by-lesson locking)
+ * and the graduation rule, the migration from the superseded topic deck, and
+ * the module through contract v1. The superseded deck's own
  * content rules are kept at the end (its cards stay in the log).
  */
 import { test } from 'node:test';
@@ -14,14 +15,19 @@ import { CURRICULUM_CHAPTERS, LESSON_CARDS, lessonCardById, LESSONS } from '../s
 import type { LessonCard, LessonMc } from '../src/modules/theory/curriculum.ts';
 import {
   answerMc,
+  CHAPTER_HORIZON,
   cardIdOf,
+  chapterFor,
   contentOf,
   currentLesson,
   EXTRAS,
   extras,
   GRADUATE_STABILITY_DAYS,
+  horizon,
   itemIdOf,
   lessonStates,
+  needsReading,
+  newCardFilter,
   optionsFor,
   rateQa,
   seedTheory,
@@ -216,10 +222,24 @@ test('the numbers in the course check out', () => {
 
 // ----------------------------------------------- curriculum: the module --
 
-test('a new log gets lesson 1 only, silent-pocket cards; the Extras are added switched off; seeding again adds nothing', async () => {
+/** The lessons open for a log with nothing graduated: chapter 1 and the CHAPTER_HORIZON chapters after it. */
+const OPEN = LESSONS.filter((l) => l.chapter <= 1 + CHAPTER_HORIZON);
+const OPEN_IDS = OPEN.flatMap((l) => l.cards.map((c) => cardIdOf(c.id))).sort();
+/** Takes every card of these lessons through three on-time answers (today, minutes later, then days later), so they graduate. */
+async function graduate(host: ModuleHost, lessons: readonly number[], start: string, later: string) {
+  t = ny(start, '13:05');
+  for (const n of lessons) for (const c of LESSONS[n - 1]!.cards) await pass(host, c);
+  t += 11 * 60_000;
+  for (const n of lessons) for (const c of LESSONS[n - 1]!.cards) await pass(host, c);
+  t = ny(later, '13:05');
+  for (const n of lessons) for (const c of LESSONS[n - 1]!.cards) await pass(host, c);
+}
+
+test('a new log gets every open lesson (chapter 1 and three chapters ahead), silent-pocket cards; the Extras are added switched off; seeding again adds nothing', async () => {
   const { replica, host } = await setup();
   const active = host.cards().filter((c) => !c.retired);
-  assert.deepEqual(active.map((c) => c.id).sort(), LESSONS[0]!.cards.map((c) => cardIdOf(c.id)).sort());
+  assert.deepEqual(active.map((c) => c.id).sort(), OPEN_IDS);
+  assert.equal(CHAPTER_HORIZON, 3, 'Blake: two or three chapters ahead; three');
   assert.ok(host.cards().every((c) => c.tags.length === 1 && c.tags[0] === 'pocket-silent'));
   assert.equal(replica.library.items.get(itemIdOf('l01-what-is-sound'))?.fields.lesson, 1);
   assert.deepEqual(extras(host), { total: EXTRAS.length, on: 0 });
@@ -228,38 +248,52 @@ test('a new log gets lesson 1 only, silent-pocket cards; the Extras are added sw
   const n = replica.log.length;
   assert.equal(await seedTheory(host, NY), 0);
   assert.equal(replica.log.length, n, 'idempotent');
-  assert.deepEqual(lessonStates(host, NY).slice(0, 3).map((s) => s.status), ['current', 'locked', 'locked']);
+  const states = lessonStates(host, NY);
+  assert.deepEqual(states.slice(0, 3).map((s) => s.status), ['current', 'open', 'open']);
+  assert.deepEqual(states.filter((s) => s.lesson.chapter === 5).map((s) => s.status), Array(7).fill('locked'));
+  assert.deepEqual(horizon(host, NY), { current: LESSONS[0], chapter: 1, last: 4 });
 });
 
-test('locked means locked: no card of a later lesson is ever served', async () => {
+test('beyond the horizon means locked: chapter 5 is not in the log or served; chapters 1 to 4 are, in teaching order', async () => {
   const { replica } = await setup();
   const ids = served(sessionFor(replica.library, ny('2026-11-02', '13:05')));
   assert.ok(ids.some((id) => id.startsWith('th-l01-')));
-  assert.ok(!ids.some((id) => /^th-l(0[2-9]|[12]\d)-/.test(id)));
+  assert.ok(ids.some((id) => id.startsWith('th-l17-')), 'three chapters ahead of chapter 1 is chapter 4');
+  assert.ok(!ids.some((id) => /^th-l(18|19|2\d)-/.test(id)));
 });
 
-test('graduation: right today is not enough; right again on a later day unlocks the next lesson', async () => {
-  const { replica, host } = await setup();
+test('graduation: right today is not enough; right again on a later day graduates the lesson and the next becomes current', async () => {
+  const { host } = await setup();
   const lesson1 = LESSONS[0]!.cards;
   // Day 1: learn every card (Good, then Good again at the 10-minute step).
   for (const c of lesson1) await pass(host, c);
   t += 11 * 60_000;
   for (const c of lesson1) await pass(host, c);
-  assert.equal(await seedTheory(host, NY), 0, 'not yet');
   assert.equal(currentLesson(host, NY)?.lesson.n, 1);
   assert.equal(currentLesson(host, NY)?.ready, 0, 'stability about 2 days, short of 7');
   // Two days later: right again.
   t = ny('2026-11-04', '13:05');
   for (const c of lesson1.slice(0, -1)) await pass(host, c);
-  assert.equal(await seedTheory(host, NY), 0, 'one card still short: still locked');
+  assert.equal(currentLesson(host, NY)?.lesson.n, 1, 'one card still short');
   await pass(host, lesson1.at(-1)!);
-  assert.equal(await seedTheory(host, NY), LESSONS[1]!.cards.length, 'lesson 2 unlocks');
-  assert.deepEqual(lessonStates(host, NY).slice(0, 3).map((s) => s.status), ['graduated', 'current', 'locked']);
-  assert.equal(replica.library.items.get(itemIdOf('l02-cycle'))?.fields.lesson, 2);
-  assert.equal(await seedTheory(host, NY), 0, 'one lesson at a time: lesson 3 waits for lesson 2');
+  assert.deepEqual(lessonStates(host, NY).slice(0, 3).map((s) => s.status), ['graduated', 'current', 'open']);
+  assert.equal(await seedTheory(host, NY), 0, 'still chapter 1: the horizon has not moved');
 });
 
-test('graduation: a wrong last answer holds the lesson; unlocking is permanent once given', async () => {
+test('the horizon moves with progress: once chapter 1 graduates, chapter 2 is current and chapter 5 opens', async () => {
+  const { replica, host } = await setup();
+  const chapter1 = LESSONS.filter((l) => l.chapter === 1).map((l) => l.n);
+  await graduate(host, chapter1, '2026-11-02', '2026-11-04');
+  assert.equal(currentLesson(host, NY)?.lesson.n, 7);
+  assert.deepEqual(horizon(host, NY), { current: LESSONS[6], chapter: 2, last: 5 });
+  const chapter5 = LESSONS.filter((l) => l.chapter === 5).flatMap((l) => l.cards).length;
+  assert.equal(await seedTheory(host, NY), chapter5, 'chapter 5 opens');
+  assert.equal(await seedTheory(host, NY), 0);
+  assert.ok(host.cards().some((c) => c.id === cardIdOf(LESSONS[17]!.cards[0]!.id) && !c.retired));
+  assert.equal(replica.library.items.get(itemIdOf(LESSONS[17]!.cards[0]!.id))?.fields.lesson, 18);
+});
+
+test('graduation: a wrong last answer holds the lesson; cards already open are never taken away', async () => {
   const { host } = await setup();
   const lesson1 = LESSONS[0]!.cards;
   for (const c of lesson1) await pass(host, c);
@@ -270,7 +304,7 @@ test('graduation: a wrong last answer holds the lesson; unlocking is permanent o
   const first = lesson1[0]!;
   if (first.type === 'qa') ok(await rateQa(host, cardIdOf(first.id), 'again', 3000));
   else ok(await answerMc(host, cardIdOf(first.id), first.wrong[0], 3000));
-  assert.equal(await seedTheory(host, NY), 0, 'the last answer was wrong');
+  assert.equal(currentLesson(host, NY)?.lesson.n, 1, 'the last answer was wrong');
   assert.equal(currentLesson(host, NY)?.ready, lesson1.length - 1);
   // Relearned the same day (its steps). A lapse costs stability, so it takes
   // two more on-time reviews to hold for a week again.
@@ -280,17 +314,29 @@ test('graduation: a wrong last answer holds the lesson; unlocking is permanent o
   await pass(host, first);
   t = ny('2026-11-06', '13:05');
   await pass(host, first);
-  assert.equal(await seedTheory(host, NY), 0, 'not yet: rebuilding after the slip');
+  assert.equal(currentLesson(host, NY)?.lesson.n, 1, 'not yet: rebuilding after the slip');
   t = ny('2026-11-10', '13:05');
   await pass(host, first);
-  assert.ok((await seedTheory(host, NY)) > 0, 'graduates once it holds');
-  // A later slip on lesson 1 does not lock lesson 2 again.
+  assert.equal(currentLesson(host, NY)?.lesson.n, 2, 'graduates once it holds');
+  // A later slip on lesson 1 makes it current again, and takes nothing away.
   t = ny('2026-11-20', '13:05');
   if (first.type === 'qa') ok(await rateQa(host, cardIdOf(first.id), 'again', 3000));
   else ok(await answerMc(host, cardIdOf(first.id), first.wrong[0], 3000));
   await seedTheory(host, NY);
-  assert.equal(lessonStates(host, NY)[1]!.status, 'current');
-  assert.ok(host.cards().some((c) => c.id === cardIdOf('l02-cycle') && !c.retired));
+  assert.equal(lessonStates(host, NY)[0]!.status, 'current');
+  assert.deepEqual(host.cards().filter((c) => !c.retired).map((c) => c.id).sort(), OPEN_IDS);
+});
+
+test('new cards are served only inside the horizon, even for cards already in the log', async () => {
+  const { host } = await setup();
+  const ok4 = newCardFilter(host, NY);
+  assert.equal(ok4(cardIdOf(LESSONS[0]!.cards[0]!.id)), true);
+  assert.equal(ok4(cardIdOf(OPEN.at(-1)!.cards[0]!.id)), true);
+  // A chapter-5 card put in the log by hand (as a device on an older build might have): in the log, but not served as new.
+  await host.addItem(itemIdOf(LESSONS[17]!.cards[0]!.id), { lesson: 18 });
+  await host.addCard(cardIdOf(LESSONS[17]!.cards[0]!.id), itemIdOf(LESSONS[17]!.cards[0]!.id), LESSONS[17]!.cards[0]!.type);
+  assert.equal(newCardFilter(host, NY)(cardIdOf(LESSONS[17]!.cards[0]!.id)), false);
+  assert.equal(newCardFilter(host, NY)(cardIdOf('th-caged')), true, 'cards outside the course are not limited by the horizon');
 });
 
 test(`the rule is FSRS stability of ${GRADUATE_STABILITY_DAYS} days: a Q/A card rated Easy the first time counts at once`, async () => {
@@ -301,7 +347,7 @@ test(`the rule is FSRS stability of ${GRADUATE_STABILITY_DAYS} days: a Q/A card 
   assert.equal(currentLesson(host, NY)?.started, 1);
 });
 
-test('migration from the topic deck: the book cards are retired and the Extras switched off, history kept; lesson 1 added', async () => {
+test('migration from the topic deck: the book cards are retired and the Extras switched off, history kept; the open lessons added', async () => {
   const { replica, host } = await setup(false);
   // The superseded deck as it was seeded on 2026-10-31, with some practice.
   for (const c of DECK) {
@@ -311,10 +357,10 @@ test('migration from the topic deck: the book cards are retired and the Extras s
   ok(await rateQa(host, cardIdOf('db-twice'), 'good', 1000));
   ok(await rateQa(host, cardIdOf('th-caged'), 'good', 1000));
   const added = await seedTheory(host, NY);
-  assert.equal(added, LESSONS[0]!.cards.length);
+  assert.equal(added, OPEN_IDS.length);
   const active = host.cards().filter((c) => !c.retired).map((c) => c.id);
-  assert.deepEqual(active.sort(), LESSONS[0]!.cards.map((c) => cardIdOf(c.id)).sort(), 'only lesson 1 is on');
-  assert.equal(host.cards().length, DECK.length + LESSONS[0]!.cards.length, 'nothing deleted');
+  assert.deepEqual(active.sort(), OPEN_IDS, 'only the open lessons are on');
+  assert.equal(host.cards().length, DECK.length + OPEN_IDS.length, 'nothing deleted');
   assert.equal(replica.library.reviews.get(cardIdOf('db-twice'))?.length, 1, 'history kept');
   assert.deepEqual(extras(host), { total: 17, on: 0 });
   // Switched back on, the Extras stay on across launches.
@@ -360,7 +406,7 @@ test('wrong kinds of answers are refused, write nothing, and never trip the cont
   assert.equal((await answerMc(host, cardIdOf(qa.id), 'x', 1)).ok, false, 'Q/A card answered like mc');
   assert.equal((await answerMc(host, cardIdOf(mc.id), 'Not an option', 1)).ok, false);
   assert.equal((await rateQa(host, cardIdOf('nope'), 'good', 1)).ok, false);
-  assert.equal((await rateQa(host, cardIdOf('l02-cycle'), 'good', 1)).ok, false, 'a locked lesson\'s card is not in the log');
+  assert.equal((await rateQa(host, cardIdOf(LESSONS[17]!.cards[0]!.id), 'good', 1)).ok, false, 'a card beyond the horizon is not in the log');
   assert.equal((await rateQa(host, cardIdOf(qa.id), 'perfect' as 'good', 1)).ok, false);
   assert.equal(replica.log.length, n);
   assert.ok(host.enabled);

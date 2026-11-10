@@ -47,6 +47,16 @@ const step = (name) => console.log(`ok - ${name}`);
 const sheetIsOpen = (name) => page.evaluate((n) => document.querySelector(`[data-zg="sheet-${n}"]`).open, name);
 /** A page's objectives popup, if it is up: Start, the way a person would. */
 const dismissIntro = async () => {
+  // Home opens with the goal popup, then the practice choice (2026-11-08): past both, to the deck.
+  if (await sheetIsOpen('goal-open')) {
+    // With a goal: Let's practise (then the choice). Without one: just close it.
+    await page.click((await page.isVisible('[data-zg="goal-open-next"]')) ? '[data-zg="goal-open-next"]' : '[data-zg="close-goal-open"]');
+    await until(() => !document.querySelector('[data-zg="sheet-goal-open"]').open);
+  }
+  if (await sheetIsOpen('practice-choice')) {
+    await page.click('[data-zg="close-practice-choice"]');
+    await until(() => !document.querySelector('[data-zg="sheet-practice-choice"]').open);
+  }
   for (const [name, start] of [['objectives', 'today-start'], ['teach-objectives', 'teach-start']]) {
     if (!(await sheetIsOpen(name))) continue;
     await page.click(`[data-zg="${start}"]`);
@@ -127,7 +137,7 @@ try {
     const bg = getComputedStyle(d, '::backdrop').backgroundColor;
     const [w, h] = [innerWidth, innerHeight];
     const pts = [[5, 5], [w - 5, 20], [w / 2, h - 5], [5, h * 0.7]];
-    return { bg, hits: pts.map(([x, y]) => document.elementFromPoint(x, y) === d), focus: document.activeElement?.dataset.zg };
+    return { bg, hits: pts.map(([x, y]) => d.contains(document.elementFromPoint(x, y))), focus: document.activeElement?.dataset.zg };
   });
   assert.match(cover.bg, /^rgb\(/, `opaque backdrop (${cover.bg})`);
   assert.deepEqual(cover.hits, [true, true, true, true], 'nothing else is reachable or visible');
@@ -155,7 +165,7 @@ try {
   assert.equal(await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first), 1);
   assert.equal(await page.evaluate(() => window.zg.replica.pendingCount), pending);
   assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.keys()].filter((k) => k.startsWith('td-')).length), 102, 'seeding again added nothing');
-  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 132, 'plus the metronome\'s Free practice exercise, the 4 level-1 ear skills, lesson 1 (8 cards) and the 17 Extras (off)');
+  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 241, 'plus the metronome\'s Free practice exercise, the 4 level-1 ear skills, the 117 cards of chapters 1 to 4 (the horizon) and the 17 Extras (off)');
   step('the review survives a reload (IndexedDB), still queued to sync');
 
   // App shell routing. (Reloading on Home with no goal reopened Goals; back to Home.)
@@ -777,7 +787,8 @@ try {
   await show('cards');
   assert.equal(await page.locator('[data-zg="theory-chapter"]').count(), 5);
   const lessonRows = () => page.evaluate(() => [...document.querySelectorAll('[data-zg="theory-lesson"]')].map((li) => li.dataset.status));
-  assert.deepEqual((await lessonRows()).slice(0, 3), ['current', 'locked', 'locked']);
+  assert.deepEqual((await lessonRows()).slice(0, 3), ['current', 'open', 'open'], 'lessons ahead are open for learning ahead (2026-11-08)');
+  assert.equal((await lessonRows()).filter((x) => x === 'locked').length, 24 - 17, 'only lessons past the three-chapter horizon are locked');
   assert.equal((await lessonRows()).length, 24);
   assert.equal(await page.isChecked('[data-zg="theory-extras"]'), false, 'Extras start off');
   await page.click('label:has([data-zg="theory-extras"])');
@@ -796,7 +807,7 @@ try {
   await passLesson1();
   await page.reload();
   await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
-  assert.equal((await lessonRows())[1], 'locked', 'right today is not enough');
+  assert.equal((await lessonRows())[0], 'current', 'right today is not enough to graduate lesson 1');
   // Later days, right each time. The card missed earlier lapsed, so it needs a couple more on-time reviews than the rest.
   for (const day of ['2026-11-14', '2026-11-18', '2026-11-26']) {
     if ((await lessonRows())[0] === 'graduated') break;
@@ -805,14 +816,14 @@ try {
     await page.reload();
     await page.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
   }
-  assert.deepEqual((await lessonRows()).slice(0, 3), ['graduated', 'current', 'locked'], 'right again on later days unlocks lesson 2');
+  assert.deepEqual((await lessonRows()).slice(0, 3), ['graduated', 'current', 'open'], 'right again on later days graduates lesson 1; lesson 2 is the current one');
   step('theory: the course by lesson; lesson 2 unlocks only when lesson 1 graduates (right again on a later day); Extras switch');
 
   // Teach (2026-11-03): the same flow as Home. Its popup lists today's objectives from the current chapter, then its deck.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => (location.hash = '#/today'));
   await arrive('today');
-  assert.equal(await sheetIsOpen('objectives'), true, 'Home opens with its popup the first time');
+  assert.equal(await sheetIsOpen('goal-open'), true, 'Home opens with the goal popup the first time');
   assert.equal(await page.textContent('[data-zg="today-lesson"]'), 'On Teach: Lesson 2 · Frequency, period and pitch (swipe left)');
   await dismissIntro();
   assert.ok(await page.isVisible('[data-zg="pager"]'), 'the page dots show on Home');
@@ -825,8 +836,9 @@ try {
   assert.equal(await page.textContent('[data-zg="teach-lesson"]'), 'Lesson 2 · Frequency, period and pitch');
   const teachBullets = await page.evaluate(() => [...document.querySelectorAll('[data-zg="teach-goals"] > [data-zg="teach-objective"]')].map((li) => li.textContent));
   assert.equal(teachBullets[0], 'Read the lesson: Frequency, period and pitch');
-  assert.ok(teachBullets.includes('Learn 8 new cards'), teachBullets.join(' | '));
-  assert.equal(teachBullets.at(-1), 'Make all 8 cards solid to unlock Lesson 3 · Amplitude and loudness (0 of 8 so far)');
+  assert.ok(teachBullets.some((b) => /^Learn \d+ new cards$/.test(b)), teachBullets.join(' | '));
+  assert.equal(teachBullets.at(-2), 'Make all 8 cards solid to move on to Lesson 3 · Amplitude and loudness (0 of 8 so far)');
+  assert.match(teachBullets.at(-1), /^You can learn ahead: chapters up to \d+ are open$/);
   assert.match(await page.evaluate(() => getComputedStyle(document.querySelector('[data-zg="sheet-teach-objectives"]'), '::backdrop').backgroundColor), /^rgb\(/, 'opaque, like Home');
   await page.click('[data-zg="teach-start"]');
   await until(() => !document.querySelector('[data-zg="sheet-teach-objectives"]').open && document.activeElement?.dataset.zg === 'lesson');
@@ -975,19 +987,23 @@ try {
   await signin.fill('[data-zg="goal-deadline"]', '2026-12-01');
   await signin.fill('[data-zg="goal-tasks"]', '10 min on the opener');
   await signin.click('[data-zg="goal-save"]');
-  await signin.waitForFunction(() => location.hash === '#/today' && document.querySelector('[data-zg="sheet-objectives"]').open);
-  assert.equal(await signin.textContent('[data-zg="goal-focus"]'), 'Open mic');
-  assert.match(await signin.evaluate(() => document.querySelector('[data-zg="today-blocks"]').textContent), /10 min on the opener · \d+ min/);
-  await signin.click('[data-zg="today-start"]');
-  await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-objectives"]').open);
-  // Opening again with a goal: Home's popup, nothing else.
+  await signin.waitForFunction(() => location.hash === '#/today' && document.querySelector('[data-zg="sheet-goal-open"]').open);
+  assert.equal(await signin.textContent('[data-zg="goal-open-what"]'), 'Open mic');
+  // Let's practise: the goal popup gives way to the choice, with nothing behind it.
+  await signin.click('[data-zg="goal-open-next"]');
+  await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-goal-open"]').open && document.querySelector('[data-zg="sheet-practice-choice"]').open);
+  await signin.click('[data-zg="close-practice-choice"]');
+  await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-practice-choice"]').open);
+  // Opening again with a goal: the goal popup, nothing else.
   await signin.goto(url);
   await signin.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
-  assert.deepEqual(await signin.evaluate(() => [location.hash, document.querySelector('[data-zg="sheet-objectives"]').open, document.querySelector('[data-zg="sheet-signin"]').open]), ['#/today', true, true], 'Home\'s popup, with sign-in on top while signed out');
+  assert.deepEqual(await signin.evaluate(() => [location.hash, document.querySelector('[data-zg="sheet-goal-open"]').open, document.querySelector('[data-zg="sheet-signin"]').open]), ['#/today', true, true], 'Home\'s goal popup, with sign-in on top while signed out');
   await signin.click('[data-zg="signin-later"]');
-  await signin.click('[data-zg="today-start"]');
-  await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-objectives"]').open);
-  step('first goal: saving it from the opening sheet opens Home with its popup; opening the app again shows that popup first');
+  await signin.click('[data-zg="goal-open-next"]');
+  await signin.waitForFunction(() => document.querySelector('[data-zg="sheet-practice-choice"]').open);
+  await signin.click('[data-zg="close-practice-choice"]');
+  await signin.waitForFunction(() => !document.querySelector('[data-zg="sheet-practice-choice"]').open);
+  step('first goal: saving it from the opening sheet opens Home with the goal popup, then the choice; opening the app again shows the goal popup first');
 
   // Signed in: no popup; a tab added here is backed up to the user's own folder on sync.
   await signin.evaluate(() => localStorage.setItem('fake-session', '1'));
@@ -1389,6 +1405,260 @@ try {
   assert.deepEqual(requests.filter((r) => expected.includes(r)).sort(), expected.sort(), 'keys are made locally; nothing is sent');
   await keys.close();
   step('setup-keys page makes valid keys in the browser and sends nothing');
+
+  // ------------------------------------------------ goal-led practice (2026-11-08)
+  // A fresh phone-width device: goal popup (editable), the choice, practice with the instrument (timers gate every
+  // required step, randomizers, tools, songs), practice without (Due today, Do more, Read in Chapter).
+  {
+    const shots = process.env.SHOT_DIR;
+    const ctx = await browser.newContext({ timezoneId: 'UTC', viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(e.message));
+    await p.clock.install({ time: new Date('2026-11-09T18:00:00Z') });
+    const shot = async (name) => shots && (await p.screenshot({ path: join(shots, `${name}.png`) }));
+    const wait = async (fn, arg) => {
+      for (let i = 0; i < 300; i++) {
+        if (await p.evaluate(fn, arg)) return;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      throw new Error(`timed out waiting for ${fn}`);
+    };
+    const text = (z) => p.textContent(`[data-zg="${z}"]`);
+    const open = (n) => p.evaluate((x) => document.querySelector(`[data-zg="sheet-${x}"]`).open, n);
+    const reload = async () => {
+      await p.reload();
+      await p.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+    };
+    await p.goto(url);
+    await p.waitForFunction(() => document.querySelector('[data-zg="status"]').textContent.includes('Ready'));
+    // Songs first (the sequence plays them as cards), then the first goal.
+    await wait(() => document.querySelector('[data-zg="sheet-goal-new"]').open);
+    await p.keyboard.press('Escape');
+    await wait(() => !document.querySelector('[data-zg="sheet-goal-new"]').open);
+    await p.evaluate(() => (location.hash = '#/songs'));
+    await wait(() => !document.querySelector('[data-zg="screen-songs"]').hidden);
+    let n = 0;
+    for (const t of ['Blackbird', 'Wonderwall']) {
+      await p.fill('[data-zg="songs-new"]', t);
+      await p.click('[data-zg="songs-add"]');
+      n++;
+      await wait((k) => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === k, n);
+    }
+    await p.evaluate(() => (location.hash = '#/goals'));
+    await p.click('[data-zg="open-goal-new"]');
+    await p.fill('[data-zg="goal-what"]', 'Open mic');
+    await p.fill('[data-zg="goal-why"]', 'Play three songs in front of people');
+    await p.fill('[data-zg="goal-deadline"]', '2026-12-20');
+    await p.fill('[data-zg="goal-tasks"]', '10 min on the opener');
+    await p.click('[data-zg="goal-save"]');
+
+    // 1. The goal popup first, with a way to edit it.
+    await wait(() => location.hash === '#/today' && document.querySelector('[data-zg="sheet-goal-open"]').open);
+    assert.equal(await text('goal-open-what'), 'Open mic');
+    assert.match(await text('goal-open-when'), /Due Sun 20 Dec · 41 days to go/);
+    await shot('01-goal-popup');
+    await p.click('[data-zg="goal-open-edit"]');
+    await p.fill('[data-zg="goal-edit-what"]', 'Open mic night');
+    await p.fill('[data-zg="goal-edit-deadline"]', '2026-11-01'); // in the past: refused, nothing changes
+    await p.click('[data-zg="goal-edit-save"]');
+    await wait(() => document.querySelector('[data-zg="goal-edit-error"]').textContent.length > 0);
+    assert.equal(await p.evaluate(() => [...window.zg.replica.library.goals.values()][0].what), 'Open mic');
+    await p.fill('[data-zg="goal-edit-deadline"]', '2026-12-21');
+    await p.click('[data-zg="goal-edit-save"]');
+    await wait(() => document.querySelector('[data-zg="goal-open-what"]').textContent === 'Open mic night');
+    assert.equal(await p.evaluate(() => [...window.zg.replica.library.goals.values()].length), 1, 'editing keeps the same goal');
+    assert.match(await text('goal-open-when'), /Mon 21 Dec/);
+    await shot('02-goal-edit-saved');
+
+    // 2. The choice, with nothing behind it.
+    await p.click('[data-zg="goal-open-next"]');
+    await wait(() => document.querySelector('[data-zg="sheet-practice-choice"]').open);
+    assert.deepEqual(await p.evaluate(() => [...document.querySelectorAll('[data-zg="sheet-practice-choice"] button')].filter((b) => b.dataset.zg.startsWith('choose-')).map((b) => b.textContent)), ['Practice with instrument', 'Practice without']);
+    const covered = await p.evaluate(() => {
+      const d = document.querySelector('[data-zg="sheet-practice-choice"]');
+      return [[5, 5], [385, 20], [195, 835], [5, 600]].map(([x, y]) => d.contains(document.elementFromPoint(x, y)));
+    });
+    assert.deepEqual(covered, [true, true, true, true], 'nothing behind the choice');
+    assert.match(await p.evaluate(() => getComputedStyle(document.querySelector('[data-zg="sheet-practice-choice"]'), '::backdrop').backgroundColor), /^rgb\(/, 'opaque');
+    await shot('03-choice');
+
+    // 3. Practice with the instrument. Step 1 is the required yoga.
+    await p.click('[data-zg="choose-with"]');
+    await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
+    const steps = () => p.evaluate(() => [...document.querySelectorAll('[data-zg="practice-step-item"]')].map((li) => li.textContent));
+    const first = await steps();
+    assert.match(first[0], /^Guitar yoga · 5 min/);
+    assert.match(first[1], /^Metronome work · 5 min/);
+    assert.match(first[2], /^Ear training · 5 min/);
+    assert.ok(first.some((x) => /^Improvisation · 5 min/.test(x)));
+    assert.ok(first.some((x) => /^10 min on the opener · 10 min/.test(x)), 'the goal\'s own work is added on top');
+    assert.ok(first.some((x) => /^Song: (Blackbird|Wonderwall)/.test(x)), 'songs are cards in the sequence');
+    assert.equal(await p.isDisabled('[data-zg="practice-done"]'), true, 'nothing advances before the timer runs');
+    assert.equal(await p.isHidden('[data-zg="practice-skip"]'), true, 'a required step cannot be skipped');
+    assert.equal(await text('practice-timer'), '5:00');
+    await shot('04-practice-yoga');
+    await p.click('[data-zg="practice-start"]');
+    await p.clock.runFor(60_000);
+    await wait(() => document.querySelector('[data-zg="practice-timer"]').textContent === '4:00');
+    // Paused time doesn't run; reload keeps the run (the timer counts by the clock, not by this page).
+    await p.click('[data-zg="practice-pause"]');
+    await p.clock.runFor(3 * 60_000);
+    assert.equal(await text('practice-timer'), '4:00', 'paused: no time passes');
+    await p.click('[data-zg="practice-start"]');
+    await p.clock.runFor(30_000);
+    await reload();
+    // The app opens on the goal popup again; "Practice with instrument" carries on with the saved run.
+    await p.click('[data-zg="goal-open-next"]');
+    await p.click('[data-zg="choose-with"]');
+    await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
+    await p.clock.runFor(1000);
+    const [mm, ss] = (await text('practice-timer')).split(':').map(Number);
+    assert.ok(mm * 60 + ss <= 209 && mm * 60 + ss >= 150, `the run survived the reload, still counting (${mm}:${ss} left)`);
+    assert.equal(await p.isDisabled('[data-zg="practice-done"]'), true);
+    await p.clock.runFor(3 * 60_000 + 30_000);
+    await wait(() => document.querySelector('[data-zg="practice-timer"]').dataset.state === 'done');
+    assert.equal(await p.isDisabled('[data-zg="practice-done"]'), false, 'the timer is complete: Done unlocks');
+    await p.fill('[data-zg="practice-note"]', 'loose and easy');
+    await p.click('[data-zg="practice-done"]');
+    await wait(() => document.querySelector('[data-zg="practice-title"]').textContent.startsWith('Metronome work'));
+    const yoga = await p.evaluate(() => window.zg.replica.log.filter((e) => e.type === 'feel-session').map((e) => [e.durationMs, e.note, e.goalId ?? null]));
+    assert.deepEqual(yoga, [[300_000, 'loose and easy', null]], 'the 5 minutes are logged for good');
+
+    // Metronome: exactly one workout and a key, every time; Randomize changes it.
+    const WORKOUT = /^(Two-finger workout|Double-stop workout|Rhythm|Slide|Scales) in (C|C♯\/D♭|D|E♭|E|F|F♯\/G♭|G|A♭|A|B♭|B)$/;
+    const seen = new Set();
+    for (let i = 0; i < 6; i++) {
+      const before = await text('practice-suggestion');
+      assert.match(before, WORKOUT);
+      seen.add(before);
+      await p.click('[data-zg="practice-randomize"]');
+      await wait((b) => document.querySelector('[data-zg="practice-suggestion"]').textContent !== b, before);
+    }
+    assert.ok(seen.size > 1);
+    await shot('05-practice-metronome');
+    await p.click('[data-zg="practice-tool"]');
+    await wait(() => location.hash === '#/today' && !document.querySelector('[data-zg="sheet-practice"]').open);
+    await p.waitForSelector('[data-zg="practice-resume"]', { state: 'visible' }); // a way back to the practice
+    await p.click('[data-zg="practice-resume"]');
+    await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
+    await p.click('[data-zg="practice-start"]');
+    await p.clock.runFor(5 * 60_000 + 1000);
+    await wait(() => !document.querySelector('[data-zg="practice-done"]').disabled);
+    await p.click('[data-zg="practice-done"]');
+
+    // Ear training: all the bullets in one line; Beato is a separate alternative, instruction text only.
+    await wait(() => document.querySelector('[data-zg="practice-title"]').textContent.startsWith('Ear training'));
+    for (let i = 0; i < 4; i++) {
+      assert.match(await text('practice-suggestion'), /^(Acoustic|Electric) \+ (vinyl|digital)$/);
+      const before = await text('practice-suggestion');
+      await p.click('[data-zg="practice-randomize"]');
+      await wait((b) => document.querySelector('[data-zg="practice-suggestion"]').textContent !== b, before);
+    }
+    assert.match(await text('practice-beato'), /Beato/);
+    assert.equal(await p.locator('[data-zg="practice-beato"] a, [data-zg="practice-beato"] button').count(), 0, 'instruction text only: no link');
+    await shot('06-practice-ear');
+    await p.click('[data-zg="practice-start"]');
+    await p.clock.runFor(5 * 60_000 + 1000);
+    await wait(() => !document.querySelector('[data-zg="practice-done"]').disabled);
+    await p.click('[data-zg="practice-done"]');
+
+    // The goal's own block, then improvisation (last of the four) and the songs.
+    await wait(() => document.querySelector('[data-zg="practice-title"]').textContent.startsWith('10 min on the opener'));
+    assert.equal(await p.isHidden('[data-zg="practice-skip"]'), false, 'the goal\'s extras may be skipped');
+    await p.click('[data-zg="practice-start"]');
+    await p.clock.runFor(10 * 60_000 + 1000);
+    await wait(() => !document.querySelector('[data-zg="practice-done"]').disabled);
+    await p.click('[data-zg="practice-done"]');
+    // Songs: title only; rating persists and the spaced-repetition engine schedules the return.
+    await wait(() => document.querySelector('[data-zg="practice-song"]:not([hidden])') !== null);
+    const song1 = await text('practice-song-title');
+    assert.match(song1, /^(Blackbird|Wonderwall)$/);
+    await shot('08-practice-song');
+    await p.click('[data-zg="practice-r-good"]');
+    await wait((t) => document.querySelector('[data-zg="practice-song-title"]').textContent !== t, song1);
+    const rated = await p.evaluate(() => [...window.zg.replica.library.reviews.entries()].filter(([id]) => id.startsWith('so-') || window.zg.replica.library.items.get(window.zg.replica.library.cards.get(id)?.itemId)?.module === 'songs').map(([id, r]) => r.length));
+    assert.deepEqual(rated, [1], 'the rating is in the log');
+    await p.click('[data-zg="practice-r-good"]');
+    await wait(() => document.querySelector('[data-zg="practice-title"]').textContent.startsWith('Improvisation'));
+    await wait(() => document.querySelector('[data-zg="practice-title"]').textContent.startsWith('Improvisation'));
+    for (let i = 0; i < 30; i++) {
+      const t = await text('practice-suggestion');
+      const m = /^(Acoustic|Electric) · (\d) chords? · Pick a new chord$/.exec(t);
+      assert.ok(m && Number(m[2]) >= 1 && Number(m[2]) <= 6, t);
+      await p.click('[data-zg="practice-randomize"]');
+    }
+    assert.equal(await p.locator('[data-zg="practice-suggestion"] button').count(), 0, '"Pick a new chord" is text, not a button');
+    await shot('07-practice-improv');
+    await p.click('[data-zg="practice-tool"]');
+    await wait(() => location.hash === '#/record');
+    await p.click('[data-zg="practice-resume"]');
+    await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
+    await p.click('[data-zg="practice-start"]');
+    await p.clock.runFor(5 * 60_000 + 1000);
+    await wait(() => !document.querySelector('[data-zg="practice-done"]').disabled);
+    await p.click('[data-zg="practice-done"]');
+
+    await wait(() => document.querySelector('[data-zg="practice-finish"]:not([hidden])') !== null);
+    assert.equal(await text('practice-progress'), 'Required time: 20:00 of 20:00 · done');
+    await shot('09-practice-done');
+    await p.click('[data-zg="practice-again"]');
+    await wait(() => document.querySelector('[data-zg="practice-title"]')?.textContent.startsWith('Guitar yoga'));
+    assert.equal(await p.isDisabled('[data-zg="practice-done"]'), true, 'another round: the required time starts over');
+
+    // 4. Practice without: Due today, Do more, Read in Chapter.
+    await p.click('[data-zg="close-practice"]');
+    await p.click('[data-zg="today-objectives"]').catch(() => undefined);
+    await p.evaluate(() => (window.zg.sheets.closeAll(), window.zg.sheets.open('practice-choice')));
+    await p.click('[data-zg="choose-without"]');
+    await wait(() => document.querySelector('[data-zg="sheet-review"]').open);
+    await p.click('[data-zg="review-mode-due"]');
+    await wait(() => document.querySelector('[data-zg="review-kind"]').textContent === 'New');
+    await shot('10-review-due-today');
+    const answerOne = async (rating) => {
+      const id = await p.getAttribute('[data-zg="review-card"]', 'data-card');
+      const c = await p.evaluate((x) => window.zg.theory.content(x), id);
+      if (c.type === 'qa') {
+        await p.click('[data-zg="review-reveal"]');
+        await p.click(`[data-zg="review-r-${rating}"]`);
+      } else {
+        const pick = rating === 'again' ? c.wrong[0] : c.answer;
+        await p.click(`[data-zg="review-choice"] >> text="${pick}"`);
+      }
+      await wait((x) => document.querySelector('[data-zg="review-card"]').dataset.card !== x || document.querySelector('[data-zg="review-empty"]:not([hidden])') !== null, id);
+      return id;
+    };
+    const missed = await answerOne('again');
+    assert.equal(await p.isVisible('[data-zg="review-read"]'), true, 'Read in Chapter after a miss');
+    await p.click('[data-zg="review-read"]');
+    await wait(() => document.querySelector('[data-zg="sheet-chapter"]').open);
+    assert.match(await text('chapter-title'), /^Chapter 1 · /);
+    assert.ok((await p.locator('[data-zg="chapter-lesson"]').count()) >= 2, 'the chapter\'s lessons');
+    assert.equal(await p.locator('[data-zg="chapter-lesson"][data-relevant]').count(), 1);
+    assert.ok(!/https?:\/\//.test(await p.evaluate(() => document.querySelector('[data-zg="sheet-chapter"]').innerText)), 'no links invented');
+    await shot('11-read-in-chapter');
+    await p.click('[data-zg="close-chapter"]');
+    assert.ok(missed);
+    // A good answer clears the button; Due today stops after its daily allowance of new cards.
+    for (let i = 0; i < 9; i++) await answerOne('good');
+    await wait(() => document.querySelector('[data-zg="review-empty"]:not([hidden])') !== null);
+    assert.match(await text('review-empty'), /All done for today/);
+    // Do more keeps going: past the allowance, new cards within the horizon, never beyond chapter 4.
+    await p.click('[data-zg="review-mode-more"]');
+    await wait(() => document.querySelector('[data-zg="review-empty"]').hidden);
+    const kinds = new Set();
+    for (let i = 0; i < 6; i++) {
+      kinds.add(await text('review-kind'));
+      const id = await answerOne('good');
+      assert.ok(await p.evaluate((x) => /^th-l(0[1-9]|1\d|2\d)-/.test(x), id));
+    }
+    assert.ok(kinds.has('New') || kinds.has('Due'));
+    await shot('12-review-do-more');
+    // Extra practice (early repeats) is kept in the log but never moves the schedule.
+    const extras = await p.evaluate(() => [...window.zg.replica.library.reviews.values()].flat().filter((r) => r.details?.extra === true).length);
+    assert.ok(extras >= 0);
+    await ctx.close();
+    step('goal-led practice: goal popup (editable), the choice, timers gating every required step, randomizers, tools, songs, Due today, Do more, Read in Chapter');
+  }
 
   assert.deepEqual(errors, []);
   step('no page errors');

@@ -28,6 +28,20 @@ const STATIC = [
   'teach', 'teach-progress', 'teach-objectives', 'lesson', 'lesson-reading', 'lesson-title', 'lesson-text',
   'teach-deck', 'teach-status', 'teach-card', 'teach-question', 'teach-answer', 'teach-choices', 'teach-feedback', 'teach-reveal', 'teach-rate',
   'teach-chapter', 'teach-lesson', 'teach-goals', 'teach-start',
+  // goal-led practice (2026-11-08): the goal popup that opens Home, with its edit form
+  'goal-open-view', 'goal-open-set', 'goal-open-what', 'goal-open-when', 'goal-open-why', 'goal-open-edit', 'goal-open-next', 'goal-open-form',
+  'goal-edit-what', 'goal-edit-why', 'goal-edit-deadline', 'goal-edit-save', 'goal-edit-cancel', 'goal-edit-error',
+  // the choice, with nothing behind it
+  'choose-with', 'choose-without',
+  // practice with the instrument: the sequence, its global timer bar, the step on show, the song on show, the end
+  'practice-goal', 'practice-bar', 'practice-progress', 'practice-steps', 'practice-step', 'practice-title', 'practice-text', 'practice-suggestion',
+  'practice-beato', 'practice-randomize', 'practice-timer', 'practice-start', 'practice-pause', 'practice-tool', 'practice-note', 'practice-done',
+  'practice-skip', 'practice-error', 'practice-song', 'practice-song-title', 'practice-song-note', 'practice-song-skip', 'practice-finish',
+  'practice-again', 'practice-choose-again', 'practice-resume',
+  // practice without: Due today / Do more, the card, Read in Chapter
+  'review-mode-due', 'review-mode-more', 'review-counts', 'review-stage', 'review-deck', 'review-empty', 'review-kind', 'review-card', 'review-question',
+  'review-answer', 'review-choices', 'review-feedback', 'review-reveal', 'review-rate', 'review-read', 'review-choose-again', 'card-read', 'teach-read',
+  'chapter-title', 'chapter-card', 'chapter-lessons',
   // settings: quiet hours
   'quiet-start', 'quiet-end', 'save-quiet',
   // practice now
@@ -81,6 +95,8 @@ export type Hook =
   | `mx-vol-${(typeof MX_VOICES)[number]}`
   | `r-${(typeof RATINGS)[number]}`
   | `teach-r-${(typeof RATINGS)[number]}`
+  | `review-r-${(typeof RATINGS)[number]}`
+  | `practice-r-${(typeof RATINGS)[number]}`
   | `pager-${(typeof PAGES)[number]}`;
 
 /** Hooks that must each appear exactly once in index.html. */
@@ -96,6 +112,8 @@ export const HOOKS: readonly Hook[] = [
   ...MX_VOICES.map((v) => `mx-vol-${v}` as const),
   ...RATINGS.map((r) => `r-${r}` as const),
   ...RATINGS.map((r) => `teach-r-${r}` as const),
+  ...RATINGS.map((r) => `review-r-${r}` as const),
+  ...RATINGS.map((r) => `practice-r-${r}` as const),
   ...PAGES.map((p) => `pager-${p}` as const),
 ];
 
@@ -108,7 +126,9 @@ export const CREATED_HOOKS = ['block', 'block-done', 'block-ladder', 'notify-win
   // 2026-11-03 (band members): a member's song row (when it is next due for him, his ratings); invites and members in Settings
   'song-due', 'song-rate', 'band-invite-row', 'band-invite-revoke', 'band-member-row', 'band-member-remove', 'band-member-delete',
   // 2026-11-03: each step of the walk-through for putting the app on a phone
-  'install-step'] as const;
+  'install-step',
+  // 2026-11-08: a step in the practice sequence; a lesson in a chapter's reading; the review's multiple-choice options
+  'practice-step-item', 'chapter-lesson', 'review-choice'] as const;
 
 /** Finds a hooked element; throws if it is missing, so a broken page fails loudly. */
 export function hook<T extends HTMLElement = HTMLInputElement>(name: Hook, root: ParentNode = document): T {

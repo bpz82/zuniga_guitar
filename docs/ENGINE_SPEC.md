@@ -192,3 +192,25 @@ Source: `docs/decisions-2026-10-30.md`. Where these conflict with the text above
 | Swipe (2026-11-03): swiping from or to screens other than Home and Teach | Asked for Home and Teach only; the menu reaches the rest. |
 | Layout: dark mode | The theme is light only now (Blake asked for lighter). A dark variant can come back as tokens under `prefers-color-scheme: dark`. |
 | Layout: swipe gestures (swipe a sheet down, swipe between tabs) | Sheets close by Escape, backdrop tap, close button or leaving the screen. Swipe needs touch-gesture code; not asked for. |
+
+
+## Goal-led practice (Blake, 2026-11-08)
+
+Blake approved a redesign of Home and Teach around the current goal. Everything below is pure engine (`src/`) with the screens in `harness/home/practice-ui.ts`; no new event types and no SQL migration were needed (production Supabase is untouched).
+
+**Teach: guided exploration.** Lessons no longer lock one at a time. A lesson is `graduated`, `current` (the first not graduated), `open` (any lesson up to `CHAPTER_HORIZON` = 3 chapters ahead of the current lesson's chapter) or `locked` (further ahead). Open lessons are seeded and their cards can be reviewed; graduation (right again on a later day) still moves the current lesson on. New cards are only ever served inside the horizon (`newCardFilter`); once they run out, review continues with repeats. After Hard or Don't know (Again, or a wrong multiple-choice answer) a "Read in Chapter" button opens the card's chapter (`chapterFor`): the lessons' own readings, in our own words, the card's lesson first. There are no links and no copied chapter text.
+
+**Extra practice never corrupts the scheduler.** A card reviewed while learned and not due is early practice: its review carries `details.extra = true`. It is kept in the log for good but ignored by the scheduler and by graduation (`scheduledReviews`, `isExtraReview`), so extra repeats cannot lower a card's stability or move its due date.
+
+**Home opens with the goal.** First a popup with the current goal and a way to edit it (`changeGoal`, a new `goal-set` for the same goal id; refuses an archived goal or a past deadline), then, with nothing behind it, two choices: **Practice with instrument** and **Practice without**. (Home's old objectives popup is still reachable from its button.)
+
+**Practice with instrument** (`planPractice`, `src/practice.ts`): one flowing sequence of cards. Always, whatever the goal: guitar yoga, metronome work, ear training and improvisation, **5 minutes each, 20 minutes at least**; the goal's own timed work is added on top, then the songs (as title-only cards, rated Again/Hard/Good/Easy through the songs scheduler; due ones come back, never-rated ones are introduced a few at a time), and improvisation last. Each timed step has a built-in timer (wall clock, so a reload or a locked screen loses nothing; the run is saved on the device and checked on load). A step can be finished only when it is the step in front and its timer has run; required steps cannot be skipped. A finished step is recorded with the existing validated events (`feel-session` for yoga, `task-done` for the rest). A global bar shows the required time done of 20 minutes.
+
+Randomizers (seeded, injectable, and "Randomize" always changes the result):
+- Metronome: exactly one of two-finger workout, double-stop workout, rhythm, slide, scales, plus a key (12) every time.
+- Ear training: all the card's bullets together ("Electric + vinyl": acoustic/electric and vinyl/digital). Beato is a separate alternative shown as instruction text only.
+- Improvisation: opens the recording module; acoustic/electric, a whole number of chords from 1 to 6, and the on-screen text "Pick a new chord" (text, not a button or a chord generator).
+
+**Practice without** (`nextReview`, `src/review.ts`): flashcards only. **Due today**: every due card, then new cards up to `DAILY_NEW_CARDS` (10) a day, then it stops. **Do more**: due cards, then new cards (no daily limit, inside the horizon), then, once new cards are exhausted, repeats of learned cards (least remembered first, round and round with no end) logged as extra practice.
+
+Persistence: ratings are events in the append-only log; the run (timers, picks) is a small value in local storage, validated by `parseRun`; anything wrong gives a fresh run.

@@ -4,19 +4,11 @@
  * and the bullet points of the popup that opens Home. The DOM side is in
  * main.ts.
  */
-import { daysBetween, isActive, practiceDay, sessionFor, todayBlocks } from '../../src/index.ts';
+import { daysBetween, focusGoal, practiceDay, sessionFor, todayBlocks } from '../../src/index.ts';
 import type { BlockSegment, Goal, Library, ReviewSegment } from '../../src/index.ts';
 
-/**
- * The goal on top: the live goal with the nearest deadline (then the heavier
- * one, then the oldest id, so the choice is stable). Null with no live goal.
- */
-export function focusGoal(library: Library, today: string): { goal: Goal; others: number } | null {
-  const live = [...library.goals.values()].filter((g) => isActive(g, today));
-  live.sort((a, b) => a.deadline.localeCompare(b.deadline) || b.weight - a.weight || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const goal = live[0];
-  return goal ? { goal, others: live.length - 1 } : null;
-}
+// The goal on top moved to the engine (src/goals.ts, 2026-11-08) so the practice plan can use it.
+export { focusGoal };
 
 /** "Fri 13 Nov · 11 days to go", "Tomorrow", "Today". Dates are calendar days ("YYYY-MM-DD"). */
 export function goalWhen(goal: Goal, today: string): string {

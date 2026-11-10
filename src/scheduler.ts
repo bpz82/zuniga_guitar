@@ -81,6 +81,18 @@ export function usesSteps(library: Library, cardId: string): boolean {
 }
 
 /**
+ * Extra reviews (Blake, 2026-11-08): a card reviewed again before it was due,
+ * only to practise more ("Do more"), is logged with details { extra: true }.
+ * The log keeps it for good, but it is not fed to FSRS: an early rep can
+ * never lower a card's stability or move its due date. A card's first review
+ * is never extra.
+ */
+export const isExtraReview = (r: Pick<EventOf<'review'>, 'details'>): boolean => r.details?.extra === true;
+
+/** The reviews that count for scheduling: all but the extra ones. */
+export const scheduledReviews = (reviews: readonly EventOf<'review'>[]): EventOf<'review'>[] => reviews.filter((r) => !isExtraReview(r));
+
+/**
  * Replays one card's reviews (oldest first) into its memory state.
  * `retention` affects only `due`. `dayStart` decides which reviews count as
  * the same day (FSRS treats same-day repeats differently). `steps: false`
@@ -94,6 +106,7 @@ export function memoryOf(
   steps = true,
 ): Memory {
   const f = schedulerFor(retention, steps);
+  reviews = scheduledReviews(reviews);
   const first = reviews[0];
   const last = reviews.at(-1);
   if (first === undefined || last === undefined) {

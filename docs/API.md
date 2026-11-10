@@ -410,3 +410,15 @@ await logSession(host, { cardId, workout, startTempo, tempo, bars, durationMs, c
 ### iOS
 
 Start from a tap (`unlock()`). The player asks for the "playback" audio session where supported, so the silent switch does not mute it (this may pause other audio apps while it plays), and keeps the screen awake while playing.
+
+
+## Goal-led practice (2026-11-08)
+
+All pure functions, exported from `src/index.ts`.
+
+- **Plan and run** (`src/practice.ts`): `planPractice(library, now, round?)` gives the goal's sequence (`req:yoga`, `req:metronome`, `req:ear`, the goal's own blocks, songs, `req:improv`) or `null` with no goal. A `PracticeRun` holds timers, picks and what is done; `newRun`, `startStep`, `pauseStep`, `pickFor`, `finishStep` (refuses until the timer has run and unless it is the step in front), `skipStep` (never a required step), `currentStep`, `timerOf`, `elapsedOf`, `remainingOf`, `isComplete`, `clock`. `recordFor(step, durationMs, note)` gives the validated event to append. `parseRun(raw, day)` checks a saved run (anything wrong gives a fresh one).
+- **Randomizers**: `seededRng(seed)`; `randomMetronome(rng, previous?)` (one of `METRONOME_WORKOUTS` plus a `KEYS` entry), `randomEar(rng, previous?)` (`EAR_GUITARS` x `EAR_SOURCES`, with `BEATO_ALTERNATIVE`), `randomImprov(rng, previous?)` (`IMPROV_GUITARS`, `IMPROV_CHORDS` 1 to 6, `IMPROV_INSTRUCTION`); the `...Suggestion` builders throw `RangeError` outside the ranges. A `previous` result is never returned again.
+- **Review** (`src/review.ts`): `nextReview(library, now, 'due' | 'more', { accept, newOk }, shown)` gives `{ cardId, kind: 'due' | 'new' | 'repeat', cycle }` or `null`; `reviewCounts`; `isExtraNow(library, cardId, now)`; `DAILY_NEW_CARDS`.
+- **Extra practice**: a review with `details.extra === true` stays in the log and is ignored by `memoryOf` (`scheduledReviews`, `isExtraReview`). `rateQa` and `answerMc` (theory) take an `extra` flag.
+- **Teach horizon** (theory): `CHAPTER_HORIZON`, `horizon(host, dayStart)`, `lessonStates` (`graduated | current | open | locked`), `newCardFilter(host, dayStart)`, `chapterFor(host, cardId)`, `needsReading(rating)`.
+- **Goals**: `focusGoal(library, today)`, `changeGoal(library, goalId, { what?, why?, deadline? }, now)`.

@@ -932,3 +932,93 @@ button:hover { border-color: rgba(243, 230, 200, .55); }
   [data-zg="screen-today"]::after { margin: -12px 0 0; border-radius: 0 0 24px 24px; }
   [data-zg="sheet-objectives"] { height: 100dvh; border-radius: 0; }
 }
+
+/* -------------------------------------------------------------------------
+   GOAL-LED PRACTICE — 2026-11-08 (Blake's redesign).
+   Home opens with the goal popup, then, with nothing behind it, the choice:
+   practise with the instrument or without. Practice and review are full
+   screens on a phone (opaque, nothing behind); the chapter reading is an
+   ordinary sheet. Mobile first; the display font (Zuniga Mission) and the
+   wood/amber palette are the existing tokens.
+   ------------------------------------------------------------------------- */
+[data-zg="sheet-goal-open"], [data-zg="sheet-practice-choice"] {
+  inset: 0; width: calc(100% - 32px); max-width: 30rem; max-height: 90dvh; margin: auto; border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(42, 27, 16, .22);
+}
+[data-zg="sheet-practice"], [data-zg="sheet-review"] {
+  inset: 0; width: 100%; max-width: 40rem; height: 100dvh; max-height: 100dvh; margin: 0 auto; border-radius: 0;
+}
+[data-zg="sheet-goal-open"] > div, [data-zg="sheet-practice-choice"] > div { max-height: 90dvh; }
+[data-zg="sheet-practice"] > div, [data-zg="sheet-review"] > div { max-height: 100dvh; min-height: 100dvh; }
+[data-zg="sheet-goal-open"] > div::before, [data-zg="sheet-practice-choice"] > div::before,
+[data-zg="sheet-practice"] > div::before, [data-zg="sheet-review"] > div::before { display: none; }
+[data-zg="sheet-goal-open"] header, [data-zg="sheet-practice-choice"] header,
+[data-zg="sheet-practice"] header, [data-zg="sheet-review"] header { padding-top: 16px; }
+/* Opaque from the first frame: nothing behind the goal, the choice or the practice. */
+[data-zg="sheet-goal-open"]::backdrop, [data-zg="sheet-practice-choice"]::backdrop,
+[data-zg="sheet-practice"]::backdrop, [data-zg="sheet-review"]::backdrop {
+  background-color: var(--zg-color-bg);
+  background-image: linear-gradient(rgba(242, 234, 223, .9), rgba(242, 234, 223, .95)), url('./img/wood.webp');
+  background-size: auto, 640px;
+}
+[data-zg="sheet-practice"], [data-zg="sheet-review"] { background-color: var(--zg-color-bg); }
+@starting-style {
+  [data-zg="sheet-goal-open"][open]::backdrop, [data-zg="sheet-practice-choice"][open]::backdrop,
+  [data-zg="sheet-practice"][open]::backdrop, [data-zg="sheet-review"][open]::backdrop { background-color: var(--zg-color-bg); }
+}
+[data-zg="goal-open-what"] { margin: 0 0 6px; font: 400 2rem/1.05 var(--zg-font-display); letter-spacing: .04em; text-transform: none; }
+[data-zg="goal-open-next"], [data-zg="choose-with"], [data-zg="choose-without"], [data-zg="practice-done"], [data-zg="practice-start"],
+[data-zg="practice-again"], [data-zg="review-mode-due"], [data-zg="review-mode-more"], [data-zg="goal-edit-save"] {
+  display: flex; align-items: center; justify-content: center; width: 100%; min-height: 56px; margin: 10px 0 0;
+  font-family: var(--zg-font-display); font-size: 1.15rem; letter-spacing: .06em;
+}
+[data-zg="goal-open-next"], [data-zg="choose-with"], [data-zg="practice-start"], [data-zg="practice-done"], [data-zg="practice-again"], [data-zg="goal-edit-save"] {
+  border-color: transparent; background: var(--zg-color-accent); color: var(--zg-color-on-accent); box-shadow: 0 6px 16px rgba(150, 90, 27, .28);
+}
+[data-zg="choose-without"], [data-zg="review-mode-due"] { background: var(--zg-color-surface); color: var(--zg-color-accent-strong); border: 2px solid var(--zg-color-accent); }
+[data-zg="review-mode-more"][aria-pressed="true"], [data-zg="review-mode-due"][aria-pressed="true"] { background: var(--zg-color-accent); color: var(--zg-color-on-accent); }
+[data-zg="practice-done"]:disabled { opacity: .45; box-shadow: none; }
+[data-zg="choose-with"], [data-zg="choose-without"] { min-height: 88px; font-size: 1.4rem; }
+[data-zg="practice-bar"] { display: block; width: 100%; height: 14px; margin: 4px 0; accent-color: var(--zg-color-accent); }
+[data-zg="practice-progress"], [data-zg="review-counts"] { margin: 4px 0 12px; font-size: .9rem; color: var(--zg-color-muted); }
+[data-zg="practice-title"], [data-zg="practice-song-title"] { margin: 8px 0 6px; font: 400 1.6rem/1.1 var(--zg-font-display); letter-spacing: .04em; text-transform: none; }
+[data-zg="practice-suggestion"] {
+  margin: 10px 0; padding: 14px 16px; border-radius: var(--zg-radius); background: var(--zg-color-accent-soft);
+  font: 650 1.2rem/1.3 var(--zg-font-body); color: var(--zg-color-accent-strong);
+}
+[data-zg="practice-beato"] { margin: 6px 0 10px; font-size: .95rem; color: var(--zg-color-muted); }
+[data-zg="practice-timer"] {
+  margin: 12px 0 0; text-align: center; font: 400 3.4rem/1 var(--zg-font-display); letter-spacing: .06em; font-variant-numeric: tabular-nums;
+}
+[data-zg="practice-timer"][data-state="done"] { color: var(--zg-color-good); }
+[data-zg="practice-error"], [data-zg="goal-edit-error"] { min-height: 1.4em; color: var(--zg-color-again); font-weight: 600; }
+[data-zg="practice-steps"] { margin: 16px 0 0; padding: 0 0 0 1.6em; font-size: .9rem; color: var(--zg-color-muted); }
+[data-zg="practice-steps"] > li { padding: 3px 0; }
+[data-zg="practice-steps"] > li[data-done] { color: var(--zg-color-good); }
+[data-zg="practice-steps"] > li[aria-current="step"] { color: var(--zg-color-text); font-weight: 700; }
+[data-zg="practice-song"] > button, [data-zg="practice-randomize"], [data-zg="practice-tool"], [data-zg="practice-pause"], [data-zg="practice-skip"], [data-zg="practice-song-skip"],
+[data-zg="review-read"], [data-zg="card-read"], [data-zg="teach-read"], [data-zg="review-choose-again"], [data-zg="practice-choose-again"], [data-zg="goal-open-edit"], [data-zg="goal-edit-cancel"] {
+  min-height: 48px; margin: 8px 8px 0 0;
+}
+[data-zg="practice-resume"] { display: block; width: calc(100% - 32px); margin: 0 16px 8px; min-height: 48px; font-family: var(--zg-font-display); letter-spacing: .06em; }
+[data-zg="review-kind"] { margin: 12px 0 6px; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--zg-color-accent-strong); }
+[data-zg="review-question"] { font: 600 1.25rem/1.35 var(--zg-font-body); }
+[data-zg="review-reveal"] { display: flex; width: 100%; min-height: 56px; align-items: center; justify-content: center; border-color: transparent; background: var(--zg-color-accent); color: var(--zg-color-on-accent); }
+[data-zg="review-rate"] { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+[data-zg="review-choices"] { display: grid; gap: 8px; }
+[data-zg="chapter-lessons"] details { margin: 0 0 10px; padding: 10px 14px; border: 1px solid var(--zg-color-border); border-radius: var(--zg-radius); background: var(--zg-color-surface); }
+[data-zg="chapter-lessons"] details[data-relevant] { border-color: var(--zg-color-accent); background: var(--zg-color-accent-soft); }
+[data-zg="chapter-lessons"] summary { font-weight: 700; }
+[data-zg="chapter-card"] { font-weight: 600; color: var(--zg-color-muted); }
+
+/* The same dark stage behind these as behind Home's objectives popup. */
+[data-zg="sheet-goal-open"]::backdrop, [data-zg="sheet-practice-choice"]::backdrop,
+[data-zg="sheet-practice"]::backdrop, [data-zg="sheet-review"]::backdrop {
+  background-color: #1a0508;
+  background-image: var(--zg-v7-stage);
+  background-repeat: no-repeat, no-repeat, repeat-x, no-repeat;
+  background-position: center top, 0 0, center top, 0 0;
+  background-size: 100% 100%, 100% 100%, 200px 420px, 100% 100%;
+}
+[data-zg="sheet-goal-open"], [data-zg="sheet-practice-choice"] { border-radius: 18px; box-shadow: 0 24px 64px rgba(0, 0, 0, .6); }
+[data-zg="sheet-practice"], [data-zg="sheet-review"] { border-radius: 0; }
