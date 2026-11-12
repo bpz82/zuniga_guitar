@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canonical, memoryStore, planNudges, RejectedEvent, Replica, supabaseRemote, uploadNudges } from '../src/index.ts';
+import { canonical, memoryStore, NUDGE_MAX_AHEAD_DAYS, planNudges, RejectedEvent, Replica, supabaseRemote, uploadNudges } from '../src/index.ts';
 import type { EngineEvent, Remote, SupabaseLike } from '../src/index.ts';
 import { BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
 
@@ -203,13 +203,27 @@ test('reminder plan: next 7 days uploaded in one call; empty when notifications 
   const plan = planNudges(r.library, Date.UTC(2026, 10, 1, 12));
   assert.ok(plan.length >= 27 && plan.length <= 29, `${plan.length} nudges over 7 days`);
   const { client, calls } = fakeClient();
-  await uploadNudges(client, plan);
+  const now = Date.UTC(2026, 10, 1, 12);
+  await uploadNudges(client, plan, now);
   assert.equal(calls.length, 1);
   const [kind, fn, args] = calls[0] as [string, string, { plan: { at: string; window_id: string; silent: boolean }[] }];
   assert.equal(kind, 'rpc');
   assert.equal(fn, 'replace_nudges');
   assert.equal(args.plan.length, plan.length);
   assert.ok(args.plan.some((n) => n.window_id === 'during-work' && n.silent));
+  // Bounded in the app (Fable review item 15): only the next 14 days go up, whatever the plan holds.
+  const DAY = 24 * 60 * 60 * 1000;
+  const odd = [
+    { ...plan[0]!, at: now - DAY },
+    { ...plan[0]!, at: now - 10 * 60 * 1000 },
+    { ...plan[0]!, at: now + NUDGE_MAX_AHEAD_DAYS * DAY },
+    { ...plan[0]!, at: now + NUDGE_MAX_AHEAD_DAYS * DAY + 1 },
+    { ...plan[0]!, at: now + 365 * DAY },
+    { ...plan[0]!, at: Number.NaN },
+  ];
+  await uploadNudges(client, odd, now);
+  const bounded = (calls[1] as [string, string, { plan: { at: string }[] }])[2].plan.map((n) => Date.parse(n.at));
+  assert.deepEqual(bounded, [now - 10 * 60 * 1000, now + NUDGE_MAX_AHEAD_DAYS * DAY], 'a few minutes late (still sendable) and up to 14 days ahead; nothing older, further or invalid');
   await r.record({ type: 'settings-set', settings: { ...(BLAKE_SETTINGS_EVENT as { settings: object }).settings, notifications: false } });
   assert.deepEqual(planNudges(r.library, Date.UTC(2026, 10, 1, 12)), []);
 });

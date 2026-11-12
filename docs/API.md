@@ -422,3 +422,13 @@ All pure functions, exported from `src/index.ts`.
 - **Extra practice**: a review with `details.extra === true` stays in the log and is ignored by `memoryOf` (`scheduledReviews`, `isExtraReview`). `rateQa` and `answerMc` (theory) take an `extra` flag.
 - **Teach horizon** (theory): `CHAPTER_HORIZON`, `horizon(host, dayStart)`, `lessonStates` (`graduated | current | open | locked`), `newCardFilter(host, dayStart)`, `chapterFor(host, cardId)`, `needsReading(rating)`.
 - **Goals**: `focusGoal(library, today)`, `changeGoal(library, goalId, { what?, why?, deadline? }, now)`.
+
+### Fable review fixes (2026-11-11)
+
+- **Songs chosen once per run**: `chooseSongs(library, now)` gives `ChosenSongs` (`{ at, songs: [{ cardId, due }] }`, at most `MAX_RUN_SONGS`); `withSongs(run, library, now)` stores them on the run once; `planPractice(library, now, round?, songs?)` uses them. A song rated at or after `at` (on any device) is `done` and keeps its place; an archived one leaves the list. `SongStep` gains `done` and `leech` (eight lapses).
+- **Required steps**: `REQUIRED_BLOCK_PREFIX` (`'req-'`) and `requiredBlockId(area)`; done by a full-length record of that block id whatever goal it names.
+- **Short sessions**: `endEarly(plan, run, now)` ends the run (`run.short`) and hands back the step in front with the time played (or `null`), to record with `recordFor`; `carryOn(run)` resumes. `isShortRecord(event, minutes)`: a feel-session or task-done shorter than its step. Short records are kept but never count as done. No new event type or field. `requiredProgress(plan, run, now)`, `playedOf(run, step, now)`.
+- **Log first, then the run**: `commitStep(plan, run, stepId, now, write)` checks the step may finish, awaits `write(durationMs, step)` and only then returns the step's finished progress; apply it with `withStepProgress(latestRun, stepId, progress)`. A failed write changes nothing.
+- `pickText(pick)` gives `{ text, alternative }` for any randomizer's pick. `NOTE_MAX` (500) is the yoga note cap.
+- `memoryOf` is memoised per review list (the library builds a new list per change to the log).
+- `uploadNudges(client, nudges, now?)` uploads only reminders from 15 minutes ago to `NUDGE_MAX_AHEAD_DAYS` (14) ahead.

@@ -46,6 +46,21 @@ import {
   startStep,
   startTimer,
   timerOf,
+  REQUIRED_BLOCK_PREFIX,
+  requiredBlockId,
+  chooseSongs,
+  withSongs,
+  commitStep,
+  withStepProgress,
+  endEarly,
+  carryOn,
+  isShortRecord,
+  requiredProgress,
+  pickText,
+  MAX_RUN_SONGS,
+  NOTE_MAX,
+  memoryOf,
+  LEECH_LAPSES,
 } from '../src/index.ts';
 import type { EventBody, ModuleHost, PracticePlan, PracticeRun, SongStep, TimedStep } from '../src/index.ts';
 import { BLAKE_SETTINGS, BLAKE_SETTINGS_EVENT } from '../fixtures/blake.ts';
@@ -489,6 +504,239 @@ test('the goal popup edits the wording and date; everything else about the goal 
   assert.equal(changeGoal(replica.library, 'nope', { what: 'x' }, t).ok, false);
   await replica.record(ok((await import('../src/index.ts')).archiveGoal(replica.library, 'g1')));
   assert.equal(changeGoal(replica.library, 'g1', { what: 'x' }, t).ok, false, 'an archived goal is not edited');
+});
+
+// ------------------------------------------------ the Fable review (2026-11-11) --
+
+const doRequired = async (p: PracticePlan, run: PracticeRun, ids: string[]) => {
+  for (const id of ids) {
+    run = ok(startStep(p, run, id, t));
+    t += 5 * MIN;
+    run = ok(finishStep(p, run, id, t)).run;
+  }
+  return run;
+};
+
+test('item 3: required steps stay done when the focus goal changes mid-day (matched by their req- block id)', async () => {
+  const { replica } = await setup();
+  await replica.record(goal('later', { deadline: '2026-12-31' }));
+  let p = plan(replica);
+  for (const s of timed(p).slice(0, 3)) await replica.record(ok(recordFor(s, 5 * MIN)));
+  assert.ok(timed(p).slice(0, 3).every((s) => s.blockId.startsWith(REQUIRED_BLOCK_PREFIX)));
+  assert.equal(requiredBlockId('metronome'), 'req-metronome');
+  // A nearer deadline arrives: it becomes the focus goal.
+  await replica.record(goal('sooner', { deadline: '2026-11-20' }));
+  p = plan(replica);
+  assert.equal(p.goalId, 'sooner');
+  assert.deepEqual(timed(p).map((s) => [s.id, s.done]), [['req:yoga', true], ['req:metronome', true], ['req:ear', true], ['req:improv', false]]);
+  assert.equal(currentStep(p, newRun(p.date))!.id, 'req:improv', 'a reload or a second device does not repeat them');
+  // Editing the deadline (a new goal-set for the same goal) keeps them done too.
+  await replica.record(ok(changeGoal(replica.library, 'sooner', { deadline: '2026-11-25' }, t)));
+  assert.ok(timed(plan(replica)).slice(0, 3).every((s) => s.done));
+  // A goal's own block with the same id as a goal block elsewhere is still matched by goal (only req- ids are goal-free).
+  assert.equal(ok(recordFor(timed(p).at(-1)!, 5 * MIN)).type, 'task-done');
+});
+
+test('item 2: the goal going away mid-run gives no plan, and nothing in the engine throws on that', async () => {
+  const { replica, songs } = await setup();
+  await replica.record(goal());
+  ok(await addSong(songs, 'a', 'Blackbird'));
+  const p = plan(replica);
+  let run = withSongs(newRun(p.date), replica.library, t);
+  run = ok(startStep(p, run, 'req:yoga', t));
+  await replica.record(ok((await import('../src/index.ts')).archiveGoal(replica.library, 'g1')));
+  assert.equal(planPractice(replica.library, t + MIN, run.round, run.songs), null, 'archived on another device: no plan');
+  assert.equal(chooseSongs(replica.library, t), null);
+  assert.equal(withSongs(newRun(p.date), replica.library, t).songs, undefined, 'no goal, no songs chosen');
+  assert.deepEqual(parseRun(JSON.parse(JSON.stringify(run)), p.date), run, 'the saved run is kept for when a goal is back');
+  // The deadline passing at the day boundary is the same: tomorrow's plan for a goal that ended today is null.
+  const { replica: r2 } = await setup();
+  await r2.record(goal('g', { deadline: '2026-11-09' }));
+  assert.ok(planPractice(r2.library, t));
+  assert.equal(planPractice(r2.library, day('2026-11-10', 3) + 1), null);
+});
+
+test('item 6: a step is not finished in the run when its log write fails; the run is untouched', async () => {
+  const { replica } = await setup();
+  await replica.record(goal());
+  const p = plan(replica);
+  const run = ok(startStep(p, newRun(p.date), 'req:yoga', t));
+  const before = JSON.parse(JSON.stringify(run));
+  const failed = await commitStep(p, run, 'req:yoga', t + 5 * MIN, async () => {
+    throw new Error('disk full');
+  });
+  assert.equal(failed.ok, false);
+  assert.match((failed as { error: string }).error, /Not saved \(disk full\)/);
+  assert.deepEqual(run, before, 'nothing changed');
+  assert.equal(currentStep(p, run)!.id, 'req:yoga', 'still in front: Done can be tapped again');
+  assert.equal(replica.log.filter((e) => e.type === 'feel-session').length, 0);
+  // Refused before writing anything: the timer has not run.
+  let wrote = 0;
+  const early = await commitStep(p, run, 'req:yoga', t + MIN, async () => void wrote++);
+  assert.equal(early.ok, false);
+  assert.equal(wrote, 0, 'nothing written when the step may not finish');
+  // A write that works: the log first, then the progress, applied to the run as it is NOW (a pick saved meanwhile is kept).
+  const done = await commitStep(p, run, 'req:yoga', t + 5 * MIN, async (ms, step) => {
+    await replica.record(ok(recordFor(step as TimedStep, ms)));
+  });
+  const meanwhile = pickFor(run, 'req:metronome', { metronome: randomMetronome(seededRng(1)) });
+  const after = withStepProgress(meanwhile, 'req:yoga', ok(done));
+  assert.equal(after.steps['req:yoga']!.done, true);
+  assert.ok(after.steps['req:metronome']!.pick, 'not overwritten by a stale copy');
+  assert.equal(currentStep(p, after)!.id, 'req:metronome');
+  assert.equal(replica.log.filter((e) => e.type === 'feel-session').length, 1);
+});
+
+test('item 7: a run\'s songs are chosen once, so "step 7 of 12" stays "of 12" as songs are rated', async () => {
+  const { replica, songs } = await setup();
+  await replica.record(goal());
+  for (let i = 0; i < 6; i++) ok(await addSong(songs, `s${i}`, `Song ${i}`));
+  for (let i = 0; i < 6; i++) ok(await rateBaseline(songs, `song-s${i}-c`, 'again'));
+  t = day('2026-11-11');
+  const p0 = plan(replica);
+  let run = withSongs(newRun(p0.date), replica.library, t);
+  assert.equal(withSongs(run, replica.library, t + H), run, 'chosen once: a run keeps its songs');
+  const p = planPractice(replica.library, t, 1, run.songs)!;
+  const total = p.steps.length;
+  run = await doRequired(p, run, ['req:yoga', 'req:metronome', 'req:ear']);
+  const song = currentStep(p, run) as SongStep;
+  assert.equal(song.kind, 'song');
+  const number = p.steps.indexOf(song) + 1;
+  ok(await rateSong(songs, song.cardId, 'good', 60_000));
+  run = ok(finishStep(p, run, song.id, t)).run;
+  const live = plan(replica);
+  assert.equal(live.steps.length, total - 1, 'the live queue has lost the rated song (the old shifting count)');
+  const frozen = planPractice(replica.library, t, 1, run.songs)!;
+  assert.equal(frozen.steps.length, total, 'the run\'s own songs: the count holds');
+  assert.equal(frozen.steps.indexOf(currentStep(frozen, run)!) + 1, number + 1, 'and the next step is the next number');
+  assert.equal(frozen.steps.find((s) => s.id === song.id)!.kind, 'song');
+  assert.ok(isFinished(frozen, run, frozen.steps.find((s) => s.id === song.id)!));
+  // Saved and reloaded, the song list comes back as it was; a damaged one is chosen again.
+  assert.deepEqual(parseRun(JSON.parse(JSON.stringify(run)), p.date).songs, run.songs);
+  assert.equal(parseRun({ ...JSON.parse(JSON.stringify(run)), songs: { at: 1, songs: [{ cardId: 5, due: true }] } }, p.date).songs, undefined);
+  assert.equal(parseRun({ ...JSON.parse(JSON.stringify(run)), songs: { at: 1, songs: Array(MAX_RUN_SONGS + 1).fill({ cardId: 'x', due: true }) } }, p.date).songs, undefined);
+});
+
+test('a song rated on another device mid-run drops out of what is left without breaking currentStep', async () => {
+  const { replica, songs } = await setup();
+  await replica.record(goal());
+  for (const [i, title] of ['Blackbird', 'Wonderwall', 'Vincent'].entries()) ok(await addSong(songs, `k${i}`, title));
+  const run0 = withSongs(newRun(plan(replica).date), replica.library, t);
+  const p = planPractice(replica.library, t, 1, run0.songs)!;
+  let run = await doRequired(p, run0, ['req:yoga', 'req:metronome', 'req:ear']);
+  const [first, second, third] = songsOf(p);
+  assert.equal(currentStep(p, run)!.id, first!.id);
+  // The laptop rates the song in front, and the next one; their reviews sync in.
+  ok(await rateSong(songs, first!.cardId, 'good', 60_000));
+  ok(await rateSong(songs, second!.cardId, 'hard', 60_000));
+  const after = planPractice(replica.library, t, 1, run.songs)!;
+  assert.equal(after.steps.length, p.steps.length, 'numbers hold');
+  assert.equal(currentStep(after, run)!.id, third!.id, 'the phone moves on to the song not played yet');
+  assert.ok(songsOf(after).filter((s) => s.done).map((s) => s.title).join() === 'Blackbird,Wonderwall');
+  assert.equal(finishStep(after, run, first!.id, t).ok, false, 'the one played elsewhere cannot be rated again here');
+  // One archived meanwhile leaves the list entirely; the step in front is still sound.
+  await songs.retireCard(third!.cardId);
+  const archived = planPractice(replica.library, t, 1, run.songs)!;
+  assert.equal(songsOf(archived).length, 2);
+  assert.equal(currentStep(archived, run)!.id, 'req:improv');
+  run = ok(startStep(archived, run, 'req:improv', t));
+  assert.equal(currentStep(archived, run)!.id, 'req:improv');
+});
+
+test('item 10: ending early records what was played, marked short; it never counts as the step done; carrying on plays it in full', async () => {
+  const { replica } = await setup();
+  await replica.record(goal());
+  let p = plan(replica);
+  let run = await doRequired(p, newRun(p.date), ['req:yoga']);
+  await replica.record(ok(recordFor(p.steps[0] as TimedStep, 5 * MIN)));
+  // Ten minutes free today: two and a half minutes into the metronome, end early.
+  run = ok(startStep(p, run, 'req:metronome', t));
+  const ended = ok(endEarly(p, run, t + 2.5 * MIN + 400));
+  assert.deepEqual([ended.record!.step.id, ended.record!.durationMs], ['req:metronome', 150_000], 'the time played, in whole seconds');
+  assert.equal(ended.run.short, true);
+  assert.equal(currentStep(p, ended.run), null, 'nothing in front of an ended run');
+  assert.equal(ended.run.steps['req:metronome']?.timer, undefined, 'its timer is cleared, so no minute is logged twice');
+  assert.equal(endEarly(p, ended.run, t).ok, false, 'ended once');
+  assert.match((startStep(p, ended.run, 'req:metronome', t) as { error: string }).error, /ended early/);
+  const event = ok(recordFor(ended.record!.step, ended.record!.durationMs));
+  assert.deepEqual(event, { type: 'task-done', goalId: 'g1', blockId: 'req-metronome', durationMs: 150_000 }, 'the same validated event, nothing new');
+  await replica.record(event);
+  assert.equal(isShortRecord(event as { durationMs: number }, REQUIRED_MINUTES), true, 'flagged short: under its five minutes');
+  assert.equal(isShortRecord({ durationMs: 5 * MIN }, REQUIRED_MINUTES), false);
+  p = plan(replica);
+  assert.deepEqual(timed(p).map((s) => s.done), [true, false, false, false], 'the short metronome is in the log but not done');
+  assert.equal(ended.run.steps['req:metronome']!.played, 150_000, 'the run remembers what was recorded short');
+  assert.deepEqual(requiredProgress(p, ended.run, t), { doneMs: 7.5 * MIN, totalMs: 20 * MIN }, 'the summary counts it honestly: 5 + 2.5 minutes');
+  assert.equal(replica.log.filter((e) => e.type === 'task-done').length, 1, 'kept for good');
+  // Later that day: carry on. The metronome is in front again, its five minutes from the start.
+  const again = carryOn(ended.run);
+  assert.equal(again.short, undefined);
+  assert.equal(currentStep(p, again)!.id, 'req:metronome');
+  assert.equal(remainingOf(timerOf(again, p.steps[1] as TimedStep), t), 5 * MIN);
+  // Ending before any time has run records nothing (a timer at zero is not practice).
+  const nothing = ok(endEarly(p, again, t));
+  assert.equal(nothing.record, null);
+  assert.equal(nothing.run.short, true);
+  // A goal's own block ended early is short too, and not done.
+  const { replica: r2 } = await setup();
+  await r2.record(goal('g2', { blocks: [{ id: 'task-1', kind: 'timed-task', label: 'Scales', minutes: 10 }], dailyMinutes: 10 }));
+  const own = timed(plan(r2)).find((s) => s.id === 'goal:g2:task-1')!;
+  await r2.record(ok(recordFor(own, 4 * MIN)));
+  assert.equal(timed(plan(r2)).find((s) => s.id === own.id)!.done, false);
+  await r2.record(ok(recordFor(own, 10 * MIN)));
+  assert.equal(timed(plan(r2)).find((s) => s.id === own.id)!.done, true);
+  // A parsed run keeps its short mark; anything but true is ignored.
+  assert.equal(parseRun(JSON.parse(JSON.stringify(ended.run)), p.date).short, true);
+  assert.equal(parseRun({ ...JSON.parse(JSON.stringify(ended.run)), short: 'yes' }, p.date).short, undefined);
+});
+
+test('item 11: a song with eight lapses is flagged on its card as a leech', async () => {
+  const { replica, songs } = await setup();
+  await replica.record(goal('g1', { deadline: '2027-12-31' }));
+  ok(await addSong(songs, 'a', 'Blackbird'));
+  ok(await addSong(songs, 'b', 'Wonderwall'));
+  ok(await rateSong(songs, 'song-a-c', 'good', 1000));
+  for (let d = 1; d <= LEECH_LAPSES; d++) {
+    t = day('2026-11-09') + d * 3 * 24 * H;
+    ok(await rateSong(songs, 'song-a-c', 'good', 1000));
+    t += 24 * H;
+    ok(await rateSong(songs, 'song-a-c', 'again', 1000));
+  }
+  t += 24 * H;
+  const chosen = { at: t, songs: [{ cardId: 'song-a-c', due: true }, { cardId: 'song-b-c', due: false }] };
+  const steps = songsOf(planPractice(replica.library, t, 1, chosen)!);
+  assert.deepEqual(steps.map((s) => [s.title, s.leech]), [['Blackbird', true], ['Wonderwall', false]]);
+});
+
+test('item 13: pickText reads any randomizer\'s pick without casts', () => {
+  const m = randomMetronome(seededRng(3));
+  const e = randomEar(seededRng(3));
+  const i = randomImprov(seededRng(3));
+  assert.deepEqual(pickText({ metronome: m }), { text: m.text, alternative: null });
+  assert.deepEqual(pickText({ ear: e }), { text: e.text, alternative: e.alternative });
+  assert.deepEqual(pickText({ improv: i }), { text: i.text, alternative: null });
+});
+
+test('item 1: the plan is cheap to rebuild for the same library; memory is replayed once per card history', async () => {
+  const { replica, songs } = await setup();
+  await replica.record(goal());
+  ok(await addSong(songs, 'a', 'Blackbird'));
+  ok(await rateSong(songs, 'song-a-c', 'good', 1000));
+  const reviews = replica.library.reviews.get('song-a-c')!;
+  const a = memoryOf('song-a-c', reviews, 0.9, NY, false);
+  assert.equal(memoryOf('song-a-c', reviews, 0.9, NY, false), a, 'the same history: the same answer, not replayed');
+  assert.notEqual(memoryOf('song-a-c', reviews, 0.95, NY, false), a, 'another retention is its own entry');
+  assert.deepEqual(memoryOf('song-a-c', [...reviews], 0.9, NY, false), a, 'a copy replays to the same memory');
+  assert.ok(Object.isFrozen(a), 'shared, so frozen');
+  assert.deepEqual(planPractice(replica.library, t), planPractice(replica.library, t));
+});
+
+test('item 15 (UI): the yoga note cap is one constant, the one recordFor applies', async () => {
+  const { replica } = await setup();
+  await replica.record(goal());
+  const yoga = timed(plan(replica))[0]!;
+  assert.equal(NOTE_MAX, 500);
+  assert.equal((ok(recordFor(yoga, 5 * MIN, 'x'.repeat(900))) as { note: string }).note.length, NOTE_MAX);
 });
 
 void (null as unknown as [ModuleHost, PracticeRun]);

@@ -392,6 +392,11 @@
           <h3 data-zg="goal-open-what"></h3>
           <p data-zg="goal-open-when"></p>
           <p data-zg="goal-open-why"></p>
+          <div data-zg="goal-open-checkin" hidden>
+            <p data-zg="goal-open-checkin-text"></p>
+            <label>Minutes a day <input type="number" min="0" max="1440" step="1" data-zg="goal-open-checkin-minutes"></label>
+            <button type="button" data-zg="goal-open-checkin-save">Keep this plan</button>
+          </div>
           <a href="#/goals" data-zg="goal-open-set" hidden>Set your goal</a>
           <button type="button" data-zg="goal-open-edit">Edit goal</button>
           <button type="button" data-zg="goal-open-next" autofocus>Let's practise</button>
@@ -432,7 +437,7 @@
           <p data-zg="practice-beato"></p>
           <button type="button" data-zg="practice-randomize">Randomize</button>
           <button type="button" data-zg="practice-tool" hidden></button>
-          <label>How did it feel? <input type="text" data-zg="practice-note" maxlength="500"></label>
+          <label>How did it feel? (optional, up to 500 characters; saved to your account) <input type="text" data-zg="practice-note" maxlength="500"></label>
           <p data-zg="practice-timer" role="timer" aria-live="off">0:00</p>
           <button type="button" data-zg="practice-start">Start timer</button>
           <button type="button" data-zg="practice-pause" hidden>Pause</button>
@@ -442,16 +447,18 @@
         <div data-zg="practice-song" hidden>
           <h3 data-zg="practice-song-title"></h3>
           <p data-zg="practice-song-note"></p>
+          <p data-zg="practice-song-leech" hidden>This one keeps slipping. Break it into sections and work on the hard part.</p>
           <button type="button" data-zg="practice-r-again">Again</button><button type="button" data-zg="practice-r-hard">Hard</button><button type="button" data-zg="practice-r-good">Good</button><button type="button" data-zg="practice-r-easy">Easy</button>
           <button type="button" data-zg="practice-song-skip">Skip</button>
         </div>
         <div data-zg="practice-finish" hidden>
-          <h3>Practice done</h3>
-          <p>The required time is in, and it is saved.</p>
+          <h3 data-zg="practice-finish-title">Practice done</h3>
+          <p data-zg="practice-finish-note">The required time is in, and it is saved.</p>
           <button type="button" data-zg="practice-again">Another round</button>
           <button type="button" data-zg="practice-choose-again">Back to the choice</button>
         </div>
         <p data-zg="practice-error" role="alert"></p>
+        <button type="button" data-zg="practice-end-early" hidden>End early</button>
         <ol data-zg="practice-steps"></ol>
       </div>
     </dialog>

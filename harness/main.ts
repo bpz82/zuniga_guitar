@@ -870,10 +870,14 @@ async function main() {
     say,
     record,
     storageKey: () => `zg-practice-run-${userId}`,
+    // Throws when the rating was not saved, so the practice sheet says so and keeps the song in front.
     rateSong: async (cardId, rating, durationMs) => {
       const r = await runModule(songsHost, () => rateSong(songsHost, cardId, rating, durationMs));
-      if (!r.ok) say(`Songs switched off: ${r.error}`);
-      else if (!r.value.ok) say(`Songs: ${r.value.error}`);
+      if (!r.ok) {
+        say(`Songs switched off: ${r.error}`);
+        throw new Error(`songs switched off: ${r.error}`);
+      }
+      if (!r.value.ok) throw new Error(r.value.error);
       await afterChange();
     },
     openTool: (tool) => {

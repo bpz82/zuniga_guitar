@@ -38,6 +38,9 @@ const STATIC = [
   'practice-beato', 'practice-randomize', 'practice-timer', 'practice-start', 'practice-pause', 'practice-tool', 'practice-note', 'practice-done',
   'practice-skip', 'practice-error', 'practice-song', 'practice-song-title', 'practice-song-note', 'practice-song-skip', 'practice-finish',
   'practice-again', 'practice-choose-again', 'practice-resume',
+  // the Fable review (2026-11-11): check-ins on the goal popup, ending a run early, the leech hint, the end's own words
+  'goal-open-checkin', 'goal-open-checkin-text', 'goal-open-checkin-minutes', 'goal-open-checkin-save',
+  'practice-end-early', 'practice-song-leech', 'practice-finish-title', 'practice-finish-note',
   // practice without: Due today / Do more, the card, Read in Chapter
   'review-mode-due', 'review-mode-more', 'review-counts', 'review-stage', 'review-deck', 'review-empty', 'review-kind', 'review-card', 'review-question',
   'review-answer', 'review-choices', 'review-feedback', 'review-reveal', 'review-rate', 'review-read', 'review-choose-again', 'card-read', 'teach-read',

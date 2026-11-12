@@ -60,6 +60,10 @@ export function supabaseRemote(client: SupabaseLike, stream?: string): Remote {
 
 /** How far ahead reminders are planned. Opening the app re-plans. */
 export const NUDGE_HORIZON_DAYS = 7;
+/** The furthest ahead a reminder may be uploaded, whatever the plan says. */
+export const NUDGE_MAX_AHEAD_DAYS = 14;
+/** A reminder seen more than 15 minutes late is skipped by the sender, so nothing older is uploaded. */
+const NUDGE_LATE_MS = 15 * 60 * 1000;
 
 /** The reminders this user should get over the coming days. */
 export function planNudges(library: Library, now: number, days = NUDGE_HORIZON_DAYS): Nudge[] {
@@ -72,7 +76,13 @@ export function planNudges(library: Library, now: number, days = NUDGE_HORIZON_D
  * sends what is due; it never runs the engine. Turning notifications off
  * uploads an empty plan.
  */
-export async function uploadNudges(client: SupabaseLike, nudges: readonly Nudge[]): Promise<void> {
-  const plan = nudges.map((n) => ({ at: new Date(n.at).toISOString(), window_id: n.windowId, silent: n.silent }));
+export async function uploadNudges(client: SupabaseLike, nudges: readonly Nudge[], now = Date.now()): Promise<void> {
+  // The server takes any time it is given, so the app sends only the next 14 days (Fable review item 15):
+  // nothing in the past (beyond the 15 minutes the sender still allows) and nothing far ahead.
+  const from = now - NUDGE_LATE_MS;
+  const to = now + NUDGE_MAX_AHEAD_DAYS * 24 * 60 * 60 * 1000;
+  const plan = nudges
+    .filter((n) => Number.isFinite(n.at) && n.at >= from && n.at <= to)
+    .map((n) => ({ at: new Date(n.at).toISOString(), window_id: n.windowId, silent: n.silent }));
   await check(client.rpc('replace_nudges', { plan }));
 }

@@ -65,15 +65,29 @@ export {
   skipStep,
   recordFor,
   parseRun,
+  REQUIRED_BLOCK_PREFIX,
+  requiredBlockId,
+  NOTE_MAX,
+  MAX_RUN_SONGS,
+  chooseSongs,
+  withSongs,
+  isShortRecord,
+  pickText,
+  withStepProgress,
+  commitStep,
+  playedOf,
+  endEarly,
+  carryOn,
+  requiredProgress,
 } from './practice.ts';
-export type { PracticePlan, PracticeRun, Step, TimedStep, SongStep, StepProgress, TimerState, RequiredArea, Tool, Pick as PracticePick } from './practice.ts';
+export type { PracticePlan, PracticeRun, Step, TimedStep, SongStep, StepProgress, TimerState, RequiredArea, Tool, ChosenSongs, Pick as PracticePick } from './practice.ts';
 export { DAILY_NEW_CARDS, nextReview, reviewCounts, isExtraNow } from './review.ts';
 export type { ReviewMode, ReviewKind, ReviewFilter, ReviewPick, ReviewCounts } from './review.ts';
 export { settingsFromOnboarding, changeSettings, toggleNotifications, toggleWindowNotify, toggleAlwaysRemindMorning, adoptDeviceTimeZone } from './settings.ts';
 export type { Onboarding } from './settings.ts';
 export { Replica, memoryStore } from './replica.ts';
 export type { EventStore, StoredState, StoreChange, Remote, SyncReport, SharedLayer, ReplicaOptions } from './replica.ts';
-export { supabaseRemote, planNudges, uploadNudges, NUDGE_HORIZON_DAYS } from './remote.ts';
+export { supabaseRemote, planNudges, uploadNudges, NUDGE_HORIZON_DAYS, NUDGE_MAX_AHEAD_DAYS } from './remote.ts';
 export type { SupabaseLike } from './remote.ts';
 export { createHost, runModule, ContractViolation, CONTRACT_VERSION, MAX_WRITES_PER_HOUR } from './contract.ts';
 export type { ModuleHost, ModuleManifest } from './contract.ts';

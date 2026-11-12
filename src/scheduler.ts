@@ -105,6 +105,22 @@ export function memoryOf(
   dayStart: DayStart = DEFAULT_DAY_START,
   steps = true,
 ): Memory {
+  // Memoised per review list (Fable review item 1): the library builds each card's list once per
+  // change to the log, so the same list always replays to the same memory. Empty lists are cheap.
+  if (reviews.length === 0) return replay(cardId, reviews, retention, dayStart, steps);
+  // The length and last id guard against a caller appending to a list it already asked about.
+  const key = `${cardId}|${retention}|${dayStart.timeZone}|${dayStart.hour}|${steps}|${reviews.length}|${reviews.at(-1)!.id}`;
+  let byKey = memo.get(reviews);
+  if (byKey === undefined) memo.set(reviews, (byKey = new Map()));
+  let m = byKey.get(key);
+  if (m === undefined) byKey.set(key, (m = Object.freeze(replay(cardId, reviews, retention, dayStart, steps))));
+  return m;
+}
+
+/** Replayed memory per review list (weakly held: an old library's lists are dropped with it). */
+const memo = new WeakMap<readonly EventOf<'review'>[], Map<string, Memory>>();
+
+function replay(cardId: string, reviews: readonly EventOf<'review'>[], retention: number, dayStart: DayStart, steps: boolean): Memory {
   const f = schedulerFor(retention, steps);
   reviews = scheduledReviews(reviews);
   const first = reviews[0];

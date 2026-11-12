@@ -1415,6 +1415,30 @@ try {
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(e.message));
     await p.clock.install({ time: new Date('2026-11-09T18:00:00Z') });
+    // Fable review item 4: a stand-in Screen Wake Lock that logs requests and releases, and a count of the
+    // timer's chime (the ride sample played unmuted). Headless Chromium plays no sound either way.
+    await p.addInitScript(() => {
+      window.__wake = [];
+      window.__chimes = 0;
+      const sentinel = () => {
+        const s = new EventTarget();
+        s.released = false;
+        s.release = async () => {
+          if (s.released) return;
+          s.released = true;
+          window.__wake.push('release');
+          s.dispatchEvent(new Event('release'));
+        };
+        return s;
+      };
+      Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async (type) => (window.__wake.push(`request:${type}`), sentinel()) } });
+      HTMLMediaElement.prototype.play = function () {
+        if (this.src.endsWith('/sounds/ride.mp3') && !this.muted) window.__chimes++;
+        return Promise.resolve();
+      };
+    });
+    const wake = () => p.evaluate(() => window.__wake.at(-1));
+    const chimes = () => p.evaluate(() => window.__chimes);
     const shot = async (name) => shots && (await p.screenshot({ path: join(shots, `${name}.png`) }));
     const wait = async (fn, arg) => {
       for (let i = 0; i < 300; i++) {
@@ -1444,6 +1468,18 @@ try {
       n++;
       await wait((k) => document.querySelectorAll('[data-zg="songs-list"] [data-zg="song"]').length === k, n);
     }
+    // Wonderwall keeps slipping: nine weeks of history with eight lapses (a backup restored, so the times are real),
+    // last missed a few days ago, so it is due today and its card says so (Fable review item 11).
+    await p.evaluate(() => {
+      const lib = window.zg.replica.library;
+      const item = [...lib.items.values()].find((i) => i.fields.title === 'Wonderwall');
+      const card = [...lib.cards.values()].find((c) => c.itemId === item.id);
+      const D = 24 * 3600 * 1000;
+      const base = Date.parse('2026-10-08T15:00:00Z');
+      const at = [base];
+      for (let d = 1; d <= 8; d++) at.push(base + d * 3 * D, base + d * 3 * D + D);
+      return window.zg.replica.restore(at.map((t, i) => ({ v: 1, id: `lapse-${i}`, at: t, device: 'old-phone', type: 'review', cardId: card.id, rating: i > 0 && i % 2 === 0 ? 'again' : 'good', durationMs: 60000 })));
+    });
     await p.evaluate(() => (location.hash = '#/goals'));
     await p.click('[data-zg="open-goal-new"]');
     await p.fill('[data-zg="goal-what"]', 'Open mic');
@@ -1456,6 +1492,7 @@ try {
     await wait(() => location.hash === '#/today' && document.querySelector('[data-zg="sheet-goal-open"]').open);
     assert.equal(await text('goal-open-what'), 'Open mic');
     assert.match(await text('goal-open-when'), /Due Sun 20 Dec · 41 days to go/);
+    assert.equal(await p.isHidden('[data-zg="goal-open-checkin"]'), true, '41 days out: no check-in yet');
     await shot('01-goal-popup');
     await p.click('[data-zg="goal-open-edit"]');
     await p.fill('[data-zg="goal-edit-what"]', 'Open mic night');
@@ -1496,28 +1533,59 @@ try {
     assert.equal(await p.isDisabled('[data-zg="practice-done"]'), true, 'nothing advances before the timer runs');
     assert.equal(await p.isHidden('[data-zg="practice-skip"]'), true, 'a required step cannot be skipped');
     assert.equal(await text('practice-timer'), '5:00');
+    assert.match(await p.evaluate(() => document.querySelector('[data-zg="practice-note"]').parentElement.textContent), /up to 500 characters/, 'the note\'s cap is said, not just enforced');
+    assert.equal(await p.isVisible('[data-zg="practice-end-early"]'), true, 'a run can be ended early');
+    assert.equal(await wake(), undefined, 'no wake lock before a timer runs');
     await shot('04-practice-yoga');
     await p.click('[data-zg="practice-start"]');
+    await wait(() => window.__wake.at(-1) === 'request:screen');
+    // The tick redraws only the clock; the plan is built once per open and per change to the log.
     await p.clock.runFor(60_000);
     await wait(() => document.querySelector('[data-zg="practice-timer"]').textContent === '4:00');
-    // Paused time doesn't run; reload keeps the run (the timer counts by the clock, not by this page).
+    assert.ok(await p.evaluate(() => document.querySelector('[data-zg="practice-step-item"]').textContent.includes('4:00 left')), 'the step\'s own row ticks');
+    // Paused time doesn't run, and the screen may sleep; reload keeps the run (the timer counts by the clock, not by this page).
     await p.click('[data-zg="practice-pause"]');
+    await wait(() => window.__wake.at(-1) === 'release');
     await p.clock.runFor(3 * 60_000);
     assert.equal(await text('practice-timer'), '4:00', 'paused: no time passes');
     await p.click('[data-zg="practice-start"]');
+    await wait(() => window.__wake.at(-1) === 'request:screen');
     await p.clock.runFor(30_000);
     await reload();
-    // The app opens on the goal popup again; "Practice with instrument" carries on with the saved run.
-    await p.click('[data-zg="goal-open-next"]');
-    await p.click('[data-zg="choose-with"]');
+    // A run in progress: Home skips the goal popup and goes straight to "Back to practice" (Fable review item 8).
+    await p.waitForSelector('[data-zg="practice-resume"]', { state: 'visible' });
+    assert.equal(await open('goal-open'), false, 'no goal popup over a run in progress');
+    assert.equal(await p.evaluate(() => document.activeElement?.dataset.zg), 'practice-resume');
+    await p.click('[data-zg="practice-resume"]');
     await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
+    await wait(() => window.__wake.at(-1) === 'request:screen'); // still running after the reload: the screen stays on
     await p.clock.runFor(1000);
     const [mm, ss] = (await text('practice-timer')).split(':').map(Number);
     assert.ok(mm * 60 + ss <= 209 && mm * 60 + ss >= 150, `the run survived the reload, still counting (${mm}:${ss} left)`);
     assert.equal(await p.isDisabled('[data-zg="practice-done"]'), true);
+    assert.equal(await chimes(), 0);
     await p.clock.runFor(3 * 60_000 + 30_000);
     await wait(() => document.querySelector('[data-zg="practice-timer"]').dataset.state === 'done');
     assert.equal(await p.isDisabled('[data-zg="practice-done"]'), false, 'the timer is complete: Done unlocks');
+    await wait(() => window.__chimes === 1); // the chime, with the app on screen
+    assert.equal(await wake(), 'release', 'time is up: the screen may sleep again');
+    // Item 6 in the app: a Done whose log write fails leaves the step in front, says so, and logs nothing.
+    await p.evaluate(() => {
+      const r = window.zg.replica;
+      r.__record = r.record;
+      r.record = async () => {
+        throw new Error('disk full');
+      };
+    });
+    await p.click('[data-zg="practice-done"]');
+    await wait(() => /Not saved \(disk full\)/.test(document.querySelector('[data-zg="practice-error"]').textContent));
+    assert.match(await text('practice-title'), /^Guitar yoga/, 'still in front: not shown done');
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => k.startsWith('zg-practice-run-')))).steps['req:yoga'].done), undefined, 'not saved done on the device either');
+    await p.evaluate(() => {
+      const r = window.zg.replica;
+      r.record = r.__record;
+      delete r.__record;
+    });
     await p.fill('[data-zg="practice-note"]', 'loose and easy');
     await p.click('[data-zg="practice-done"]');
     await wait(() => document.querySelector('[data-zg="practice-title"]').textContent.startsWith('Metronome work'));
@@ -1536,13 +1604,24 @@ try {
     }
     assert.ok(seen.size > 1);
     await shot('05-practice-metronome');
+    assert.equal(await p.evaluate(() => document.querySelector('[data-zg="practice-timer"]').dataset.state), 'ready');
+    // Opening the tool starts the step's timer (Fable review item 9): no Start, then the tool.
     await p.click('[data-zg="practice-tool"]');
     await wait(() => location.hash === '#/today' && !document.querySelector('[data-zg="sheet-practice"]').open);
+    await wait(() => window.__wake.at(-1) === 'request:screen');
     await p.waitForSelector('[data-zg="practice-resume"]', { state: 'visible' }); // a way back to the practice
+    await p.clock.runFor(60_000); // playing along with the metronome, the practice sheet closed
     await p.click('[data-zg="practice-resume"]');
     await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
-    await p.click('[data-zg="practice-start"]');
-    await p.clock.runFor(5 * 60_000 + 1000);
+    assert.equal(await p.evaluate(() => document.querySelector('[data-zg="practice-timer"]').dataset.state), 'running', 'the timer started with the tool');
+    assert.equal(await p.isHidden('[data-zg="practice-start"]'), true);
+    assert.equal(await text('practice-timer'), '4:00');
+    // The chime comes even with the practice sheet closed (still in the foreground).
+    await p.click('[data-zg="close-practice"]');
+    await p.clock.runFor(4 * 60_000 + 1000);
+    await wait(() => window.__chimes === 2);
+    await p.click('[data-zg="practice-resume"]');
+    await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
     await wait(() => !document.querySelector('[data-zg="practice-done"]').disabled);
     await p.click('[data-zg="practice-done"]');
 
@@ -1571,13 +1650,49 @@ try {
     await p.click('[data-zg="practice-done"]');
     // Songs: title only; rating persists and the spaced-repetition engine schedules the return.
     await wait(() => document.querySelector('[data-zg="practice-song"]:not([hidden])') !== null);
-    const song1 = await text('practice-song-title');
-    assert.match(song1, /^(Blackbird|Wonderwall)$/);
+    const songCount = await p.evaluate(() => document.querySelectorAll('[data-zg="practice-step-item"]').length);
+    // Due songs first: Wonderwall, the one that keeps slipping, says so on its card (Fable review item 11).
+    assert.equal(await text('practice-song-title'), 'Wonderwall');
+    assert.equal(await p.isVisible('[data-zg="practice-song-leech"]'), true);
+    assert.match(await text('practice-song-leech'), /keeps slipping.*break it into sections/i);
     await shot('08-practice-song');
+    const songReviews = () => p.evaluate(() => {
+      const lib = window.zg.replica.library;
+      return Object.fromEntries([...lib.reviews.entries()].filter(([id]) => lib.items.get(lib.cards.get(id)?.itemId)?.module === 'songs').map(([id, r]) => [lib.items.get(lib.cards.get(id).itemId).fields.title, r.length]));
+    });
+    // Rating that fails to save (item 5): it says so, the song stays in front, nothing is logged.
+    await p.evaluate(() => {
+      const r = window.zg.replica;
+      r.__record = r.record;
+      r.record = async function (body) {
+        if (body.type === 'review') throw new Error('disk full');
+        return r.__record.call(this, body);
+      };
+    });
+    await p.clock.runFor(90_000); // ninety seconds on the song
     await p.click('[data-zg="practice-r-good"]');
-    await wait((t) => document.querySelector('[data-zg="practice-song-title"]').textContent !== t, song1);
-    const rated = await p.evaluate(() => [...window.zg.replica.library.reviews.entries()].filter(([id]) => id.startsWith('so-') || window.zg.replica.library.items.get(window.zg.replica.library.cards.get(id)?.itemId)?.module === 'songs').map(([id, r]) => r.length));
-    assert.deepEqual(rated, [1], 'the rating is in the log');
+    await wait(() => /Not saved .*disk full/.test(document.querySelector('[data-zg="practice-error"]').textContent));
+    assert.equal(await text('practice-song-title'), 'Wonderwall', 'still in front');
+    assert.deepEqual(await songReviews(), { Wonderwall: 17 }, 'nothing logged');
+    // The failed write switched the songs module off for this page (failure isolation); a reload brings it back.
+    await p.evaluate(() => {
+      const r = window.zg.replica;
+      r.record = r.__record;
+      delete r.__record;
+    });
+    await reload();
+    await p.waitForSelector('[data-zg="practice-resume"]', { state: 'visible' });
+    await p.click('[data-zg="practice-resume"]');
+    await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
+    assert.equal(await text('practice-song-title'), 'Wonderwall');
+    await p.clock.runFor(75_000);
+    await p.click('[data-zg="practice-r-good"]');
+    await wait(() => document.querySelector('[data-zg="practice-song-title"]').textContent === 'Blackbird');
+    assert.deepEqual(await songReviews(), { Wonderwall: 18 }, 'the rating is in the log');
+    const songMs = await p.evaluate(() => [...window.zg.replica.library.reviews.values()].flat().at(-1).durationMs);
+    assert.ok(songMs >= 75_000 && songMs < 80_000, `timed from when its card appeared, not a fixed minute (${songMs} ms)`);
+    assert.equal(await p.isHidden('[data-zg="practice-song-leech"]'), true, 'a new song is no leech');
+    assert.equal(await p.evaluate(() => document.querySelectorAll('[data-zg="practice-step-item"]').length), songCount, 'the step count holds after a rating (item 7)');
     await p.click('[data-zg="practice-r-good"]');
     await wait(() => document.querySelector('[data-zg="practice-title"]').textContent.startsWith('Improvisation'));
     await wait(() => document.querySelector('[data-zg="practice-title"]').textContent.startsWith('Improvisation'));
@@ -1593,7 +1708,7 @@ try {
     await wait(() => location.hash === '#/record');
     await p.click('[data-zg="practice-resume"]');
     await wait(() => document.querySelector('[data-zg="sheet-practice"]').open);
-    await p.click('[data-zg="practice-start"]');
+    assert.equal(await p.evaluate(() => document.querySelector('[data-zg="practice-timer"]').dataset.state), 'running', 'the recorder started the timer too');
     await p.clock.runFor(5 * 60_000 + 1000);
     await wait(() => !document.querySelector('[data-zg="practice-done"]').disabled);
     await p.click('[data-zg="practice-done"]');
@@ -1604,6 +1719,35 @@ try {
     await p.click('[data-zg="practice-again"]');
     await wait(() => document.querySelector('[data-zg="practice-title"]')?.textContent.startsWith('Guitar yoga'));
     assert.equal(await p.isDisabled('[data-zg="practice-done"]'), true, 'another round: the required time starts over');
+
+    // Ending early (Fable review item 10): two minutes of yoga, then "End early". What was played is saved, marked short.
+    await p.click('[data-zg="practice-start"]');
+    await p.clock.runFor(2 * 60_000);
+    await p.fill('[data-zg="practice-note"]', 'only ten minutes today');
+    await p.click('[data-zg="practice-end-early"]');
+    await wait(() => document.querySelector('[data-zg="practice-finish"]:not([hidden])') !== null);
+    assert.equal(await text('practice-finish-title'), 'Short session');
+    assert.match(await text('practice-finish-note'), /This session was short: 2:0\d of the 20:00 required\. What you played is saved, marked short\./);
+    assert.match(await text('practice-progress'), /ended early \(short session\)$/);
+    assert.equal(await text('practice-again'), 'Carry on');
+    assert.equal(await p.isHidden('[data-zg="practice-end-early"]'), true);
+    await wait(() => window.__wake.at(-1) === 'release');
+    const shortYoga = await p.evaluate(() => window.zg.replica.log.filter((e) => e.type === 'feel-session').map((e) => [e.durationMs, e.note]).at(-1));
+    assert.ok(shortYoga[0] >= 120_000 && shortYoga[0] < 125_000 && shortYoga[1] === 'only ten minutes today', `logged honestly: ${shortYoga}`);
+    // Carry on: the same run, the yoga from the start (its two minutes are already in the log).
+    await p.click('[data-zg="practice-again"]');
+    await wait(() => document.querySelector('[data-zg="practice-title"]')?.textContent.startsWith('Guitar yoga'));
+    assert.equal(await text('practice-timer'), '5:00');
+
+    // The goal going away with the sheet open (another device archived it): a tap is a message, never a crash (item 2).
+    const goalNow = await p.evaluate(() => [...window.zg.replica.library.goals.values()][0]);
+    await p.evaluate((g) => window.zg.replica.record({ type: 'goal-set', goal: { ...g, archived: true } }), goalNow);
+    await p.click('[data-zg="practice-start"]');
+    await wait(() => /no live goal/.test(document.querySelector('[data-zg="practice-error"]').textContent));
+    assert.match(await text('practice-goal'), /No goal yet/);
+    assert.equal(await p.isHidden('[data-zg="practice-step"]'), true);
+    await p.evaluate((g) => window.zg.replica.record({ type: 'goal-set', goal: g }), goalNow);
+    assert.deepEqual(errors, [], 'no page errors');
 
     // 4. Practice without: Due today, Do more, Read in Chapter.
     await p.click('[data-zg="close-practice"]');
@@ -1656,8 +1800,24 @@ try {
     // Extra practice (early repeats) is kept in the log but never moves the schedule.
     const extras = await p.evaluate(() => [...window.zg.replica.library.reviews.values()].flat().filter((r) => r.details?.extra === true).length);
     assert.ok(extras >= 0);
+
+    // 5. Check-ins on the goal popup (Fable review item 12): 13 days before the gig, the 14-day check-in asks about the daily time.
+    await p.clock.setSystemTime(new Date('2026-12-08T18:00:00Z'));
+    await p.evaluate(() => history.replaceState(null, '', '#/today')); // the improv step left the page on Record
+    await reload();
+    await wait(() => document.querySelector('[data-zg="sheet-goal-open"]').open);
+    assert.equal(await p.isVisible('[data-zg="goal-open-checkin"]'), true);
+    const minutesADay = await p.evaluate(() => [...window.zg.replica.library.goals.values()][0].dailyMinutes);
+    assert.equal(await text('goal-open-checkin-text'), `14-day check-in: 13 days to go. Is ${minutesADay} minutes a day still right?`);
+    assert.equal(await p.inputValue('[data-zg="goal-open-checkin-minutes"]'), String(minutesADay));
+    await shot('13-goal-checkin');
+    await p.fill('[data-zg="goal-open-checkin-minutes"]', String(minutesADay + 5));
+    assert.equal(await text('goal-open-checkin-save'), 'Save new daily minutes');
+    await p.click('[data-zg="goal-open-checkin-save"]');
+    await wait(() => document.querySelector('[data-zg="goal-open-checkin"]').hidden);
+    assert.equal(await p.evaluate(() => [...window.zg.replica.library.goals.values()][0].dailyMinutes), minutesADay + 5, 'adjusted; the check-in is done');
     await ctx.close();
-    step('goal-led practice: goal popup (editable), the choice, timers gating every required step, randomizers, tools, songs, Due today, Do more, Read in Chapter');
+    step('goal-led practice: goal popup (editable, check-ins), the choice, timers gating every required step (wake lock, chime, tools start them), randomizers, songs (leech, failed rating, step count), end early, the goal going away, Due today, Do more, Read in Chapter');
   }
 
   assert.deepEqual(errors, []);

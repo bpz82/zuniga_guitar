@@ -214,3 +214,31 @@ Randomizers (seeded, injectable, and "Randomize" always changes the result):
 **Practice without** (`nextReview`, `src/review.ts`): flashcards only. **Due today**: every due card, then new cards up to `DAILY_NEW_CARDS` (10) a day, then it stops. **Do more**: due cards, then new cards (no daily limit, inside the horizon), then, once new cards are exhausted, repeats of learned cards (least remembered first, round and round with no end) logged as extra practice.
 
 Persistence: ratings are events in the append-only log; the run (timers, picks) is a small value in local storage, validated by `parseRun`; anything wrong gives a fresh run.
+
+## Fable review fixes (Blake, 2026-11-11: "yes. fix all of it")
+
+Requirement owner: Blake, through the Fable review of 2026-11-11. Nothing shipped was deleted or simplified away; no new library, service, event type or SQL migration.
+
+1. **Speed:** the practice plan is built once per open and once per change to the log (cached on the library object); the one-second tick redraws only the clock, the bar and the step's own row. `memoryOf` is memoised per card history.
+2. **No crash when the goal goes away** (deadline passing at 3am, archived elsewhere): every practice button goes through one guarded path and shows a message instead.
+3. **Required steps stay done across a focus-goal change:** matched by their `req-` block id (`REQUIRED_BLOCK_PREFIX`), whatever goal the record names.
+4. **Screen kept on while a timer runs** (Screen Wake Lock, Safari 16.4+; released on pause, when time is up, on ending early, and when the page is hidden or closed), and a **short chime** (the existing ride sample) when a timer ends with the app on screen. A web app cannot sound on a locked iPhone; the time still counts by the clock, and the screen says time is up when it is next looked at.
+5. **Song ratings:** saved first, then the step moves on; a failure shows in the sheet and nothing moves. Timed from when the song's card appeared (at most 30 minutes), not a fixed minute.
+6. **Done means saved:** a step is shown done only after the log has it; a failed write leaves the run as it was.
+7. **Step numbers hold:** a run's songs are chosen when it starts and kept in the run. A song rated elsewhere mid-run is finished in place; an archived one leaves the list.
+8. **Home skips the goal popup** while a run is in progress and goes straight to "Back to practice".
+9. **Opening a step's tool** (metronome, recorder, ear training) starts its timer.
+10. **Short sessions:** the 20-minute session stays the default. "End early" records the time played on the step in front with the same validated events, then shows "Short session: what you played is saved, marked short". A record shorter than its step is short (`isShortRecord`): kept in the log for good, never counted as the step done, so a later run that day still asks for the full time. "Carry on" resumes the run, the interrupted step starting over (no minute logged twice).
+11. **Leeches** (eight lapses) say on the song card: "This one keeps slipping. Break it into sections and work on the hard part."
+12. **Check-ins** at 14, 7 and 2 days show on the goal popup, with the daily minutes to keep or change.
+13. `pickText(pick)` replaces two casts. 14. `REQUIRED_BLOCK_PREFIX` ties the step ids to the done check.
+15. **Reminders** are bounded in the app: only the next 14 days are uploaded (`NUDGE_MAX_AHEAD_DAYS`). The yoga note says its cap ("up to 500 characters; saved to your account").
+
+Knowingly not done:
+
+| Item | Why |
+|---|---|
+| A `details.short` field on `feel-session` and `task-done` | Those events have no `details` today. Adding one would make an older app version still open on another device reject the event during sync, and its sync cursor would move past it for good. Short is instead read from the record itself (shorter than its step), which every version already stores. |
+| A server-side bound on `replace_nudges` times | The app-side bound covers the app; a database rule needs a migration on production, which this change does not apply. |
+| Chiming on a locked iPhone, or a push at the end of a timer | A web app cannot play sound while the phone is locked; a push for a five-minute timer needs the server to schedule it. The screen stays on while a timer runs instead. |
+| Home's older plan list treating a short goal-block record as not done | That list (`todayBlocks`) is unchanged: a goal block recorded short there still shows ticked. The practice sequence itself does not count it. |
