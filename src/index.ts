@@ -91,7 +91,8 @@ export { supabaseRemote, planNudges, uploadNudges, NUDGE_HORIZON_DAYS, NUDGE_MAX
 export type { SupabaseLike } from './remote.ts';
 export { createHost, runModule, ContractViolation, CONTRACT_VERSION, MAX_WRITES_PER_HOUR } from './contract.ts';
 export type { ModuleHost, ModuleManifest } from './contract.ts';
-export { TEST_DECK, seedTestDeck, deckEntries, prompt, chordSpelling, spell } from './modules/test-deck.ts';
+export { TEST_DECK, FRETBOARD_DECK, FRETBOARD_DECK_NAME, STAGES, RETIRED_DECK_CARDS, seedTestDeck, openStages, deckEntries, prompt, chordSpelling, spell, fretDiagram, majorScale, keySignature, diatonicChords } from './modules/test-deck.ts';
+export type { ChordQuality, Track } from './modules/test-deck.ts';
 export {
   SONGS,
   MAX_TITLE,

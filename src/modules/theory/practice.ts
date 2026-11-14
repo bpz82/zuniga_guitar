@@ -27,9 +27,19 @@
  * slip pulls the horizon back for new lessons only.
  *
  * Superseded (2026-11-02): the 2026-10-31 topic deck's book cards are retired
- * on first launch (history kept). Its "general" cards (guitar theory, cassette
- * gear, not from the books) stay as Extras, off by default, switchable on the
- * Cards screen. Topic switching (topics, setTopic) is kept for the record only.
+ * on first launch (history kept). Topic switching (topics, setTopic) is kept
+ * for the record only.
+ *
+ * Course rebuild (2026-11-13): nine chapters, with the electric guitar on
+ * stage (chapter 3) and music theory (chapter 4). Cards keep their ids
+ * whatever lesson they now sit in. Several topic-deck cards are back in the
+ * course under their old ids (the old guitar-theory and cassette Extras among
+ * them): seeding switches each one on again when its lesson opens, history
+ * and all. Cards taken out of the course (RETIRED_COURSE_IDS) are switched
+ * off. The Extras are now advanced cards beside a lesson's reading (dBu and
+ * dBV, the 7th harmonic, the NIOSH guideline), still off by default; their
+ * on/off state follows db-exposure, the one card that was an Extra before and
+ * still is, so an old log keeps the choice it had.
  */
 import type { ModuleHost, ModuleManifest } from '../../contract.ts';
 import type { DayStart, Rating } from '../../model.ts';
@@ -38,7 +48,7 @@ import { isExtraReview, memoryOf } from '../../scheduler.ts';
 import type { Validation } from '../../validate.ts';
 import { cardById, DECK, TOPICS } from './deck.ts';
 import type { McCard, QaCard, TheoryCard, Topic } from './deck.ts';
-import { CURRICULUM_CHAPTERS, lessonCardById, LESSONS } from './curriculum.ts';
+import { CURRICULUM_CHAPTERS, EXTRA_CARDS, lessonCardById, LESSON_CARDS, LESSONS, RETIRED_COURSE_IDS } from './curriculum.ts';
 import type { Lesson, LessonCard, LessonMc } from './curriculum.ts';
 
 export const THEORY: ModuleManifest = Object.freeze({
@@ -63,14 +73,17 @@ export const itemIdOf = (id: string) => `th-${id}`;
 export const cardIdOf = (id: string) => `th-${id}-c`;
 const deckIdOf = (cardId: string) => (cardId.startsWith('th-') && cardId.endsWith('-c') ? cardId.slice(3, -2) : null);
 
-/** A card's content: a curriculum card, or one from the superseded topic deck (the Extras among them). */
+/** A card's content: a curriculum card (or Extra), or one from the superseded topic deck. */
 export type Content = LessonCard | TheoryCard;
 export type McContent = LessonMc | McCard;
 
-const isExtra = (c: TheoryCard) => c.source.book === 'general';
-/** The superseded deck's general cards, kept as Extras. */
-export const EXTRAS: readonly TheoryCard[] = Object.freeze(DECK.filter(isExtra));
-const LEGACY_BOOK: readonly TheoryCard[] = Object.freeze(DECK.filter((c) => !isExtra(c)));
+/** The Extras (2026-11-13): advanced cards beside a lesson's reading, off by default. */
+export const EXTRAS: readonly LessonCard[] = EXTRA_CARDS;
+/** The Extra whose state decides the rest: it was an Extra before the 2026-11-13 rebuild and still is. */
+export const EXTRA_ANCHOR = 'db-exposure';
+const IN_COURSE = new Set([...LESSON_CARDS, ...EXTRA_CARDS].map((c) => c.id));
+/** The superseded deck's book cards that stayed out of the course: retired once, at the 2026-11-02 rebuild. */
+const LEGACY_BOOK: readonly TheoryCard[] = Object.freeze(DECK.filter((c) => c.source.book !== 'general' && !IN_COURSE.has(c.id)));
 
 /** The content behind an engine card id, if this module owns it. */
 export function contentOf(host: ModuleHost, cardId: string): Content | undefined {
@@ -185,35 +198,55 @@ async function addCard(host: ModuleHost, id: string, type: 'qa' | 'mc', fields: 
 
 /**
  * Brings the log up to date; safe on every launch and after every answer.
- *   1. The first time after the rebuild: retires the superseded deck's book
- *      cards and switches the Extras off (both keep their history).
- *   2. Adds the cards of every open lesson: all lessons up to the horizon
- *      (see CHAPTER_HORIZON). Cards already there are never touched.
- *   3. Adds any Extras not yet in the log, off unless the Extras are on.
- * Returns how many cards it added.
+ *   1. The first time after the 2026-11-02 rebuild: retires the superseded
+ *      deck's cards (history kept), except those back in an open lesson.
+ *   2. Switches off cards taken out of the course (RETIRED_COURSE_IDS).
+ *   3. Adds the cards of every open lesson: all lessons up to the horizon
+ *      (see CHAPTER_HORIZON). A card already there but switched off (a deck
+ *      card back in the course) is switched on again, with its history.
+ *   4. Adds any Extras not yet in the log, and keeps every Extra on or off
+ *      together, following EXTRA_ANCHOR (off in a new log).
+ * Returns how many cards it added or switched on.
  */
 export async function seedTheory(host: ModuleHost, dayStart: DayStart = DEFAULT_DAY_START): Promise<number> {
   const byId = () => new Map(host.cards().map((c) => [c.id, c]));
-  const before = byId();
-  const firstAfterRebuild = LEGACY_BOOK.some((c) => before.get(cardIdOf(c.id))?.retired === false);
-  if (firstAfterRebuild) {
-    for (const c of [...LEGACY_BOOK, ...EXTRAS]) if (before.get(cardIdOf(c.id))?.retired === false) await host.retireCard(cardIdOf(c.id));
-  }
-  let added = 0;
   // Everything inside the horizon. The horizon only moves when a lesson
   // graduates, which adding new (unanswered) cards can't do, so once is enough.
   const open = horizon(host, dayStart).last;
+  const openIds = new Set(LESSONS.filter((l) => l.chapter <= open).flatMap((l) => l.cards.map((c) => c.id)));
+  const before = byId();
+  const active = (id: string) => before.get(cardIdOf(id))?.retired === false;
+  if (LEGACY_BOOK.some((c) => active(c.id))) {
+    for (const c of DECK) if (active(c.id) && !openIds.has(c.id)) await host.retireCard(cardIdOf(c.id));
+  }
+  for (const id of RETIRED_COURSE_IDS) if (active(id)) await host.retireCard(cardIdOf(id));
+  let added = 0;
   for (const lesson of LESSONS) {
     if (lesson.chapter > open) break;
     for (const c of lesson.cards) {
-      if (await addCard(host, c.id, c.type, { lesson: lesson.n })) added++;
+      if (await addCard(host, c.id, c.type, { lesson: lesson.n })) {
+        added++;
+        continue;
+      }
+      const card = byId().get(cardIdOf(c.id))!;
+      if (card.retired) {
+        await host.addCard(card.id, card.itemId, card.template);
+        added++;
+      }
     }
   }
-  const extrasOn = extras(host).on > 0;
+  const anchor = byId().get(cardIdOf(EXTRA_ANCHOR));
+  const extrasOn = anchor !== undefined && !anchor.retired;
   for (const c of EXTRAS) {
-    if (await addCard(host, c.id, c.type, { topic: c.topic })) {
+    if (await addCard(host, c.id, c.type, { lesson: c.lesson })) {
       added++;
       if (!extrasOn) await host.retireCard(cardIdOf(c.id));
+      continue;
+    }
+    const card = byId().get(cardIdOf(c.id))!;
+    if (card.retired === extrasOn) {
+      if (extrasOn) await host.addCard(card.id, card.itemId, card.template);
+      else await host.retireCard(card.id);
     }
   }
   return added;
@@ -333,8 +366,9 @@ export interface ChapterMaterial {
 /**
  * The reading behind a card, for the "Read in Chapter" button: the chapter
  * the card's lesson sits in, every lesson's reading in it (our own words,
- * written for the course; nothing from the books, no links). Undefined for a
- * card outside the course (the Extras, other modules').
+ * written for the course; nothing from the books, no links). An Extra opens
+ * the chapter of the lesson it sits beside. Undefined for a card outside the
+ * course (the superseded deck's, other modules').
  */
 export function chapterFor(host: ModuleHost, cardId: string): ChapterMaterial | undefined {
   const lesson = lessonOfCard(host, cardId);

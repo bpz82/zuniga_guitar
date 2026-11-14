@@ -13,6 +13,10 @@
  * citation points to where the subject is treated; check facts against
  * your own copies.
  *
+ * Superseded (2026-11-02) by the curriculum; several cards are back in it
+ * under these ids (2026-11-13), where the course's wording wins. A few facts
+ * were corrected here too (str-fret12, temp-just, res-cable, rng-highpass).
+ *
  * Content lives in code, not in the log: the log keeps only each card's id
  * and topic, so a corrected card reaches every device with the app.
  */
@@ -152,7 +156,7 @@ export const DECK: readonly TheoryCard[] = Object.freeze([
   qa('strings', 'str-scale-tension', 'A 25.5-inch scale and a 24.75-inch scale, same strings, same tuning: which has more tension, and roughly how much?', 'The 25.5-inch scale, by about 6%: tension grows with the square of the length for the same pitch and string.', B(7)),
   mc('strings', 'str-wound', 'Why are the low guitar strings wound?', 'To add mass without adding much stiffness', ['To make them stronger', 'To reduce finger noise', 'To make them magnetic'], 'Extra mass lowers the pitch at a playable tension; a solid wire that heavy would be too stiff.', B(8)),
   qa('strings', 'str-inharmonic', 'What is inharmonicity in a guitar string, and what causes it?', 'The upper partials run slightly sharp of exact whole-number multiples. Bending stiffness causes it, and it is worse in thick, short, stiff strings.', B(8)),
-  mc('strings', 'str-fret12', 'Where does the 12th fret sit on a correctly built guitar?', 'Halfway between the nut and the saddle', ['Two thirds of the way to the saddle', 'One third of the way to the saddle', 'Wherever the neck joins the body'], 'Half the length gives double the frequency: one octave.', B(7)),
+  mc('strings', 'str-fret12', 'Where does the 12th fret sit on a correctly built guitar?', 'At half the scale length; the compensated saddle sits slightly farther back', ['Two thirds of the way to the saddle', 'One third of the way to the saddle', 'Wherever the neck joins the body'], 'Half the length gives double the frequency: one octave. (Corrected 2026-11-13.)', B(7)),
   qa('strings', 'str-fret-spacing', 'Why do frets get closer together toward the body?', 'Every semitone shortens the remaining string by the same ratio (about 5.6%), so each step is a smaller distance as the string gets shorter.', B(7)),
   qa('strings', 'str-compensation', 'Why is the saddle set slightly farther from the nut than the exact scale length?', 'Pressing a string to a fret stretches it a little and its stiffness raises fretted pitch, so notes go sharp. Moving the saddle back (compensation) brings the 12th-fret note back in line with the octave harmonic.', B(8)),
   mc('strings', 'str-action', 'Raising the action (string height) usually does what to fretted notes?', 'Makes them go sharper', ['Makes them go flatter', 'Has no effect on pitch', 'Only affects open strings'], 'A taller action means more stretch when you press down, which raises tension.', B(7)),
@@ -169,7 +173,7 @@ export const DECK: readonly TheoryCard[] = Object.freeze([
   mc('temperament', 'temp-syntonic', 'Four pure fifths up (minus two octaves) land how far from a pure major third?', 'About 21.5 cents sharp (the syntonic comma)', ['Exactly on it', 'About 2 cents flat', 'A full semitone sharp'], 'This gap is why tuning by fifths alone gives wide, rough thirds.', B(15)),
   qa('temperament', 'temp-harmonic-tuning', 'Why can tuning a guitar only with 5th- and 7th-fret harmonics leave it slightly out?', 'Those harmonics give pure fourths and fifths, about 2 cents off the equal-tempered intervals the frets use, and the small errors add up from string to string.', B(14)),
   mc('temperament', 'temp-beats', 'Two tones at 440 Hz and 443 Hz sound together. How many beats per second?', '3', ['443', '1.5', '6'], 'The beat rate equals the difference between the two frequencies.', B(14)),
-  qa('temperament', 'temp-just', 'What is just intonation?', 'Tuning intervals to simple whole-number ratios from the harmonic series (3:2, 5:4 and so on). Chords in one key are beat-free, but other keys go badly out.', B(15)),
+  qa('temperament', 'temp-just', 'What is just intonation?', 'Tuning intervals to simple whole-number ratios from the harmonic series (3:2, 5:4 and so on). The main chords of one key are pure, but not every chord even in that key, and other keys go badly out.', B(15)),
   mc('temperament', 'temp-press', 'Which fretting habit pulls notes sharp?', 'Pressing too hard or pushing the string sideways', ['Fretting right behind the fret', 'Using lighter pressure', 'Playing with a capo'], 'Extra pressure or sideways push stretches the string and raises its tension.', B(7)),
 
   // ---------------------------------------------------- resonance (12)
@@ -181,7 +185,7 @@ export const DECK: readonly TheoryCard[] = Object.freeze([
   qa('resonance', 'res-pickup', 'How does a magnetic pickup make a signal?', 'The steel string moving in the magnet\'s field changes the magnetic flux through the coil, and that change induces a voltage. Faster string motion gives more voltage.', W(17)),
   mc('resonance', 'res-humbucker', 'Why does a humbucker hum less than a single coil?', 'Its two coils are wired so outside hum cancels while the string signal adds', ['It has a stronger magnet', 'It sits farther from the strings', 'Its cover blocks electrical noise'], 'The coils are wound and magnetized in opposite senses: hum arrives in both equally and cancels; the string signal does not.', W(17)),
   qa('resonance', 'res-neck-bridge', 'Why does a neck pickup sound warmer than a bridge pickup?', 'Near the middle of the string the low harmonics swing widely; near the bridge the string moves little except in the higher harmonics, so the bridge pickup hears relatively more treble.', W(17)),
-  mc('resonance', 'res-cable', 'Why can a long guitar cable make a passive guitar sound duller?', 'Cable capacitance lowers the pickup\'s resonant peak', ['Long cables add bass', 'The signal travels too slowly', 'Long cables add hum only'], 'Pickup inductance and cable capacitance form a resonance a few kHz up; more capacitance moves it lower and rolls off highs.', W(17)),
+  mc('resonance', 'res-cable', 'Why can a long guitar cable make a passive guitar sound duller?', 'Cable capacitance pulls the pickup\'s resonant peak lower in frequency', ['Long cables add bass', 'The signal travels too slowly', 'Long cables add hum only'], 'Pickup inductance and cable capacitance form a resonance a few kHz up; more capacitance moves it lower and rolls off highs.', W(17)),
   qa('resonance', 'res-piezo', 'Why do piezo pickups usually need a preamp or a very high-impedance input?', 'A piezo element is a very high-impedance source that behaves like a small capacitor. A normal input loads it down and loses the bass.', W(17)),
   mc('resonance', 'res-out-of-phase', 'Two pickups combined out of phase sound…', 'Thin and nasal', ['Louder and fuller', 'Exactly like one pickup', 'Distorted'], 'The low frequencies, which both pickups hear nearly the same, cancel; differences in the highs remain.', W(17)),
   qa('resonance', 'res-decay-color', 'Why does a ringing guitar note get darker as it fades?', 'The higher partials lose their energy faster than the lower ones, so the spectrum tilts toward the fundamental over time.', B(4)),
@@ -207,7 +211,7 @@ export const DECK: readonly TheoryCard[] = Object.freeze([
   qa('ranges', 'rng-top', 'What is the highest fundamental on the high E string of a 22-fret guitar?', 'D6, about 1175 Hz. The harmonics above it carry the sound much higher.', W(26)),
   qa('ranges', 'rng-presence', 'Which range is often called guitar presence, and why does it matter?', 'Roughly 2 to 5 kHz: pick attack and articulation live there, and the ear is very sensitive to it.', W(10)),
   mc('ranges', 'rng-speaker', 'A typical 12-inch guitar speaker rolls off steeply above about…', '5 kHz', ['500 Hz', '15 kHz', '20 kHz'], 'That roll-off is part of the sound of an electric guitar through an amp.', W(26)),
-  qa('ranges', 'rng-highpass', 'Why is a high-pass filter around 80 to 100 Hz common on guitar tracks?', 'The guitar has almost no useful fundamental below its low E (82 Hz). Filtering below removes rumble and leaves room for bass and kick.', W(10)),
+  qa('ranges', 'rng-highpass', 'Where should a high-pass filter on a guitar track start?', 'Low, about 60 to 80 Hz, swept up until the rumble clears while the low E (82 Hz) still sounds solid; lower for drop tunings.', W(10)),
   mc('ranges', 'rng-bass', 'What is the fundamental of a bass guitar\'s low E?', 'About 41 Hz', ['About 82 Hz', 'About 30 Hz', 'About 55 Hz'], 'E1 is 41.2 Hz, one octave below the guitar\'s low E.', W(26)),
   qa('ranges', 'rng-drop-d', 'What is the fundamental of the low string in drop D?', 'About 73 Hz (D2, 73.4 Hz).', W(26)),
   mc('ranges', 'rng-mud', 'Guitar muddiness in a mix is most often around…', '200 to 500 Hz', ['20 to 50 Hz', '2 to 5 kHz', '10 to 15 kHz'], 'Low-mid build-up from several instruments clouds the mix; listen there first.', W(10)),

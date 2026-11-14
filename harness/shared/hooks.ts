@@ -48,7 +48,7 @@ const STATIC = [
   // settings: quiet hours
   'quiet-start', 'quiet-end', 'save-quiet',
   // practice now
-  'status', 'session', 'card', 'question', 'answer', 'reveal', 'practice', 'rate', 'blocks', 'played',
+  'status', 'session', 'card', 'question', 'answer', 'answer-diagram', 'reveal', 'practice', 'rate', 'blocks', 'played',
   'mc-choices', 'card-feedback', 'card-tab',
   // theory and physics: the curriculum (2026-11-02)
   'theory', 'theory-lessons', 'theory-extras', 'theory-extras-label',

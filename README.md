@@ -27,7 +27,7 @@ FSRS comes from a pinned, vendored copy of ts-fsrs: see [`vendor/ts-fsrs/VENDORE
 
 ## Where the code lives
 
-- `src/`: the engine (log, scheduler, goals, sessions, sync) and `src/modules/` (metronome, recorder, ear, theory, songwriting, songs, test deck).
+- `src/`: the engine (log, scheduler, goals, sessions, sync) and `src/modules/` (metronome, recorder, ear, theory, songwriting, songs, and the built-in Fretboard and chords deck, `test-deck.ts`).
 - `harness/`: the app's UI code, one folder per module (2026-11-03), mirroring `src/modules`:
 
 | Folder | What is in it |
@@ -66,3 +66,4 @@ A module folder imports only its own files, `harness/shared/` and the engine, ne
 | Layout redesign of every screen; theme v6 (lighter) | Built, awaiting review |
 | Theme v8: Home like final_mock4, Zuniga Mission v2; harness split into module folders | Built, awaiting review |
 | Display font Zuniga Mission v3.0 (`theme/fonts/ZunigaMission-Regular-v3.woff2`) for all display text; app icon is logo 10 (`theme/icons/*-v10.*`) | Built, awaiting review |
+| Curriculum review built (2026-11-13): nine chapters, 44 lessons, the electric guitar on stage at chapter 3, music theory at chapter 4; the built-in deck is now Fretboard and chords, a staged two-direction trainer | Built, awaiting review |

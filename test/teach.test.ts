@@ -47,15 +47,15 @@ test('objectives for a new lesson: read it, learn its cards, and what moves the 
   assert.deepEqual(teachObjectives(state, { due: 0, fresh: 8 }).map((o) => o.text), [
     'Read the lesson: What sound is',
     'Learn 8 new cards',
-    'Make all 8 cards solid to move on to Lesson 2 · Frequency, period and pitch (0 of 8 so far)',
+    'Make all 9 cards solid to move on to Lesson 2 · Frequency, period and pitch (0 of 9 so far)',
   ]);
   assert.equal(teachObjectives(state, { due: 0, fresh: 8 }, 4).at(-1)!.text, 'You can learn ahead: chapters up to 4 are open');
-  assert.match(teachObjectives(state, { due: 0, fresh: 8 }, 9).at(-1)!.text, /chapters up to 5 are open/, 'never past the last chapter');
+  assert.match(teachObjectives(state, { due: 0, fresh: 8 }, 12).at(-1)!.text, /chapters up to 9 are open/, 'never past the last chapter');
 });
 
 test('objectives once started: due reviews; nothing due explains that the later day moves on; the last lesson finishes the course', async () => {
   const { host } = await setup();
-  const started = { ...currentLesson(host, NY)!, started: 8, ready: 3 };
+  const started = { ...currentLesson(host, NY)!, started: 9, ready: 3 };
   assert.deepEqual(teachObjectives(started, { due: 1, fresh: 0 }).map((o) => o.kind), ['deck', 'block']);
   assert.match(teachObjectives(started, { due: 1, fresh: 0 })[0]!.text, /^Review 1 card due$/);
   const waiting = teachObjectives(started, { due: 0, fresh: 0 });
@@ -63,5 +63,5 @@ test('objectives once started: due reviews; nothing due explains that the later 
   const last = { ...started, lesson: LESSONS.at(-1)! };
   assert.match(teachObjectives(last, { due: 0, fresh: 2 }).at(-1)!.text, /to finish the course/);
   assert.deepEqual(teachObjectives(null, { due: 2, fresh: 0 }).map((o) => o.text), ['Every lesson has graduated.', 'Review 2 cards due']);
-  assert.equal(teachObjectives({ ...started, ready: 8 }, { due: 0, fresh: 0 }).find((o) => o.kind === 'block')!.done, true);
+  assert.equal(teachObjectives({ ...started, ready: started.total }, { due: 0, fresh: 0 }).find((o) => o.kind === 'block')!.done, true);
 });

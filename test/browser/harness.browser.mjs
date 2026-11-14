@@ -153,6 +153,10 @@ try {
   const first = await page.getAttribute('[data-zg=\"card\"]', 'data-card');
   await page.click('[data-zg=\"reveal\"]');
   assert.notEqual((await page.textContent('[data-zg=\"answer\"]')).trim(), '');
+  if (first.startsWith('td-fret-')) {
+    assert.match(await page.textContent('[data-zg="answer-diagram"]'), /●/, 'a fretboard card shows a small text fretboard with its answer');
+    assert.equal(await page.isVisible('[data-zg="answer-diagram"]'), true);
+  }
   await page.click('[data-zg=\"r-good\"]');
   await until((c) => document.querySelector('[data-zg=\"card\"]').dataset.card !== c, first);
   const pending = await page.evaluate(() => window.zg.replica.pendingCount);
@@ -164,8 +168,8 @@ try {
   await ready();
   assert.equal(await page.evaluate((c) => window.zg.replica.library.reviews.get(c)?.length, first), 1);
   assert.equal(await page.evaluate(() => window.zg.replica.pendingCount), pending);
-  assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.keys()].filter((k) => k.startsWith('td-')).length), 102, 'seeding again added nothing');
-  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 241, 'plus the metronome\'s Free practice exercise, the 4 level-1 ear skills, the 117 cards of chapters 1 to 4 (the horizon) and the 17 Extras (off)');
+  assert.equal(await page.evaluate(() => [...window.zg.replica.library.cards.keys()].filter((k) => k.startsWith('td-')).length), 32, 'seeding again added nothing (Fretboard and chords, 2026-11-13: stage 1 of each track, 8 neck cards and 24 triads)');
+  assert.equal(await page.evaluate(() => window.zg.replica.library.cards.size), 224, 'plus the metronome\'s Free practice exercise, the 4 level-1 ear skills, the 183 cards of chapters 1 to 4 (the horizon) and the 4 Extras (off)');
   step('the review survives a reload (IndexedDB), still queued to sync');
 
   // App shell routing. (Reloading on Home with no goal reopened Goals; back to Home.)
@@ -785,16 +789,16 @@ try {
 
   // The course on the Cards screen: chapters, lesson 1 learning, the rest locked; the Extras switch.
   await show('cards');
-  assert.equal(await page.locator('[data-zg="theory-chapter"]').count(), 5);
+  assert.equal(await page.locator('[data-zg="theory-chapter"]').count(), 9);
   const lessonRows = () => page.evaluate(() => [...document.querySelectorAll('[data-zg="theory-lesson"]')].map((li) => li.dataset.status));
   assert.deepEqual((await lessonRows()).slice(0, 3), ['current', 'open', 'open'], 'lessons ahead are open for learning ahead (2026-11-08)');
-  assert.equal((await lessonRows()).filter((x) => x === 'locked').length, 24 - 17, 'only lessons past the three-chapter horizon are locked');
-  assert.equal((await lessonRows()).length, 24);
+  assert.equal((await lessonRows()).filter((x) => x === 'locked').length, 44 - 22, 'only lessons past the three-chapter horizon are locked');
+  assert.equal((await lessonRows()).length, 44);
   assert.equal(await page.isChecked('[data-zg="theory-extras"]'), false, 'Extras start off');
   await page.click('label:has([data-zg="theory-extras"])');
-  await until(() => document.querySelector('[data-zg="theory-extras-label"]').textContent.includes('(17 of 17 on)'));
+  await until(() => document.querySelector('[data-zg="theory-extras-label"]').textContent.includes('(4 of 4 on)'));
   await page.click('label:has([data-zg="theory-extras"])');
-  await until(() => document.querySelector('[data-zg="theory-extras-label"]').textContent.includes('(0 of 17 on)'));
+  await until(() => document.querySelector('[data-zg="theory-extras-label"]').textContent.includes('(0 of 4 on)'));
   assert.ok(!/Benade|Winer/.test(await page.evaluate(() => document.body.innerText)), 'no sources anywhere on the page');
   // Graduation: every lesson 1 card right, then right again two days later (answered here through the module's host).
   const passLesson1 = () => page.evaluate(async () => {
@@ -1793,7 +1797,7 @@ try {
     for (let i = 0; i < 6; i++) {
       kinds.add(await text('review-kind'));
       const id = await answerOne('good');
-      assert.ok(await p.evaluate((x) => /^th-l(0[1-9]|1\d|2\d)-/.test(x), id));
+      assert.ok(await p.evaluate((x) => (window.zg.theory.content(x)?.lesson ?? 99) <= 22, id), 'chapters 1 to 4 only (lessons 1 to 22)');
     }
     assert.ok(kinds.has('New') || kinds.has('Due'));
     await shot('12-review-do-more');

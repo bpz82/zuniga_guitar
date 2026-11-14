@@ -194,7 +194,7 @@ export function setupTheory(host: ModuleHost, say: (s: string) => void, afterCha
       const x = extras(host);
       const box = $<HTMLInputElement>('theory-extras');
       box.checked = x.on > 0;
-      $('theory-extras-label').textContent = `Extra cards outside the course: guitar theory and cassette gear (${x.on} of ${x.total} on)`;
+      $('theory-extras-label').textContent = `Extras: deeper cards beside the lessons, not needed to move on (${x.on} of ${x.total} on)`;
     },
     /** "Read in Chapter" (2026-11-08): the chapter the card belongs to, in our own words, with the card's own lesson on top. */
     openChapter(cardId: string) {

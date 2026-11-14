@@ -1,0 +1,98 @@
+/** Chapter 1: Sound itself. Old lessons 1 to 4 and 6 (lesson 6 split in two, 2026-11-13); wavelength moved next to rooms. */
+import { B, lesson, mc, qa, W } from '../course-kit.ts';
+import type { LessonSpec } from '../course-kit.ts';
+
+export const CH1: readonly LessonSpec[] = [
+  lesson('l01', 1, 'What sound is', [
+    'Sound is a vibration that travels. Something moves back and forth (a guitar string, a speaker, your vocal cords) and pushes on the air next to it. That air pushes on the air beside it, and so on, until the push reaches your ear. Pluck a guitar string and you can see it blur as it swings: that swinging is where the sound starts.',
+    'The air itself does not travel from the guitar to you. Each bit of air only jiggles in place: squeezed a tiny bit closer together (higher pressure, called compression), then pulled a tiny bit farther apart (lower pressure, called rarefaction). What travels is the pattern of pressure changes. That travelling pattern is a sound wave.',
+    'Sound needs something to travel through: air, water, wood or steel. This is called the medium. In empty space there is nothing to push on, so there is no sound.',
+    'In air at room temperature sound travels about 343 metres per second (about 1,125 feet per second). That is roughly one foot per millisecond; a millisecond (ms) is a thousandth of a second. Stand 10 feet from your amp and its sound reaches you about 10 ms after it leaves the speaker. Sound travels faster through water, and faster still through solids such as wood and steel.',
+    'Your ear works the other way round: the pressure changes push your eardrum in and out, and your inner ear turns that motion into signals for your brain.',
+  ], [
+    qa('what-is-sound', 'In one sentence, what is sound?', 'A vibration that travels through a medium such as air, as a pattern of tiny pressure changes.', B(1)),
+    mc('what-travels', 'You strum a guitar across the room. What actually travels from the guitar to your ear?', 'A pattern of pressure changes; the air itself only jiggles in place', ['A stream of air pushed out by the strings and carried to you', 'The same air molecules, moving from the guitar to your ear', 'A pattern of pressure changes carried along by a steady breeze'], 'Each bit of air moves back and forth a tiny amount and passes the push on. The pattern travels; the air stays put.', B(2)),
+    qa('compression', 'In a sound wave, what is compression?', 'Air squeezed slightly closer together than normal: a moment of higher pressure.', W(1)),
+    qa('rarefaction', 'In a sound wave, what is rarefaction?', 'Air pulled slightly farther apart than normal: a moment of lower pressure. A sound wave alternates compression and rarefaction.', W(1)),
+    mc('space', 'Why is there no sound in outer space?', 'There is no medium to carry the vibration', ['Space is too cold for air to vibrate', 'Sound needs gravity to hold its pressure pattern together', 'The distances are too great for sound to arrive'], 'Sound is a pressure pattern in a medium; with nothing to push on, nothing can travel.', B(1)),
+    mc('speed', 'About how fast does sound travel in air at room temperature?', 'About 343 metres (1,125 feet) per second', ['About 34 metres (112 feet) per second', 'About 3,400 metres (11,000 feet) per second', 'About 34,000 metres (112,000 feet) per second'], 'Fast, but slow enough to measure: about a foot every millisecond.', W(1)),
+    qa('foot-per-ms', 'You stand 10 feet from your amp. About how long after it leaves the speaker does its sound reach you?', 'About 10 ms: sound covers roughly a foot per millisecond.', W(19)),
+    mc('solids', 'Compared with air, sound travels through wood and steel…', 'Faster', ['Slower', 'At the same speed', 'Not at all'], 'Stiff solids pass a push along much more quickly than air does.', B(1)),
+    qa('eardrum', 'What does your eardrum do with a sound wave?', 'The pressure changes push it in and out, and the inner ear turns that motion into signals for the brain.', W(3)),
+  ]),
+  lesson('l02', 1, 'Frequency, period and pitch', [
+    'A vibration repeats. One complete back-and-forth movement (out, back, and out again to where it started) is called a cycle.',
+    'Frequency is how many cycles happen each second. Its unit is the hertz (Hz): 1 Hz is one cycle per second. 1,000 Hz is written 1 kHz (kilohertz). The open A string of a guitar vibrates 110 times a second: 110 Hz.',
+    'The period is the time one cycle takes. It is 1 divided by the frequency: a 100 Hz vibration has a period of 1/100 of a second, which is 10 milliseconds. Higher frequency means shorter period.',
+    'Pitch is how high or low a note sounds to you. It is the ear\'s sense of frequency: faster vibration, higher pitch. Doubling the frequency raises the pitch by one octave, the same note name one step higher up. The A an octave above the open A string is 220 Hz.',
+    'Young, healthy ears hear from about 20 Hz to about 20 kHz. The top end drops with age and with exposure to loud sound. Musicians call the low frequencies the bass and the high ones the treble, the same words as on an amp\'s tone knobs.',
+  ], [
+    qa('cycle', 'What is one cycle of a vibration?', 'One complete back-and-forth movement, ending where it started, ready to repeat.', B(3)),
+    qa('frequency', 'What is frequency, and what is its unit?', 'How many cycles happen each second, measured in hertz (Hz). 1 Hz is one cycle per second.', W(1)),
+    mc('khz', 'How many cycles per second is 2 kHz?', '2,000', ['200', '20', '20,000'], 'Kilo means a thousand: 2 kHz is 2,000 Hz.', W(1)),
+    mc('period', 'What is the period of a 100 Hz vibration?', '10 milliseconds', ['100 milliseconds', '1 millisecond', '1 second'], 'Period = 1 ÷ frequency = 1/100 of a second = 10 ms.', B(3)),
+    qa('period-rule', 'How are frequency and period related?', 'Period = 1 ÷ frequency. Higher frequency, shorter period: 1 kHz has a period of 1 ms.', B(3)),
+    qa('pitch', 'What is pitch?', 'How high or low a sound seems: the ear\'s sense of its frequency. Faster vibration sounds higher.', B(5)),
+    mc('octave', 'The open A string is 110 Hz. What frequency is the A one octave higher?', '220 Hz', ['120 Hz', '165 Hz', '440 Hz'], 'An octave up doubles the frequency.', B(5)),
+    mc('hearing-range', 'Roughly what range of frequencies can young, healthy ears hear?', '20 Hz to 20 kHz', ['200 Hz to 2 kHz', '2 Hz to 200 kHz', '20 Hz to 2 kHz'], 'The top end falls with age and loud-sound exposure.', W(3)),
+  ]),
+  lesson('l03', 1, 'Amplitude and loudness', [
+    'Amplitude is the size of a vibration: how far the string swings, or how big the pressure changes in the air are. Pluck gently and the amplitude is small; dig in and it is large.',
+    'Frequency and amplitude are separate. A string can swing widely or barely at all and still make the same number of cycles each second, so a soft note and a loud note can have the same pitch. (One small exception for strings: a very hard pluck briefly raises the pitch, which a later lesson on real strings explains.)',
+    'Loudness is how strong a sound seems to you. A bigger amplitude sounds louder, but not in a straight line. The ear copes with an enormous span of pressures, from a whisper to a jet engine (millions to one), by judging ratios rather than differences: going from 1 to 2 units of pressure sounds like about the same step as going from 100 to 200.',
+    'A thin string on its own barely moves the air: the air simply slips round it. That is why an unplugged solid-body electric is so quiet. An acoustic guitar\'s wooden top, or an amp\'s speaker cone, has a large surface that pushes a lot of air, and that makes the big pressure changes you hear.',
+    'A vibration loses energy over time, to the air, to the guitar\'s body and to friction inside the string, so its amplitude shrinks. That gradual fading is called decay.',
+  ], [
+    qa('amplitude', 'What is amplitude?', 'The size of a vibration: how far something swings, or how big the pressure changes are.', W(1)),
+    mc('soft-loud', 'You play the same note softly, then loudly. What changes?', 'The amplitude, not the frequency', ['The frequency, not the amplitude', 'Both the frequency and the amplitude', 'Neither'], 'Pitch follows frequency; loudness follows amplitude. (A very hard pluck nudges a string\'s pitch up for a moment, but the note is the same.)', B(13)),
+    qa('loudness', 'What is loudness?', 'How strong a sound seems to a listener. It grows with amplitude, but the ear judges ratios, not differences.', B(13)),
+    mc('ratios', 'Which pair of changes sounds like about the same step in loudness?', 'Pressure going from 1 to 2, and from 100 to 200', ['From 1 to 2, and from 100 to 101', 'From 1 to 2, and from 100 to 102', 'From 1 to 10, and from 100 to 101'], 'Both are a doubling. The ear hears equal ratios as equal steps.', W(3)),
+    qa('decay', 'What is decay, and why does a plucked note decay?', 'The fading of a vibration over time. The string loses energy to the air, to the guitar\'s body and to friction inside the string.', B(4)),
+    mc('why-ratios', 'Why does the ear judge loudness by ratios rather than differences?', 'It has to cover pressures from a whisper to a jet engine, millions to one', ['It hears only one frequency at a time, so it compares them', 'Loud sounds travel faster, so it compares arrival times', 'Pressure changes in air are always the same size'], 'Ratios let one sense cover an enormous range.', W(3)),
+    mc('unplugged', 'Why is an unplugged solid-body electric guitar so quiet?', 'A thin string barely moves the air; it needs a large surface to push it', ['Its strings vibrate too slowly to be heard', 'Its body soaks up all of the strings\' sound', 'Its strings are too tight to swing far'], 'An acoustic\'s top or an amp\'s speaker cone is a large surface that pushes a lot of air.', B(9)),
+  ]),
+  lesson('l04', 1, 'Decibels', [
+    'Because the ear works in ratios, sound levels are measured in decibels (dB). A decibel figure is a ratio between two levels on a logarithmic scale: a scale that turns multiplying into adding. Equal steps in dB are equal ratios, so adding dB means multiplying the level.',
+    'Power is the rate at which a sound carries energy; it goes up with the square of the pressure. Two rules of thumb carry you far. Double the pressure and the level rises about 6 dB. Double the power (for example two equal speakers playing unrelated sounds instead of one) and it rises about 3 dB.',
+    'When dB describes how loud something actually is, it needs a reference: the 0 dB point. dB SPL (sound pressure level) uses 20 micropascals, roughly the quietest 1 kHz tone a young ear can hear. A quiet room is about 30 dB SPL, conversation about 60, a loud band 100 or more. Around 120 dB SPL sound starts to hurt.',
+    'How the numbers feel: about 1 dB is the smallest change most people notice, and a sound has to rise about 10 dB to seem roughly twice as loud.',
+    'Moving away from a small source in open air, the level falls about 6 dB each time you double the distance, because the same sound spreads over four times the area. This is the inverse square law.',
+  ], [
+    qa('what-is-db', 'What does a decibel figure express?', 'A ratio between two levels, on a logarithmic scale: equal dB steps are equal ratios.', W(1)),
+    mc('double-pressure', 'Doubling the sound pressure raises the level by about…', '6 dB', ['3 dB', '10 dB', '2 dB'], 'Pressure doubled is +6 dB. (Power goes with the square of pressure, so the pressure rule is twice the power rule.)', W(1)),
+    mc('double-power', 'Doubling the power raises the level by about…', '3 dB', ['6 dB', '10 dB', '1 dB'], 'Power doubled is +3 dB: half the pressure rule, because power goes with the square of pressure.', W(1)),
+    qa('spl-zero', 'What is the reference for 0 dB SPL?', 'A pressure of 20 micropascals, roughly the quietest 1 kHz tone a young, healthy ear can hear.', W(1)),
+    mc('twice-loud', 'Roughly how many dB louder must a sound be to seem twice as loud?', 'About 10 dB', ['About 1 dB', 'About 3 dB', 'About 40 dB'], 'Doubling the power (+3 dB) is clearly louder, but not twice as loud.', B(13)),
+    mc('smallest-change', 'About what is the smallest change in level most people notice?', 'About 1 dB', ['About 0.1 dB', 'About 5 dB', 'About 10 dB'], 'Smaller changes are easy to imagine and hard to hear.', W(3)),
+    mc('distance', 'In open air, doubling your distance from a small source lowers its level by about…', '6 dB', ['3 dB', '10 dB', '1 dB'], 'The same sound spreads over four times the area: the inverse square law.', W(19)),
+    qa('everyday-levels', 'About how loud is normal conversation, in dB SPL?', 'About 60 dB SPL.', W(3)),
+    mc('pain', 'At about what level does sound start to hurt?', 'About 120 dB SPL', ['About 60 dB SPL', 'About 85 dB SPL', 'About 160 dB SPL'], 'A quiet room is about 30, conversation 60, a loud band 100 or more; around 120 it hurts.', W(3)),
+  ]),
+  lesson('l06', 1, 'Sine waves and phase', [
+    'The simplest vibration is a smooth, even swing, like a pendulum or a weight bouncing on a spring. Its graph is a sine wave, and it sounds like a pure tone: a plain sound with one frequency and nothing else. A tuning fork comes close; a guitar note, as the next chapter shows, is far richer.',
+    'Phase says where in its cycle a wave is at a given moment, in degrees. A full cycle is 360°, half a cycle is 180° and a quarter cycle 90°.',
+    'Phase only says where in the cycle a wave is, not how fast it cycles: shifting a wave\'s phase does not change its pitch.',
+    'Time and phase are linked through the period. A 100 Hz wave has a period of 10 ms, so delaying it by 5 ms (half its period) puts it half a cycle, 180°, behind where it was. The same 5 ms delay is a different number of degrees at every other frequency.',
+  ], [
+    qa('sine', 'What is a sine wave, and what does it sound like?', 'The graph of the simplest smooth back-and-forth vibration. It sounds like a pure tone: one frequency only.', B(3)),
+    qa('phase', 'What does phase describe?', 'Where a wave is in its cycle at a given moment, in degrees: 360° is a full cycle, 180° half a cycle.', W(1)),
+    mc('quarter-cycle', 'How many degrees of phase is a quarter of a cycle?', '90°', ['45°', '180°', '360°'], 'A full cycle is 360°, so a quarter is 90°.', W(1)),
+    mc('delay-phase', 'A 100 Hz wave is delayed by 5 ms. How far out of phase is it with the original?', '180°: half a cycle', ['90°: a quarter cycle', '360°: back in phase', '5°'], 'Its period is 10 ms, so 5 ms is half a cycle.', W(1)),
+    mc('pure-tone', 'Which of these comes closest to a pure tone?', 'A tuning fork', ['A distorted electric guitar', 'A crash cymbal', 'A strummed acoustic chord'], 'A tuning fork swings almost as a single sine wave; the others are many frequencies at once.', B(3)),
+    qa('phase-pitch', 'Does shifting a sine wave\'s phase change its pitch?', 'No. Phase only says where in its cycle the wave is; the frequency, and so the pitch, stays the same.', W(1)),
+  ]),
+  lesson('l06', 1, 'Adding sounds: cancellation, polarity and comb filtering', [
+    'When two waves meet, their pressures add. Two identical waves in phase (peaks lined up with peaks) add up to double the pressure: +6 dB. If one is 180° out of phase, half a cycle late, every peak meets a trough and they cancel. Waves partly out of step land in between. Two unrelated sounds of equal level add in power instead: +3 dB.',
+    'Polarity is not the same as phase. Flipping the polarity turns the whole wave upside down at every frequency at once, as a reversed speaker wire does. A delay shifts the phase by a different amount at each frequency.',
+    'When a sound is mixed with a slightly delayed copy of itself (two microphones at different distances, or a reflection off a nearby wall), some frequencies add and others cancel. The result has a row of evenly spaced dips, like the teeth of a comb, so it is called comb filtering. It is why two microphones on one guitar amp can sound thin and hollow together when each sounds fine alone.',
+    'Two microphones facing each other, one in front of an open-backed amp and one behind it, pick up the speaker cone moving in opposite directions: one hears a push while the other hears a pull. Flipping the polarity of one puts them back together.',
+  ], [
+    mc('in-phase', 'Two identical sounds, perfectly in phase, are added. The level rises by…', '6 dB', ['3 dB', '0 dB', '12 dB'], 'Identical pressures add directly: double the pressure is +6 dB.', W(5)),
+    mc('out-of-phase', 'Two identical sounds, one 180° out of phase with the other, are added. The result is…', 'Silence: they cancel', ['Twice as loud', 'An octave higher', 'The same as one sound'], 'Every peak meets a trough of the same size.', W(1)),
+    mc('unrelated', 'Two different, unrelated sounds of equal level play together. The total rises by about…', '3 dB', ['6 dB', '0 dB', '10 dB'], 'Unrelated sounds add in power, not pressure: double the power is +3 dB.', W(5)),
+    qa('polarity', 'How is flipping polarity different from a delay?', 'Flipping polarity turns the wave upside down at every frequency at once. A delay shifts the phase by a different amount at each frequency.', W(2)),
+    mc('comb', 'Mixing a sound with a slightly delayed copy of itself causes…', 'Comb filtering: a row of evenly spaced dips', ['A pitch shift up an octave', 'A louder sound at every frequency', 'A slower tempo'], 'At some frequencies the copy arrives in phase and adds; at others it arrives out of phase and cancels.', W(2)),
+    qa('two-mics', 'Two microphones on one amp sound fine alone but thin and hollow together. Why?', 'They are at different distances, so one hears a slightly delayed copy of the other. Mixed, they comb filter: some frequencies cancel.', W(2)),
+    mc('front-back', 'One microphone is in front of an open-backed amp and one behind it. Together the low end vanishes. The usual fix?', 'Flip the polarity of one microphone', ['Turn the amp up', 'Move both microphones closer together', 'Add a second speaker'], 'The rear one hears the cone moving the opposite way; flipping it puts the two back in step.', W(2)),
+  ]),
+];

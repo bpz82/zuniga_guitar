@@ -39,6 +39,7 @@ import {
   SONGS,
   supabaseRemote,
   TEST_DECK,
+  FRETBOARD_DECK_NAME,
   toggleAlwaysRemindMorning,
   toggleNotifications,
   toggleWindowNotify,
@@ -397,6 +398,7 @@ function render() {
   $('card-tab').hidden = true;
   // Every card shown is named on the card element (tests and ratings read it).
   $('card').dataset.card = card?.id ?? '';
+  $('answer-diagram').hidden = true; // only a fretboard card shows it, below
   // Theory cards draw themselves (question, source, options); this also clears them for any other card.
   const isTheory = theoryUi.showCard(card && item?.module === THEORY.id ? card.id : '', revealed, () => Number($('card').dataset.started ?? Date.now()));
   if (isTheory) {
@@ -426,9 +428,12 @@ function render() {
     $('card-tab').hidden = !song?.tab;
     $('card-tab').onclick = () => song && void songsUi.showTab(song.itemId);
   } else if (card && item) {
-    const q = card.itemId.startsWith('td-') ? prompt(card, item) : { question: `${card.template}: ${JSON.stringify(item.fields)}`, answer: '' };
+    const q: { question: string; answer: string; diagram?: string } = card.itemId.startsWith('td-') ? prompt(card, item) : { question: `${card.template}: ${JSON.stringify(item.fields)}`, answer: '' };
     $('question').textContent = q.question;
     $('answer').textContent = revealed ? q.answer : '';
+    // Fretboard cards: a small text fretboard with the answer (2026-11-13).
+    $('answer-diagram').textContent = revealed ? (q.diagram ?? '') : '';
+    $('answer-diagram').hidden = !(revealed && q.diagram);
     $('card').dataset.card = card.id;
     $('rate').hidden = !revealed;
     $('reveal').hidden = revealed;
@@ -737,7 +742,9 @@ function wire() {
         else if (!r.value.ok) say(`Songs: ${r.value.error}`);
       } else if (cardId.startsWith('td-')) {
         const r = await runModule(deck, () => deck.reportRep(cardId, rating, Math.max(0, Date.now() - started)));
-        if (!r.ok) say(`Test deck switched off: ${r.error}`);
+        if (!r.ok) say(`${FRETBOARD_DECK_NAME} switched off: ${r.error}`);
+        // An answer can open the next stage of the deck.
+        else await runModule(deck, () => seedTestDeck(deck));
       } else {
         await replica.record({ type: 'review', cardId, rating, durationMs: Math.max(0, Date.now() - started) });
       }
@@ -903,7 +910,7 @@ async function main() {
   // An invite waiting for its person to sign in (or one the server just refused): say so in the popup.
   $('signin-invite').hidden = !localStorage.getItem(INVITE_KEY);
   if (inviteFailed) $('signin-note').textContent = inviteFailed;
-  say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `Test deck failed: ${seeded.error}`);
+  say(seeded.ok ? `Ready (${userId === 'local' ? 'this device only' : 'synced account'})` : `${FRETBOARD_DECK_NAME} failed: ${seeded.error}`);
   if (inviteFailed) say(inviteFailed);
   if (bandNotice) say(bandNotice);
   // Opening on Home with no goal yet: Goals instead, with the new-goal sheet (no extra history entry).
