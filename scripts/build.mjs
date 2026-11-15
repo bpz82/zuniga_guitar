@@ -13,6 +13,9 @@ const run = (cmd, args) => {
 
 run('node', ['scripts/check-vendor.mjs']);
 
+// window.zg (the replica, for the browser tests) exists only in a --test-hooks build, never in production.
+const testHooks = process.argv.includes('--test-hooks');
+
 const config = {
   supabaseUrl: (process.env.ZG_SUPABASE_URL ?? '').trim(),
   publishableKey: (process.env.ZG_SUPABASE_PUBLISHABLE_KEY ?? '').trim(),
@@ -52,6 +55,7 @@ run('esbuild', [
   '--target=es2022',
   '--outfile=public/app.js',
   `--define:__ZG_CONFIG__=${JSON.stringify(config)}`,
+  `--define:__ZG_TEST_HOOKS__=${testHooks}`,
 ]);
 mkdirSync('public', { recursive: true });
 cpSync('harness/static', 'public', { recursive: true });

@@ -156,6 +156,21 @@ Fix: turn 2-Step Verification back on, create a new app password (Google Account
   - Still to decide before customers: whether deleting an owner should also delete his band members' accounts (today they stay, with no access). Self-service account deletion (above) must cover both roles.
 - [ ] Band invite links carry a single-use token (7 days). The token is stored only as a SHA-256 hash on the server. On the invited person's device it sits in local storage from opening the link until sign-in, then it is used and dropped (or dropped if refused).
 
+## Rollback (a bad deploy)
+
+Two ways to put the last good version back. Pick the one that fits; neither needs a command line.
+
+1. **Revert the commit on `main` (GitHub).** On github.com open the bad commit (or its merged pull request) and press **Revert**. GitHub opens a pull request that undoes it; merge it. Vercel sees the new commit on `main` and deploys it by itself, usually within a couple of minutes. This keeps the history honest: the fix is in the repo.
+2. **Promote the previous deployment (Vercel, fastest).** In Vercel open the project, **Deployments**, find the last deployment that worked, open its **...** menu and choose **Promote to Production** (it may be called **Instant Rollback**). The old build serves again straight away. Then still revert the bad commit on `main` (way 1), or the next push will deploy the bad code again.
+
+After either, open the app, check it says Ready, and rate one card.
+
+**What a rollback cannot undo:**
+- **Events already written to Supabase.** The log is append-only. A rollback changes the code, not the data, so reviews, goals and settings recorded by the bad version stay. Old code must still read them (event formats are permanent).
+- **SQL migrations already applied.** Vercel never touches the database. A migration that ran stays until a new migration fixes it, so write migrations that old and new code both work with.
+
+Not yet tried once: do a practice rollback (Vercel **Promote** of the previous deployment, then promote the newest back) before real customers, and tick it here when done.
+
 ## Appendix: command-line route for step 7
 
 With Node 22+ on any computer, in a copy of the repo: `npx supabase login` (approve in the browser), `npx supabase link --project-ref YOUR-PROJECT-REF`, then `npx supabase functions deploy send-nudges --no-verify-jwt`. Keys can also be made with `node scripts/vapid-keys.mjs`.

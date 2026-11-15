@@ -108,6 +108,9 @@ const read = <T>(key: string, fallback: T): T => {
 const deviceId = read<string>('zg-device', '') || (localStorage.setItem('zg-device', JSON.stringify(crypto.randomUUID())), read('zg-device', ''));
 /** Public connection settings baked in at build time (Vercel env), if any. */
 declare const __ZG_CONFIG__: Config;
+/** True only in a test build (`node scripts/build.mjs --test-hooks`): exposes window.zg for the browser tests. Production builds never set it. */
+declare const __ZG_TEST_HOOKS__: boolean | undefined;
+const TEST_HOOKS = typeof __ZG_TEST_HOOKS__ !== 'undefined' && __ZG_TEST_HOOKS__ === true;
 const BUILT_IN: Config = typeof __ZG_CONFIG__ === 'object' ? __ZG_CONFIG__ : {};
 const builtIn = Boolean(BUILT_IN.supabaseUrl && BUILT_IN.publishableKey);
 let config: Config = builtIn ? BUILT_IN : read<Config>('zg-config', {});
@@ -116,6 +119,7 @@ let userId = 'local';
 let replica!: Replica;
 let deck!: ModuleHost;
 let metronome!: ReturnType<typeof setupMetronome>;
+let metronomeHost!: ModuleHost;
 let songsHost!: ModuleHost;
 let songsUi!: ReturnType<typeof setupSongs>;
 let earHost!: ModuleHost;
@@ -679,7 +683,7 @@ async function startMember() {
   wireAccount();
   $('account').textContent += member ? ' (band member)' : ' (band access removed)';
   shell = setupShell((screen) => (sheets.closeAll(), render(), screen === 'settings' ? void bandUi.refresh() : bandUi.forget()), 'member');
-  (window as unknown as { zg: unknown }).zg = { replica, songs: songsHost, tabs: tabBlobs, shell, sheets, role };
+  if (TEST_HOOKS) (window as unknown as { zg: unknown }).zg = { replica, songs: songsHost, tabs: tabBlobs, shell, sheets, role };
   say(member ? 'Ready (band member)' : 'Ready (band access removed)');
   if (bandNotice) say(bandNotice);
   setupInstall(member !== null);
@@ -746,7 +750,13 @@ function wire() {
         // An answer can open the next stage of the deck.
         else await runModule(deck, () => seedTestDeck(deck));
       } else {
-        await replica.record({ type: 'review', cardId, rating, durationMs: Math.max(0, Date.now() - started) });
+        // Any other module's card: its own scoped host writes the review (never the log directly).
+        const host = [metronomeHost, earHost, recHost, deck].find((h) => h?.moduleId === module);
+        if (!host) say(`No module owns card ${cardId}; rating not saved.`);
+        else {
+          const r = await runModule(host, () => host.reportRep(cardId, rating, Math.max(0, Date.now() - started)));
+          if (!r.ok) say(`${host.moduleId} switched off: ${r.error}`);
+        }
       }
       $('card').dataset.started = String(Date.now());
       await afterChange();
@@ -838,7 +848,8 @@ async function main() {
   replica = await Replica.open(await indexedDbStore(userId), deviceId);
   deck = createHost(replica, TEST_DECK);
   const seeded = await runModule(deck, () => seedTestDeck(deck));
-  metronome = setupMetronome(replica, createHost(replica, METRONOME), say, afterChange);
+  metronomeHost = createHost(replica, METRONOME);
+  metronome = setupMetronome(replica, metronomeHost, say, afterChange);
   await metronome.init();
   songsHost = createHost(replica, SONGS);
   sheets = setupSheets();
@@ -930,7 +941,7 @@ async function main() {
       if (to) shell.go(to);
     },
   );
-  (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, tabs: tabBlobs, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) }, practice: practiceUi, shell, sheets };
+  if (TEST_HOOKS) (window as unknown as { zg: unknown }).zg = { replica, deck, metronome, songs: songsHost, tabs: tabBlobs, ear: { host: earHost, ui: earUi }, recorder: { host: recHost, ui: recorder }, theory: { host: theoryHost, content: (id: string) => contentOf(theoryHost, id) }, practice: practiceUi, shell, sheets };
   const synced = client ? await syncNow().then(() => true, (e) => (say(`Offline: ${(e as Error).message}`), false)) : true;
   // Settings never set (on any synced device): use this device's time zone instead of the UTC default.
   if (synced) {
