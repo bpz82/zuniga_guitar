@@ -7,3 +7,5 @@ Source: Heather Adkins (Google), "Building Secure and Reliable Systems at Scale"
 4. Don't overbuild: isolation must justify its complexity. One simple codebase with clear module boundaries, not microservices.
 5. Least privilege: each module gets only the data access it needs, Supabase row-level security is on, and no secrets go in client code.
 6. Secure defaults that don't add friction for Blake.
+
+Revised Nov 15 2026, approved by Blake: rule 3 gains a tried-once rollback note and permanent card ids, from the Nov 15 architecture review run through the design bylaws. Six other suggestions were cut as already covered by RULES.md or the bylaws. Rule 1 gap fixed the same day: reviews now go through the module contract and window.zg exists only in test builds. Remaining direct log writes (settings, goals, practice) are pinned by a test.
